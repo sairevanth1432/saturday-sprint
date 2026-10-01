@@ -19,7 +19,8 @@ function loadEnv(file) {
   }
 }
 loadEnv(path.join(ROOT, '.env'));
-loadEnv(path.join(ROOT, '.env.local')); // written by `vercel env pull`
+// Note: .env.local (written by `vercel link` / `vercel env pull`) is deliberately NOT loaded: it can hold the
+// production DATABASE_URL, and a local server must never write to the live database by accident.
 
 const env = process.env;
 const bool = (v, d) => (v === undefined || v === '' ? d : /^(1|true|yes|on)$/i.test(v));
@@ -57,7 +58,9 @@ export const config = {
   dbPoolMax: Number(env.DB_POOL_MAX || (isVercel ? 5 : 10)),
   pgliteMemory: bool(env.PGLITE_MEMORY, false),
   // Redis: a standard server (REDIS_URL=redis://…) or Upstash over HTTP (KV_REST_API_URL/TOKEN).
-  redisTcpUrl: /^rediss?:\/\//.test(env.REDIS_URL || '') ? env.REDIS_URL : '',
+  // On Vercel, prefer Upstash's HTTP API (KV_REST_API_*) even when REDIS_URL is also set: serverless functions
+  // should not each hold a TCP connection. Self-hosted servers use REDIS_URL.
+  redisTcpUrl: /^rediss?:\/\//.test(env.REDIS_URL || '') && !(isVercel && (env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL)) ? env.REDIS_URL : '',
   redisUrl: env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL || '',
   redisToken: env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN || '',
   // Video storage for uploaded learning bytes, picked in this order:

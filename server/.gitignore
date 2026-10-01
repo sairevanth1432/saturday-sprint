@@ -12,3 +12,5 @@ generated/
 public/packs/
 portal-source/
 site-files/
+
+.env*
