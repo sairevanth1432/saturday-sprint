@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saturday Sprint · Log in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=JetBrains+Mono:wght@400;500;700;800&amp;family=VT323&amp;display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0A0A;--panel:#151515;--well:#050505;--line:#333333;--muted:#8A8A8A;--soft:#BDBDBD;--text:#FFFFFF;--accent:#FFE45C;--bad:#FF7A7A;--good:#9BE58B}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"JetBrains Mono",system-ui,sans-serif}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;
+  background-image:radial-gradient(1000px 520px at 85% -15%,rgba(255,228,92,.08),transparent 60%),radial-gradient(800px 600px at -10% 110%,rgba(255,255,255,.03),transparent 60%)}
+button{font-family:inherit;cursor:pointer}
+.wrap{width:100%;max-width:960px;display:grid;grid-template-columns:1fr 440px;gap:48px;align-items:center}
+.brand{font-family:"Silkscreen",monospace;font-weight:700;font-size:64px;line-height:.92;margin:0}
+.brand span{color:var(--accent)}
+.tag{font-family:"VT323",monospace;font-size:22px;color:var(--accent);margin:0 0 18px}
+.lede{font-size:17px;line-height:1.6;color:#EDEDED;max-width:420px;margin:22px 0 0}
+.steps{margin:26px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.steps li{display:flex;gap:12px;align-items:center;font-size:15px;color:var(--soft)}
+.steps b{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:"VT323",monospace;font-size:20px;color:var(--text);flex-shrink:0}
+.card{background:var(--panel);border-radius:22px;padding:28px;display:flex;flex-direction:column;gap:20px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 44px -20px rgba(0,0,0,.95),0 3px 0 #000}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;border-radius:14px;background:var(--well)}
+.tabs button{min-height:44px;border:0;border-radius:10px;background:transparent;color:var(--text);font-size:15px;font-weight:800}
+.tabs button[aria-selected="true"]{background:var(--accent);color:#050505}
+h1{margin:0;font-size:22px;font-weight:800}
+.sub{margin:6px 0 0;font-size:14px;line-height:1.5;color:var(--soft)}
+label{display:block;font-size:14px;font-weight:800;margin-bottom:8px}
+.hint{display:block;margin-top:6px;font-size:13px;color:var(--muted);line-height:1.45}
+input{width:100%;min-height:54px;padding:0 16px;border:2px solid var(--line);border-radius:12px;background:var(--well);color:var(--text);
+  font-family:"VT323",monospace;font-size:26px;letter-spacing:1px;outline:none;transition:border-color 140ms ease}
+input:focus{border-color:var(--accent)}
+input.otp{letter-spacing:12px;text-align:center;font-size:34px}
+.phone{display:flex;align-items:stretch;border:2px solid var(--line);border-radius:12px;background:var(--well);overflow:hidden;transition:border-color 140ms ease}
+.phone:focus-within{border-color:var(--accent)}
+.phone span{display:flex;align-items:center;padding:0 4px 0 16px;font-family:"VT323",monospace;font-size:26px;color:var(--soft)}
+.phone input{border:0;min-height:50px;padding-left:8px}
+.btn{width:100%;min-height:54px;border:0;border-radius:14px;background:var(--accent);color:#050505;font-size:17px;font-weight:800;
+  box-shadow:0 4px 0 #9E8618,0 12px 24px -10px rgba(255,228,92,.6);transition:transform 90ms ease-out,filter 160ms ease-out}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #9E8618}
+.btn[disabled]{background:#262626;color:#6A6A6A;box-shadow:none;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--text);border:2px solid var(--line);box-shadow:none}
+.link{border:0;background:none;color:var(--accent);font-size:14px;font-weight:700;padding:0;text-decoration:underline;text-underline-offset:3px}
+.link[disabled]{color:var(--muted);text-decoration:none;cursor:default}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.msg{padding:12px 14px;border-radius:12px;font-size:14px;font-weight:700;line-height:1.5}
+.msg.err{border:2px solid var(--bad);color:var(--bad);background:rgba(255,122,122,.07)}
+.msg.ok{border:2px solid var(--good);color:var(--good);background:rgba(155,229,139,.06)}
+.msg.dev{border:2px dashed var(--accent);color:var(--accent)}
+.msg button{margin-left:6px}
+.sent{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;background:var(--well)}
+.sent .k{font-size:13px;color:var(--muted);font-weight:700}
+.sent .v{font-family:"VT323",monospace;font-size:26px;color:var(--text)}
+.pending{display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:16px;border:2px solid var(--accent);background:rgba(255,228,92,.06)}
+.pending .big{font-family:"VT323",monospace;font-size:22px;color:var(--accent)}
+.pending p{margin:0;font-size:15px;line-height:1.55;color:#EDEDED}
+.foot{font-size:13px;color:var(--muted);line-height:1.5}
+[hidden]{display:none !important}
+@media (max-width:860px){.wrap{grid-template-columns:1fr;gap:28px}.brand{font-size:44px}.lede,.steps{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section>
+    <p class="tag">~/login · student portal</p>
+    <h2 class="brand">Saturday<br><span>Sprint</span></h2>
+    <p class="lede">Register once with your <b>NIAT ID</b> and your own mobile number. After an admin approves it, you log in with your NIAT ID and a code sent to that number.</p>
+    <ol class="steps">
+      <li><b>1</b>Register: NIAT ID + your mobile number</li>
+      <li><b>2</b>Confirm the 6-digit code sent to your phone</li>
+      <li><b>3</b>Wait for admin approval, then log in</li>
+    </ol>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <div class="tabs" role="tablist" aria-label="Log in or register">
+      <button role="tab" id="tab-login" aria-selected="true" aria-controls="panel">Log in</button>
+      <button role="tab" id="tab-register" aria-selected="false" aria-controls="panel">Register</button>
+    </div>
+
+    <div id="panel" role="tabpanel" style="display:flex;flex-direction:column;gap:18px">
+      <div id="head">
+        <h1 id="title">Welcome back</h1>
+        <p class="sub" id="subtitle">Enter your NIAT ID. We send a login code to your registered mobile number.</p>
+      </div>
+
+      <form id="f-start" novalidate style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <label for="roll">NIAT ID</label>
+          <input id="roll" name="roll" autocomplete="username" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="e.g. N26P02A0001" required>
+        </div>
+        <div id="phone-field" hidden>
+          <label for="phone">Your mobile number</label>
+          <div class="phone"><span>+91</span><input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" placeholder="98765 43210"></div>
+          <span class="hint">Use a number you will keep. Login codes are always sent to this number.</span>
+        </div>
+        <button class="btn" id="b-send" type="submit">Send code</button>
+      </form>
+
+      <form id="f-otp" novalidate hidden style="display:flex;flex-direction:column;gap:16px">
+        <div class="sent">
+          <span class="k" id="sent-k">Code sent to</span>
+          <span class="v" id="sent-v">••••••••••</span>
+          <span class="k" id="sent-roll"></span>
+        </div>
+        <div>
+          <label for="otp">6-digit code</label>
+          <input id="otp" class="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" maxlength="6" placeholder="••••••" required>
+        </div>
+        <button class="btn" id="b-verify" type="submit">Verify</button>
+        <div class="row">
+          <button class="link" id="b-back" type="button">Change details</button>
+          <button class="link" id="b-resend" type="button" disabled>Resend code</button>
+        </div>
+      </form>
+
+      <div id="pending" class="pending" hidden>
+        <span class="big">status: waiting for approval</span>
+        <p id="pending-text">Your registration request is in. An admin checks it against the student list and approves it. Once approved, log in with your NIAT ID.</p>
+        <button class="btn ghost" id="b-to-login" type="button">Go to Log in</button>
+      </div>
+
+      <div id="msg" class="msg" hidden></div>
+      <div id="dev" class="msg dev" hidden></div>
+    </div>
+
+    <p class="foot">Changed your phone number, or your NIAT ID is not accepted? Contact your program admin.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  var mode = 'login', roll = '', phone = '', resendTimer = null, busy = false;
+  var $ = function (id) { return document.getElementById(id); };
+  var COPY = {
+    login: { title: 'Welcome back', sub: 'Enter your NIAT ID. We send a login code to your registered mobile number.', send: 'Send code', verify: 'Verify and log in' },
+    register: { title: 'Register', sub: 'Enter your NIAT ID and your own mobile number. We confirm the number with a code, then an admin approves your registration.', send: 'Send code to my phone', verify: 'Verify and send request' }
+  };
+
+  function show(el, on) { el.hidden = !on; }
+  function message(text, kind, action) {
+    var m = $('msg');
+    if (!text) { show(m, false); return; }
+    m.className = 'msg ' + (kind || 'err');
+    m.textContent = text;
+    if (action) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'link'; b.textContent = action.label; b.onclick = action.run;
+      m.appendChild(b);
+    }
+    show(m, true);
+  }
+  function setMode(next, keep) {
+    mode = next;
+    $('tab-login').setAttribute('aria-selected', String(mode === 'login'));
+    $('tab-register').setAttribute('aria-selected', String(mode === 'register'));
+    $('title').textContent = COPY[mode].title;
+    $('subtitle').textContent = COPY[mode].sub;
+    $('b-send').textContent = COPY[mode].send;
+    $('b-verify').textContent = COPY[mode].verify;
+    show($('phone-field'), mode === 'register');
+    startStep(keep);
+    try { history.replaceState(null, '', mode === 'register' ? '#register' : '#login'); } catch (e) {}
+  }
+  function startStep(keep) {
+    clearInterval(resendTimer);
+    show($('head'), true); show($('f-start'), true); show($('f-otp'), false); show($('pending'), false); show($('dev'), false);
+    message('');
+    if (keep) $('roll').value = roll;
+    $('roll').focus();
+  }
+  function pendingStep(text) {
+    clearInterval(resendTimer);
+    show($('f-start'), false); show($('f-otp'), false); show($('dev'), false); show($('pending'), true);
+    if (text) $('pending-text').textContent = text;
+    message('');
+  }
+  function cooldown(seconds) {
+    clearInterval(resendTimer);
+    var left = Math.max(0, Math.round(seconds)), b = $('b-resend');
+    var tick = function () {
+      if (left <= 0) { clearInterval(resendTimer); b.disabled = false; b.textContent = 'Resend code'; return; }
+      b.disabled = true; b.textContent = 'Resend in ' + left + 's'; left--;
+    };
+    tick(); resendTimer = setInterval(tick, 1000);
+  }
+  function call(path, body) {
+    return fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw Object.assign(new Error(d.message || 'Something went wrong.'), d); return d; }); },
+        function () { throw new Error('No connection. Check your internet and try again.'); });
+  }
+  function handleError(e) {
+    if (e.error === 'ALREADY_REGISTERED') return message(e.message, 'err', { label: 'Log in instead', run: function () { setMode('login', true); send(); } });
+    if (e.error === 'NOT_REGISTERED') return message(e.message, 'err', { label: 'Register now', run: function () { setMode('register', true); } });
+    if (e.error === 'PENDING_APPROVAL') return pendingStep(e.message);
+    if (e.error === 'REJECTED') return message(e.message, 'err', { label: 'Register again', run: function () { setMode('register', true); } });
+    if (e.error === 'OTP_COOLDOWN' && e.maskedPhone) { otpStep(e.maskedPhone); cooldown(e.retryAfter || 30); return message(e.message, 'err'); }
+    message(e.message || 'Something went wrong.');
+  }
+  function otpStep(masked) {
+    show($('f-start'), false); show($('f-otp'), true);
+    $('sent-k').textContent = mode === 'register' ? 'Code sent to the number you entered:' : 'Code sent to your registered number:';
+    $('sent-v').textContent = masked;
+    $('sent-roll').textContent = 'NIAT ID: ' + roll;
+    $('otp').value = ''; $('otp').focus();
+  }
+  function send() {
+    if (busy) return;
+    roll = $('roll').value.trim().toUpperCase().replace(/\s+/g, '');
+    if (!roll) { message('Enter your NIAT ID.'); $('roll').focus(); return; }
+    var body = { rollNo: roll };
+    if (mode === 'register') {
+      phone = $('phone').value.replace(/\D/g, '');
+      if (!/^[6-9]\d{9}$/.test(phone)) { message('Enter your 10-digit mobile number.'); $('phone').focus(); return; }
+      body.phone = phone;
+    }
+    busy = true; $('b-send').disabled = true; $('b-resend').disabled = true; message('');
+    call('/api/auth/' + mode + '/start', body).then(function (d) {
+      otpStep(d.maskedPhone);
+      cooldown(d.resendIn || 30);
+      if (d.devOtp) { $('dev').textContent = 'Test mode: your code is ' + d.devOtp + ' (normally it arrives by SMS).'; show($('dev'), true); }
+    }, handleError).then(function () { busy = false; $('b-send').disabled = false; });
+  }
+  function verify() {
+    if (busy) return;
+    var code = $('otp').value.replace(/\D/g, '');
+    if (code.length !== 6) { message('Enter the 6-digit code.'); $('otp').focus(); return; }
+    busy = true; $('b-verify').disabled = true; message('');
+    var body = { rollNo: roll, otp: code };
+    if (mode === 'register') body.phone = phone;
+    call('/api/auth/' + mode + '/verify', body).then(function (d) {
+      busy = false; $('b-verify').disabled = false;
+      if (d.status === 'pending') return pendingStep('Your number is confirmed and your request is sent. An admin will approve it; then log in with your NIAT ID ' + roll + '.');
+      message(mode === 'register' ? 'Account created. Opening the portal…' : 'Logged in. Opening the portal…', 'ok');
+      location.replace('/');
+    }, function (e) {
+      busy = false; $('b-verify').disabled = false;
+      handleError(e); $('otp').select();
+    });
+  }
+
+  $('tab-login').onclick = function () { setMode('login', true); };
+  $('tab-register').onclick = function () { setMode('register', true); };
+  $('f-start').onsubmit = function (e) { e.preventDefault(); send(); };
+  $('f-otp').onsubmit = function (e) { e.preventDefault(); verify(); };
+  $('b-back').onclick = function () { startStep(true); };
+  $('b-resend').onclick = function () { send(); };
+  $('b-to-login').onclick = function () { setMode('login', true); };
+  $('phone').addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 10); });
+  $('otp').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    if (this.value.length === 6) verify();
+  });
+  setMode(location.hash === '#register' ? 'register' : 'login');
+})();
+</script>
+</body>
+</html>

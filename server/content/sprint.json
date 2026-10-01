@@ -1,0 +1,8 @@
+{
+  "_help": [
+    "Which question types from the portal HTML go into the End-of-Sprint Test.",
+    "mcq = multiple choice · code = Python coding problem · text = written answer (e.g. write a prompt).",
+    "Run `npm run build` after changing this."
+  ],
+  "questionTypes": ["mcq"]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "saturday-sprint-server",
+  "private": true,
+  "type": "module",
+  "description": "Saturday Sprint portal backend: roll-number + OTP student auth, admin console, server-graded Sprint test, leaderboard.",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node scripts/build-portal.js && node scripts/build-client.js",
+    "build:portal": "node scripts/build-portal.js",
+    "start": "node --disable-warning=ExperimentalWarning index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch-path=. index.js",
+    "create-admin": "node scripts/create-admin.js",
+    "import-students": "node scripts/import-students.js",
+    "test": "node --test --test-concurrency=1 test/e2e.test.js",
+    "seed-test": "node scripts/seed-test.js",
+    "test-accounts": "node scripts/test-accounts.js",
+    "vercel:prepare": "node scripts/vercel-prepare.js",
+    "deploy:preview": "node scripts/vercel-prepare.js && npx vercel@latest deploy",
+    "deploy:production": "node scripts/vercel-prepare.js && npx vercel@latest deploy --prod"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@upstash/redis": "^1.39.0",
+    "@vercel/blob": "^2.8.0",
+    "aws4fetch": "^1.0.20",
+    "compression": "^1.8.2",
+    "express": "^5.2.1",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "read-excel-file": "^9.3.10",
+    "redis": "^6.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "write-excel-file": "^4.1.1"
+  }
+}

@@ -1,0 +1,70 @@
+# Self-hosted stack for one Linux machine (e.g. a free Oracle Cloud VM, or any VPS):
+#   app (Node, one process per CPU core) + Postgres + Redis + Caddy (automatic HTTPS)
+#
+#   cp .env.example .env      # set DOMAIN, APP_SECRET, POSTGRES_PASSWORD, OTP_PROVIDER (+ S3_* for videos)
+#   docker compose up -d --build
+#   docker compose exec app node scripts/create-admin.js --email you@example.com --super
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://sprint:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/sprint?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    volumes:
+      - ./data:/app/server/data                                  # students.csv (auto-imported) + local uploads
+      - ./public/learning-bytes:/app/server/public/learning-bytes:ro   # drop <lessonId>.mp4 files here
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sprint
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sprint
+    command: >
+      postgres -c max_connections=200 -c shared_buffers=1GB -c effective_cache_size=3GB
+               -c work_mem=8MB -c synchronous_commit=off -c checkpoint_timeout=15min
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sprint -d sprint"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Drafts live here during the test: keep them on disk and never evict them.
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env (e.g. sprint.example.com)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on: [app]
+
+volumes:
+  pgdata:
+  redisdata:
+  caddydata:

@@ -1,0 +1,108 @@
+{
+  "_help": [
+    "Units shown in the portal. Each unit is ONE lesson with three steps at the top: Watch (MP4) → Play (HTML game) → Read (HTML notes).",
+    "Paths are relative to the \"Saturday Sprint\" folder; npm run build copies the files into the site (public/packs/). No cloud storage.",
+    "Admins can replace or add any step later in Admin → Learning bytes (Watch: .mp4, Play and Read: .html). Read can be left out here.",
+    "mode \"replace\": these units replace the original units of each course listed. \"append\": added after them.",
+    "course: pf (Programming Foundations) or genai (Intro to GenAI). Unit ids must be unique and must not change once students have progress."
+  ],
+  "mode": "replace",
+  "units": [
+    {
+      "id": "tp-nested",
+      "course": "pf",
+      "title": "Nested Conditional Statements",
+      "color": "#FFE45C",
+      "watch": {
+        "file": "NIAT-topic-pack/videos/v1-nested.mp4",
+        "orientation": "portrait",
+        "goal": "Watch. A condition inside another condition.",
+        "concept": "Nest conditions, use elif for one of many paths, and never write elif after else."
+      },
+      "play": {
+        "file": "NIAT-topic-pack/games/nested-conditions.html",
+        "goal": "Play the levels: the winning team, find the greatest, divisible by what?"
+      }
+    },
+    {
+      "id": "tp-forloop",
+      "course": "pf",
+      "title": "For Loop",
+      "color": "#FF7A7A",
+      "watch": {
+        "file": "NIAT-topic-pack/videos/v2-forloop.mp4",
+        "orientation": "portrait",
+        "goal": "Watch. A for loop runs for every item.",
+        "concept": "Loop over strings and range(), build patterns, and trace each pass."
+      },
+      "play": {
+        "file": "NIAT-topic-pack/games/for-loop-lab.html",
+        "goal": "Play the levels: write it once, loop over a word, range(), pick the triangle."
+      }
+    },
+    {
+      "id": "tp-strings",
+      "course": "pf",
+      "title": "Comparing Strings & Naming Variables",
+      "color": "#FFE45C",
+      "watch": {
+        "file": "NIAT-topic-pack/videos/v3-strings.mp4",
+        "orientation": "portrait",
+        "goal": "Watch. Every character has a Unicode value.",
+        "concept": "Use ord() and chr(), compare strings character by character, and name variables in snake_case."
+      },
+      "play": {
+        "file": "NIAT-topic-pack/games/string-codes.html",
+        "goal": "Play the levels: characters are numbers, Unicode ranges, A vs B, character by character."
+      }
+    },
+    {
+      "id": "tp-genai-foundations",
+      "course": "genai",
+      "title": "Generative AI Foundations",
+      "color": "#FFE45C",
+      "watch": {
+        "file": "NIAT-topic-pack/videos/v4-genai-foundations.mp4",
+        "orientation": "portrait",
+        "goal": "Watch. Every GenAI app runs on an LLM.",
+        "concept": "What LLMs are, pre-trained vs fine-tuned, open vs closed models, and Hugging Face."
+      },
+      "play": {
+        "file": "NIAT-topic-pack/games/llm-garage.html",
+        "goal": "Play the levels: the car analogy, what it takes to build an LLM, sort the models."
+      }
+    },
+    {
+      "id": "tp-social-workflow",
+      "course": "genai",
+      "title": "Social Media Content Automation Workflow",
+      "color": "#FF7A7A",
+      "watch": {
+        "file": "NIAT-topic-pack/videos/v5-social-workflow.mp4",
+        "orientation": "portrait",
+        "goal": "Watch. From 45 minutes by hand to 2 minutes.",
+        "concept": "An AI workflow is a predefined sequence of input, tasks and output; in n8n each step is a node."
+      },
+      "play": {
+        "file": "NIAT-topic-pack/games/workflow-factory.html",
+        "goal": "Play the levels: define a workflow, article to post, fixed or free?"
+      }
+    },
+    {
+      "id": "tp-news-summarizer",
+      "course": "genai",
+      "title": "AI News Summarizer",
+      "color": "#FFE45C",
+      "watch": {
+        "file": "NIAT-topic-pack/videos/v6-news-summarizer.mp4",
+        "orientation": "portrait",
+        "goal": "Watch. From 30 minutes of browsing to a 2-minute newsletter.",
+        "concept": "Merge and aggregate feeds, and use APIs like SERP API to bring in live data."
+      },
+      "play": {
+        "file": "NIAT-topic-pack/games/news-bot-builder.html",
+        "goal": "Play the levels: rebuild the workflow, add a third source, APIs at the restaurant."
+      }
+    }
+  ]
+}

@@ -1,0 +1,434 @@
+// End-to-end: runs the real server against a throwaway data folder.
+//   npm test
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'sprint-test-'));
+process.env.DATA_DIR = DATA;
+process.env.STUDENTS_FILE = path.join(DATA, 'students.csv');
+process.env.OTP_PROVIDER = 'console';
+process.env.ADMIN_REQUIRE_TOTP = 'true'; // tests must not depend on a developer's local .env
+process.env.OTP_DEV_SHOW = 'true';
+process.env.OTP_RESEND_SECONDS = '0';
+process.env.PORT = '0';
+process.env.SPRINT_OPEN = new Date(Date.now() + 86400000).toISOString();
+process.env.SPRINT_CLOSE = new Date(Date.now() + 2 * 86400000).toISOString();
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+let server, base, mod, db, sec;
+const log = console.log;
+before(async () => {
+  console.log = () => {};
+  mod = await import('../index.js');
+  db = await import('../db.js');
+  sec = await import('../security.js');
+  server = await mod.start();
+  await new Promise((r) => server.once('listening', r));
+  base = 'http://127.0.0.1:' + server.address().port;
+});
+after(async () => {
+  console.log = log;
+  const { stopGrader } = await import('../grader.js');
+  await stopGrader();
+  server.close();
+  await db.close();
+  fs.unwatchFile(path.join(DATA, 'students.csv'));
+});
+
+function client() {
+  const jar = {};
+  const call = async function (method, url, body, headers = {}) {
+    const res = await fetch(base + url, {
+      method, redirect: 'manual',
+      headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), cookie: Object.entries(jar).map(([k, v]) => k + '=' + v).join('; '), ...headers },
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+    for (const c of res.headers.getSetCookie()) { const [kv] = c.split(';'); const i = kv.indexOf('='); jar[kv.slice(0, i)] = kv.slice(i + 1); }
+    const text = await res.text();
+    let json = null; try { json = JSON.parse(text); } catch {}
+    return { status: res.status, body: json, text, headers: res.headers };
+  };
+  call.cookie = () => Object.entries(jar).map(([k, v]) => k + '=' + v).join('; ');
+  return call;
+}
+
+const waitFor = async (fn, ms = 8000) => {
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (await fn()) return true; await new Promise((r) => setTimeout(r, 200)); }
+  return false;
+};
+
+// Full student journey: register with own phone → pending → admin approves → log in.
+async function signup(c, roll, phone) {
+  const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone });
+  assert.equal(s.status, 200, JSON.stringify(s.body));
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone });
+  assert.equal(v.status, 200, JSON.stringify(v.body));
+  assert.equal(v.body.status, 'pending');
+  const { approveRequest } = await import('../auth.js');
+  const req = await db.one("SELECT id FROM registration_requests WHERE roll_no = ? AND status = 'pending' ORDER BY id DESC LIMIT 1", roll.toUpperCase());
+  await approveRequest(req.id, 'test');
+  await login(c, roll);
+}
+async function login(c, roll) {
+  const s = await c('POST', '/api/auth/login/start', { rollNo: roll });
+  assert.equal(s.status, 200, JSON.stringify(s.body));
+  const v = await c('POST', '/api/auth/login/verify', { rollNo: roll, otp: s.body.devOtp });
+  assert.equal(v.status, 200, JSON.stringify(v.body));
+}
+
+const Q = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'sprint-test.json'), 'utf8'));
+const ROLL = 'NIAT24001';
+
+test('pages require login', async () => {
+  const c = client();
+  const r = await c('GET', '/');
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), '/login');
+  assert.equal((await c('GET', '/login')).status, 200);
+  assert.equal((await c('GET', '/api/bootstrap')).status, 401);
+});
+
+test('unknown roll number cannot register before master data exists', async () => {
+  const r = await client()('POST', '/api/auth/register/start', { rollNo: ROLL });
+  assert.equal(r.status, 404);
+  assert.equal(r.body.error, 'ROLL_NOT_FOUND');
+});
+
+test('dropping students.csv in the data folder enables registration automatically', async () => {
+  fs.writeFileSync(path.join(DATA, 'students.csv'),
+    'Roll Number,Student Name,Mobile Number,Section\nniat24001,Asha Kumar,9876543210,A\nNIAT24002,Rahul Verma,+91 98765 43211,A\nNIAT24003,Priya,12345,B\nNIAT24002,Dup,9876500000,B\n');
+  const ok = await waitFor(async () => (await db.one('SELECT COUNT(*) AS n FROM students_master')).n === 3);
+  assert.ok(ok, 'file was not imported');
+  const imp = await db.one('SELECT * FROM imports ORDER BY id DESC LIMIT 1');
+  assert.equal(imp.inserted, 3);
+  const log = JSON.parse(imp.errors);
+  assert.equal(log.errors.length, 1); // duplicate NIAT ID
+  assert.ok(log.warnings.some((w) => /not a valid mobile/.test(w.warning)), 'a bad sheet phone is only a warning now');
+  assert.equal((await db.one('SELECT phone FROM students_master WHERE roll_no = ?', 'NIAT24003')).phone, '');
+  assert.equal((await db.one('SELECT phone FROM students_master WHERE roll_no = ?', 'NIAT24002')).phone, '+919876543211');
+});
+
+test('register with OWN phone → pending until admin approves; impostor request is closed; login goes to own phone', async () => {
+  const c = client();
+  assert.equal((await c('POST', '/api/auth/login/start', { rollNo: ROLL })).body.error, 'NOT_REGISTERED');
+  assert.equal((await c('POST', '/api/auth/register/start', { rollNo: ROLL })).body.error, 'BAD_PHONE');
+  const s = await c('POST', '/api/auth/register/start', { rollNo: ' niat24001 ', phone: '90000 00001' });
+  assert.equal(s.status, 200);
+  assert.equal(s.body.maskedPhone, '+91 90•••••001', 'the code goes to the number the student typed, not the sheet');
+  const wrong = String((Number(s.body.devOtp) + 1) % 1000000).padStart(6, '0');
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: wrong, phone: '9000000001' })).body.error, 'OTP_WRONG');
+  // a code for one phone cannot be used with another phone
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000099' })).body.error, 'OTP_EXPIRED');
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000001' });
+  assert.equal(v.status, 200);
+  assert.equal(v.body.status, 'pending');
+  assert.equal((await c('GET', '/api/me')).status, 401, 'no session before approval');
+  assert.equal((await c('POST', '/api/auth/login/start', { rollNo: ROLL })).body.error, 'PENDING_APPROVAL');
+
+  // someone else tries to claim the same NIAT ID with their phone
+  const x = client();
+  const xs = await x('POST', '/api/auth/register/start', { rollNo: ROLL, phone: '9000000666' });
+  await x('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: xs.body.devOtp, phone: '9000000666' });
+  const reqs = await db.all("SELECT id, phone FROM registration_requests WHERE roll_no = ? AND status = 'pending' ORDER BY id", ROLL);
+  assert.equal(reqs.length, 2);
+
+  const { approveRequest } = await import('../auth.js');
+  await approveRequest(reqs.find((r) => r.phone === '+919000000001').id, 'test');
+  assert.equal((await db.one("SELECT status FROM registration_requests WHERE phone = '+919000000666'")).status, 'superseded');
+  const l = await c('POST', '/api/auth/login/start', { rollNo: ROLL });
+  assert.equal(l.body.maskedPhone, '+91 90•••••001');
+  assert.equal((await c('POST', '/api/auth/login/verify', { rollNo: ROLL, otp: l.body.devOtp })).status, 200);
+  const me = await c('GET', '/api/me');
+  assert.equal(me.body.rollNo, ROLL);
+  assert.equal(me.body.name, 'Asha Kumar');
+  assert.equal((await client()('POST', '/api/auth/register/start', { rollNo: ROLL, phone: '9000000002' })).body.error, 'ALREADY_REGISTERED');
+  // one phone cannot hold two accounts
+  assert.equal((await client()('POST', '/api/auth/register/start', { rollNo: 'NIAT24002', phone: '9000000001' })).body.error, 'PHONE_IN_USE');
+  assert.equal((await db.one('SELECT COUNT(*) AS n FROM users WHERE roll_no = ?', ROLL)).n, 1);
+  assert.equal((await c('GET', '/')).status, 200);
+});
+
+test('OTP locks after 5 wrong attempts', async () => {
+  const c = client();
+  const s = await c('POST', '/api/auth/login/start', { rollNo: ROLL });
+  for (let i = 0; i < 5; i++) await c('POST', '/api/auth/login/verify', { rollNo: ROLL, otp: '000000' === s.body.devOtp ? '111111' : '000000' });
+  const r = await c('POST', '/api/auth/login/verify', { rollNo: ROLL, otp: s.body.devOtp });
+  assert.equal(r.body.error, 'OTP_LOCKED');
+});
+
+test('cross-site POST is blocked', async () => {
+  const r = await client()('POST', '/api/auth/login/start', { rollNo: ROLL }, { origin: 'https://evil.example' });
+  assert.equal(r.status, 403);
+});
+
+let A, B;
+test('Sprint: locked before the window, answers never sent to the browser, graded on the server', async () => {
+  A = client(); B = client();
+  await login(A, 'niat24001');
+  assert.equal((await A('GET', '/api/me')).status, 200);
+  await signup(B, 'NIAT24002', '9000000002');
+
+  const boot = await A('GET', '/api/bootstrap');
+  assert.equal(boot.body.sprint.types.length, Q.length);
+  assert.equal(boot.body.attempt.status, 'none');
+  assert.equal((await A('POST', '/api/sprint/start')).body.error, 'NOT_OPEN');
+
+  await db.setSetting('sprint_open', new Date(Date.now() - 60000).toISOString());
+  const st = await A('POST', '/api/sprint/start');
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  const qs = st.body.attempt.questions;
+  assert.equal(qs.length, Q.length);
+  assert.ok(qs.every((q) => q.c === undefined && q.tests === undefined), 'answers leaked');
+  const html = (await A('GET', '/')).text;
+  assert.ok(html.includes('test = []; // served by /api/sprint'), 'the test questions/answers are not in the page');
+
+  const ci = Q.findIndex((q) => q.type === 'code');
+  const good = 'n = int(input())\nprint(sum(i for i in range(2, n + 1, 2)))';
+  if (ci >= 0) {
+    const chk = await A('POST', '/api/sprint/check', { index: ci, code: good });
+    assert.deepEqual(chk.body.results.map((x) => x.pass), Q[ci].tests.map(() => true));
+  }
+  assert.ok(Q.every((q) => q.type === 'mcq'), 'content/sprint.json keeps only MCQs');
+
+  const all = { mcq: {}, text: {}, code: { [ci]: good } };
+  Q.forEach((q, i) => { if (q.type === 'mcq') all.mcq[i] = q.c; if (q.type === 'text') all.text[i] = 'My answer ' + i; });
+  assert.equal((await A('PUT', '/api/sprint/draft', all)).status, 200);
+  const sub = await A('POST', '/api/sprint/submit', all);
+  assert.equal(sub.status, 200, JSON.stringify(sub.body));
+  const r = sub.body.attempt.result;
+  const mcqN = Q.filter((q) => q.type === 'mcq').length;
+  assert.equal(r.mcqRight, mcqN);
+  assert.equal(r.score, mcqN + (ci >= 0 ? 1 : 0));
+  assert.equal(r.maxTotal, Q.length);
+  assert.equal(r.textPending, Q.some((q) => q.type === 'text'));
+  assert.equal((await A('POST', '/api/sprint/start')).body.error, 'ALREADY_SUBMITTED');
+
+  // B answers 3 MCQs, infinite-loops the coding question
+  await B('POST', '/api/sprint/start');
+  const bAns = { mcq: { 0: Q[0].c, 1: Q[1].c, 2: Q[2].c }, code: { [ci]: 'while True:\n    pass' } };
+  const bs = await B('POST', '/api/sprint/submit', bAns);
+  assert.equal(bs.body.attempt.result.score, 3);
+});
+
+test('leaderboard ranks by score then time, masks roll numbers', async () => {
+  const lb = await B('GET', '/api/leaderboard');
+  assert.equal(lb.status, 200);
+  assert.equal(lb.body.participants, 2);
+  assert.equal(lb.body.rows[0].name, 'Asha Kumar');
+  assert.equal(lb.body.rows[0].rank, 1);
+  assert.equal(lb.body.rows[0].id, 'NIAT•••01');
+  assert.equal(lb.body.me.rank, 2);
+  assert.equal(lb.body.me.me, true);
+});
+
+let ADM;
+test('admin: password + mandatory authenticator, then full access', async () => {
+  const pw = 'correct-horse-42-battery';
+  await db.run('INSERT INTO admins (email, name, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?)', 'boss@example.com', 'Boss', 'super_admin', sec.hashPassword(pw), Date.now());
+  ADM = client();
+  assert.equal((await ADM('GET', '/api/admin/overview')).status, 401);
+  assert.equal((await ADM('POST', '/api/admin/login', { email: 'boss@example.com', password: 'nope' })).status, 401);
+  const l = await ADM('POST', '/api/admin/login', { email: 'BOSS@example.com', password: pw });
+  assert.equal(l.body.next, 'setup');
+  assert.equal((await ADM('GET', '/api/admin/overview')).status, 401, 'setup-stage session must not reach data');
+  const setup = await ADM('GET', '/api/admin/totp/setup');
+  assert.match(setup.body.qrSvg, /^<svg/);
+  const code = sec.totpAt(setup.body.secret, sec.totpStep());
+  assert.equal((await ADM('POST', '/api/admin/totp/enable', { code })).status, 200);
+  const ov = await ADM('GET', '/api/admin/overview');
+  assert.equal(ov.status, 200);
+  assert.equal(ov.body.counts.registered, 2);
+  assert.equal(ov.body.attempts.submitted, 2);
+
+  // a student cookie is not an admin cookie
+  assert.equal((await A('GET', '/api/admin/overview')).status, 401);
+
+  // second login needs the authenticator code
+  const C = client();
+  assert.equal((await C('POST', '/api/admin/login', { email: 'boss@example.com', password: pw })).body.next, 'totp');
+  assert.equal((await C('POST', '/api/admin/login/totp', { code: '000000' })).status, 401);
+});
+
+test('admin: mark written answers → total and rank update; audit trail', async () => {
+  const list = await ADM('GET', '/api/admin/attempts?status=submitted');
+  const a = list.body.rows.find((r) => r.roll_no === ROLL);
+  assert.equal(a.text_reviewed, 1, 'MCQ-only attempts need no marking');
+  const textIdx = Q.map((q, i) => (q.type === 'text' ? i : -1)).filter((i) => i >= 0);
+  const marks = Object.fromEntries(textIdx.map((i) => [i, 1]));
+  const r = await ADM('PATCH', `/api/admin/attempts/${a.id}/marks`, { marks });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.total, Q.length);
+  if (textIdx.length) assert.equal((await ADM('PATCH', `/api/admin/attempts/${a.id}/marks`, { marks: { [textIdx[0]]: 5 } })).status, 400);
+  const res = await A('GET', '/api/bootstrap');
+  assert.equal(res.body.attempt.result.score, Q.length);
+  assert.equal(res.body.attempt.result.textPending, false);
+  const audit = await ADM('GET', '/api/admin/audit');
+  assert.ok(audit.body.rows.some((x) => x.action === 'attempt.marks_set'));
+  const csv = await ADM('GET', '/api/admin/export/results.csv');
+  assert.match(csv.text, /NIAT24001/);
+});
+
+test('admin: disabling an account signs the student out and hides them from the board', async () => {
+  assert.equal((await ADM('POST', '/api/admin/users/NIAT24002/status', { status: 'disabled' })).status, 200);
+  assert.equal((await B('GET', '/api/bootstrap')).status, 401);
+  const lb = await A('GET', '/api/leaderboard');
+  assert.equal(lb.body.participants, 1);
+  await ADM('POST', '/api/admin/users/NIAT24002/status', { status: 'active' });
+});
+
+test('updating the master file: removed students are deactivated; the account phone is the student\'s own', async () => {
+  fs.writeFileSync(path.join(DATA, 'students.csv'), 'NIAT ID,Student Name,Phone No.\nNIAT24001,Asha Kumar,9876543210\nNIAT24003,Priya Nair,\n');
+  assert.ok(await waitFor(async () => (await db.one('SELECT active FROM students_master WHERE roll_no = ?', 'NIAT24002')).active === 0));
+  const s = await client()('POST', '/api/auth/login/start', { rollNo: ROLL });
+  assert.equal(s.body.maskedPhone, '+91 90•••••001', 'login keeps using the approved own phone, not the sheet');
+  assert.equal((await client()('POST', '/api/auth/login/start', { rollNo: 'NIAT24002' })).body.error, 'ROLL_NOT_FOUND');
+  assert.equal((await B('GET', '/api/bootstrap')).status, 401);
+  assert.equal((await client()('POST', '/api/auth/register/start', { rollNo: 'NIAT24003', phone: '9000000003' })).status, 200, 'no phone in the sheet is fine');
+});
+
+test('admin approvals screen: list, reject with reason, bulk approve, change login phone', async () => {
+  const mk = async (roll, phone) => { const c = client(); const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone }); await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone }); return c; };
+  await db.run("INSERT INTO students_master (roll_no, name, phone, active, source, updated_at) VALUES ('N26P02A0901', 'Ravi', '+919000000901', 1, 'admin', 1), ('N26P02A0902', 'Sita', '', 1, 'admin', 1)");
+  await mk('N26P02A0901', '9000000901');
+  const sita = await mk('N26P02A0902', '9000000902');
+  const list = await ADM('GET', '/api/admin/approvals');
+  const ravi = list.body.rows.find((r) => r.roll_no === 'N26P02A0901'), s2 = list.body.rows.find((r) => r.roll_no === 'N26P02A0902');
+  assert.equal(ravi.matches_sheet, true);
+  assert.equal(s2.matches_sheet, false);
+  assert.equal((await A('GET', '/api/admin/approvals')).status, 401, 'students cannot see approvals');
+  const rj = await ADM('POST', '/api/admin/approvals/decide', { ids: [s2.id], action: 'reject', note: 'Use your own number' });
+  assert.equal(rj.body.done, 1);
+  const again = await sita('POST', '/api/auth/login/start', { rollNo: 'N26P02A0902' });
+  assert.equal(again.body.error, 'REJECTED');
+  assert.match(again.body.message, /Use your own number/);
+  const ok = await ADM('POST', '/api/admin/approvals/decide', { ids: [ravi.id, s2.id], action: 'approve' });
+  assert.equal(ok.body.done, 1);
+  assert.equal(ok.body.failed.length, 1, 'an already-decided request is reported, not approved');
+  assert.equal((await ADM('PATCH', '/api/admin/users/N26P02A0901/phone', { phone: '9000000002' })).body.error, 'PHONE_IN_USE');
+  assert.equal((await ADM('PATCH', '/api/admin/users/N26P02A0901/phone', { phone: '9000000911' })).status, 200);
+  const l = await client()('POST', '/api/auth/login/start', { rollNo: 'N26P02A0901' });
+  assert.equal(l.body.maskedPhone, '+91 90•••••911');
+  assert.ok((await ADM('GET', '/api/admin/audit')).body.rows.some((r) => r.action === 'registration.approved'));
+});
+
+test('expired unsubmitted attempts are auto-submitted from the last autosave', async () => {
+  const C = client();
+  await signup(C, 'NIAT24003', '9000000003');
+  await C('POST', '/api/sprint/start');
+  await C('PUT', '/api/sprint/draft', { mcq: { 0: Q[0].c } });
+  await db.run("UPDATE attempts SET started_at = started_at - 7200000, deadline_at = ? WHERE roll_no = 'NIAT24003'", Date.now() - 600000);
+  const { finalizeExpired } = await import('../sprint.js');
+  assert.equal(await finalizeExpired(), 1);
+  const b = await C('GET', '/api/bootstrap');
+  assert.equal(b.body.attempt.status, 'submitted');
+  assert.equal(b.body.attempt.result.score, 1);
+  assert.equal(b.body.attempt.result.autoSubmitted, true);
+});
+
+test('unit content: admin uploads Watch (MP4), Play and Read (HTML) per unit; removing brings back the built-in file', async () => {
+  const media = await ADM('GET', '/api/admin/media');
+  assert.equal(media.status, 200);
+  const unit = media.body.lessons.find((l) => l.id === 'tp-nested');
+  assert.equal(unit.steps.watch.active, 'pack');
+  assert.equal(unit.steps.play.active, 'pack');
+  assert.equal(unit.steps.read.active, 'none', 'no reading material yet');
+  const put = (slot, type, body, ck = ADM.cookie(), id = unit.id) =>
+    fetch(base + '/api/admin/media/' + id + '/' + slot + '/local', { method: 'PUT', headers: { 'content-type': type, cookie: ck, 'x-file-name': 'notes.html' }, body });
+  const fake = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypmp42'), Buffer.alloc(4000, 7)]);
+  assert.equal((await put('watch', 'video/mp4', fake)).status, 200);
+  const html = '<!doctype html><html><body><h1>Nested notes</h1><script>document.title="x"</script></body></html>';
+  const up = await ADM('POST', '/api/admin/media/' + unit.id + '/read/html', { html, fileName: 'notes.html' });
+  assert.equal(up.status, 200, JSON.stringify(up.body));
+  assert.equal((await ADM('POST', '/api/admin/media/' + unit.id + '/watch/html', { html })).status, 415, 'Watch must be a video');
+  assert.equal((await ADM('POST', '/api/admin/media/' + unit.id + '/play/html', { html: 'just text' })).status, 400, 'not HTML');
+  // wrong types, unknown step / unit, and students are refused
+  assert.equal((await put('read', 'video/mp4', fake)).status, 415);
+  assert.equal((await put('watch', 'text/html', html)).status, 415);
+  assert.ok([404, 415].includes((await put('quiz', 'text/html', html)).status), 'unknown step refused');
+  assert.equal((await put('read', 'text/html', html, ADM.cookie(), 'nope')).status, 404);
+  assert.equal((await put('read', 'text/html', html, A.cookie())).status, 401);
+
+  const boot = await A('GET', '/api/bootstrap');
+  const c = boot.body.unitContent[unit.id];
+  assert.match(c.watch, /^\/uploads\/.+\.mp4$/);
+  assert.match(c.read, /^\/api\/content\/tp-nested\/read\?v=\d+$/, 'HTML is served by the site, not file storage');
+  const range = await fetch(base + c.watch, { headers: { range: 'bytes=0-99' } });
+  assert.equal(range.status, 206, 'video supports seeking');
+  const page = await fetch(base + c.read);
+  assert.match(await page.text(), /Nested notes/);
+  assert.match(page.headers.get('content-security-policy') || '', /sandbox allow-scripts/, 'uploaded HTML is sandboxed');
+
+  assert.equal((await ADM('DELETE', '/api/admin/media/' + unit.id + '/read')).status, 200);
+  assert.equal((await ADM('DELETE', '/api/admin/media/' + unit.id + '/watch')).status, 200);
+  const after = (await ADM('GET', '/api/admin/media')).body.lessons.find((l) => l.id === unit.id);
+  assert.equal(after.steps.watch.active, 'pack');
+  assert.equal(after.steps.read.active, 'none');
+  assert.equal((await A('GET', '/api/bootstrap')).body.unitContent[unit.id], undefined);
+});
+
+test('learning bytes: files named <lessonId>.mp4 in the folder are picked up; unknown names ignored', async () => {
+  const { scanFolder } = await import('../media.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bytes-'));
+  fs.writeFileSync(path.join(dir, 'tp-forloop.mp4'), 'x');
+  fs.writeFileSync(path.join(dir, 'not-a-lesson.mp4'), 'x');
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
+  const found = scanFolder(dir);
+  assert.deepEqual(Object.keys(found), ['tp-forloop']);
+  assert.match(found['tp-forloop'].url, /^\/learning-bytes\/tp-forloop\.mp4\?v=\d+$/);
+});
+
+test('Excel master data: NIAT ID sheet (numeric phones, LMS user id) imports and enables NIAT ID login', async () => {
+  const writeXlsxFile = (await import('write-excel-file/node')).default;
+  const H = ['User id', 'NIAT ID', 'Student Name', 'Email IDs', 'Phone No.'].map((v) => ({ value: v }));
+  const row = (uid, id, name, mail, phone) => [{ value: uid }, { value: id }, { value: name }, { value: mail }, { value: phone, type: Number }];
+  const file = path.join(DATA, 'niat.xlsx');
+  await writeXlsxFile([H, row('1924c226-f1da-47f0-9552-b09abd2fedb8', 'N26P02A0001', 'Test Student One', 'one@example.com', 9876500001),
+    row('b73fc5cb-70a4-4dc1-82da-4346c7565f64', 'n26p02a0002 ', 'Test Student Two', 'two@example.com', 9876500002),
+    row('x', 'N26P02A0003', 'Bad Phone', 'bad@example.com', 12345)]).toFile(file);
+  const xlsxBase64 = fs.readFileSync(file).toString('base64');
+  const pv = await ADM('POST', '/api/admin/import/preview', { xlsxBase64 });
+  assert.equal(pv.status, 200, JSON.stringify(pv.body));
+  assert.equal(pv.body.valid, 3, 'a bad phone no longer blocks the row (students bring their own phone)');
+  assert.equal(pv.body.errors.length, 0);
+  assert.equal(pv.body.warnings.length, 1);
+  assert.equal(pv.body.sample[1].roll_no, 'N26P02A0002', 'NIAT IDs are trimmed and upper-cased');
+  assert.equal(pv.body.sample[0].phone, '+919876500001', 'numeric Excel phone becomes +91…');
+  const im = await ADM('POST', '/api/admin/import', { xlsxBase64, fileName: 'niat.xlsx', mode: 'merge' });
+  assert.equal(im.status, 200, JSON.stringify(im.body));
+  assert.equal(im.body.inserted, 3);
+  assert.equal((await db.one('SELECT lms_id FROM students_master WHERE roll_no = ?', 'N26P02A0001')).lms_id, '1924c226-f1da-47f0-9552-b09abd2fedb8');
+  const s = await client()('POST', '/api/auth/register/start', { rollNo: 'n26p02a0001', phone: '9876500001' });
+  assert.equal(s.status, 200);
+  assert.equal(s.body.maskedPhone, '+91 98•••••001');
+  const bad = await client()('POST', '/api/auth/register/start', { rollNo: 'N26P02A9999' });
+  assert.match(bad.body.message, /NIAT ID/);
+});
+
+test('units: 6 units, each ONE lesson with Watch → Play → Read; files are served by this server with seeking', async () => {
+  const boot = await A('GET', '/api/bootstrap');
+  assert.equal(boot.body.units.mode, 'replace');
+  const units = boot.body.units.units;
+  assert.equal(units.length, 6);
+  assert.deepEqual([...new Set(units.map((u) => u.course))].sort(), ['genai', 'pf']);
+  const nested = units.find((u) => u.name === 'Nested Conditional Statements');
+  assert.equal(nested.lessons.length, 1, 'one lesson per unit');
+  const tabs = nested.lessons[0].tabs;
+  assert.deepEqual(Object.keys(tabs), ['watch', 'play', 'read']);
+  assert.equal(tabs.read, null, 'Read comes later via the admin console');
+  assert.equal(tabs.watch.orientation, 'portrait');
+  const v = await fetch(base + tabs.watch.src, { headers: { range: 'bytes=0-1023' } });
+  assert.equal(v.status, 206, 'video supports range requests');
+  assert.match(v.headers.get('content-type'), /video\/mp4/);
+  const g = await fetch(base + tabs.play.src);
+  assert.equal(g.status, 200);
+  assert.match(await g.text(), /<title>Nested Conditions<\/title>/);
+  const media = await ADM('GET', '/api/admin/media');
+  const row = media.body.lessons.find((l) => l.id === 'tp-nested');
+  assert.equal(row.steps.watch.active, 'pack', 'admins see the built-in video and can replace it');
+});

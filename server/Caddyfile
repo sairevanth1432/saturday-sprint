@@ -1,0 +1,11 @@
+# HTTPS certificate is obtained automatically for $DOMAIN (point the domain's DNS at this server first).
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		health_uri /api/health
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

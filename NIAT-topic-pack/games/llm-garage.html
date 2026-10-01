@@ -1,0 +1,537 @@
+<!doctype html>
+<!--
+  LLM Garage · NIAT interactive game · theme: Electric Night, black
+  Standalone file: open it in a browser or host it on the portal.
+  To change the questions, scroll to the script marked "EDIT CONTENT HERE" (near the bottom).
+  Content source: CCBP reading material and classroom quizzes for this session.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LLM Garage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Silkscreen:wght@700&family=VT323&display=swap">
+<style>
+/* Layout: one centred play column (max 600px), HUD on top, stage, feedback drawer below.
+   Electric Night, black — portal palette. Single dark look by design. */
+:root{
+  --bg:#0A0A0A; --deep:#050505; --card:#151515; --b1:#333333; --b2:#262626;
+  --y:#FFE45C; --yedge:#9E8618; --ysh:#3A3410;
+  --t1:#FFFFFF; --t2:#EDEDED; --t3:#BDBDBD; --m1:#8A8A8A; --m2:#5E5E5E;
+  --ok:#9BE58B; --okedge:#4E7A45; --err:#FF7A7A; --erredge:#8A3B3B;
+  --glow:rgba(255,228,92,.24);
+  --f-display:'Silkscreen',ui-monospace,monospace;
+  --f-digit:'VT323',ui-monospace,monospace;
+  --f-body:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--t2)}
+body{margin:0;font-family:var(--f-body);font-weight:500;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;
+  background:radial-gradient(90% 40% at 50% 0%,rgba(255,228,92,.07),transparent 70%) var(--bg);min-height:100vh}
+.wrap{max-width:600px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:16px}
+button{font:inherit;color:inherit;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0}
+svg text{font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0}
+:focus-visible{outline:3px solid var(--y);outline-offset:3px}
+code,.mono{font-family:var(--f-body)}
+
+/* HUD */
+.top{display:flex;flex-direction:column;gap:10px}
+.crumb{font-family:var(--f-digit);font-size:20px;letter-spacing:.12em;text-transform:uppercase;color:var(--m1)}
+.gtitle{font-family:var(--f-display);font-weight:700;font-size:clamp(24px,6vw,34px);line-height:1.1;margin:0;color:var(--t1);text-wrap:balance;text-transform:uppercase;position:relative}
+.gtitle span{color:var(--y);text-shadow:0 4px 0 var(--ysh)}
+.hud{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.lv{font-family:var(--f-digit);font-size:24px;color:var(--m1);letter-spacing:.06em}
+.lv b{font-weight:400;color:var(--y);font-size:30px}
+.segs{display:flex;gap:5px;flex:1;min-width:60px}
+.segs i{flex:1;height:8px;border-radius:2px;background:var(--b2);max-width:42px}
+.segs i.done{background:var(--y)} .segs i.miss{background:var(--m2)} .segs i.now{background:var(--t3)}
+.pts{font-family:var(--f-digit);font-size:28px;color:var(--y);background:var(--card);border:1px solid var(--b1);border-radius:10px;padding:0 12px;line-height:36px}
+.mute{background:var(--card);border:1px solid var(--b1);border-radius:10px;width:38px;height:38px;cursor:pointer;color:var(--m1);font-family:var(--f-digit);font-size:18px}
+
+/* cards & story */
+.card{background:var(--card);border:1px solid var(--b2);border-radius:16px;padding:18px}
+.lvtitle{font-weight:800;font-size:19px;color:var(--t1);margin:0 0 6px}
+.story{color:var(--t3);margin:0}
+.story b{color:var(--t1)}
+.vars{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.var{background:var(--deep);border:1px solid var(--b1);border-radius:10px;padding:6px 12px;font-size:14px}
+.var .k{color:var(--m1)} .var .v{color:var(--ok);font-weight:800}
+.label{font-family:var(--f-digit);font-size:19px;letter-spacing:.14em;text-transform:uppercase;color:var(--m1);margin:0 0 8px}
+.hint{color:var(--m1);font-size:13px;text-align:center;margin:0}
+
+/* code */
+.code{background:var(--deep);border:1px solid var(--b2);border-radius:12px;padding:12px 0;font-size:14px;overflow-x:auto}
+.code .ln{display:block;padding:1px 16px;white-space:pre;color:var(--t2);border-left:3px solid transparent;transition:background .2s,border-color .2s}
+.code .ln.hit{background:rgba(255,228,92,.10);border-left-color:var(--y)}
+.code .ln.skip{opacity:.38}
+.kw{color:var(--y)} .str{color:var(--ok)} .num{color:#FFB86B} .cm{color:var(--m2)} .fn{color:#9AD1FF}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;border-radius:12px;padding:12px 18px;font-weight:800;font-size:15px;border:2px solid var(--b1);background:var(--card);color:var(--t2);transition:transform .08s,box-shadow .08s,background .15s,border-color .15s}
+.btn:hover{border-color:var(--m1)}
+.btn:active{transform:translateY(3px)}
+.btn.primary{background:var(--y);border-color:var(--y);color:#0A0A0A;box-shadow:0 5px 0 var(--yedge)}
+.btn.primary:active{box-shadow:0 2px 0 var(--yedge)}
+.btn.danger{background:var(--err);border-color:var(--err);color:#0A0A0A;box-shadow:0 5px 0 var(--erredge)}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.45;cursor:default;transform:none}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:8px 12px;font-weight:700;font-size:14px;border:1px solid var(--b1);background:var(--card);color:var(--t2)}
+
+/* feedback drawer */
+.fb{border-radius:16px;padding:16px 18px;border:2px solid;display:flex;flex-direction:column;gap:10px;animation:rise .25s ease-out}
+.fb.good{background:rgba(155,229,139,.07);border-color:var(--ok)}
+.fb.bad{background:rgba(255,122,122,.07);border-color:var(--err)}
+.fb h3{margin:0;font-family:var(--f-display);font-weight:700;font-size:18px;text-transform:uppercase}
+.fb.good h3{color:var(--ok)} .fb.bad h3{color:var(--err)}
+.fb p{margin:0;color:var(--t2)}
+.fb .why{color:var(--t3);font-size:14px}
+.fb code{background:var(--deep);border:1px solid var(--b2);border-radius:6px;padding:1px 6px;color:var(--y)}
+
+/* win */
+.win{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.win .trophy{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,9vw,48px);line-height:1.05;color:var(--t1);position:relative;text-wrap:balance}
+.win .trophy span{color:var(--y);text-shadow:0 5px 0 var(--ysh)}
+.win .trophy::before{content:'';position:absolute;inset:-60px -20px;background:radial-gradient(closest-side,var(--glow),transparent 75%);z-index:-1}
+.bigscore{font-family:var(--f-digit);font-size:84px;line-height:.9;color:var(--y);text-shadow:0 6px 0 var(--ysh)}
+.bigscore small{font-size:40px;color:var(--m1);text-shadow:none}
+.best{font-family:var(--f-digit);font-size:22px;color:var(--m1)}
+.recap{text-align:left}
+.recap ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;color:var(--t2)}
+.recap li::marker{color:var(--y)}
+.recap code{color:var(--y)}
+
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.shake{animation:shake .3s}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<noscript><p style="color:#EDEDED;padding:16px">This game needs JavaScript.</p></noscript>
+<!-- Game engine and level types: no need to edit -->
+<script>
+// Shared game engine: HUD, levels, retry, scoring (first-try = 1 point), feedback, win screen, 8-bit sfx.
+const G = (() => {
+  let cfg, idx = 0, score = 0, firstTry = true, state = 'play', results = [], cleanups = [], muted = false;
+  const $ = (s, r = document) => r.querySelector(s);
+  const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+  let ac = null;
+  function sfx(kind) {
+    if (muted) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const seq = { ok: [523, 659, 784], bad: [220, 165], tap: [880], win: [523, 659, 784, 1047] }[kind] || [440];
+      seq.forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = f;
+        const t = ac.currentTime + i * 0.08; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'tap' ? 0.05 : 0.12)); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.15);
+      });
+    } catch (e) {}
+  }
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // tiny python highlighter for display
+  function py(line) {
+    let s = esc(line);
+    const parts = []; s = s.replace(/(&quot;|"|')(.*?)\1/g, (m) => { parts.push(m); return `\u0000${String.fromCharCode(65 + parts.length - 1)}\u0000`; });
+    s = s.replace(/#.*/, (m) => `<span class="cm">${m}</span>`)
+      .replace(/\b(if|elif|else|for|in|range|and|or|not|True|False|print|len|while)\b/g, (m) => /^(print|len|range)$/.test(m) ? `<span class="fn">${m}</span>` : `<span class="kw">${m}</span>`)
+      .replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+    return s.replace(/\u0000([A-Z])\u0000/g, (m, c) => `<span class="str">${parts[c.charCodeAt(0) - 65]}</span>`);
+  }
+  function codeBlock(lines) { return `<div class="code">${lines.map((l, i) => `<span class="ln" data-i="${i}">${py(l) || ' '}</span>`).join('')}</div>`; }
+
+  function shell() {
+    document.querySelectorAll('style,link').forEach((el) => document.head.appendChild(el));
+    document.querySelectorAll('body > main.wrap').forEach((el) => el.remove());
+    const w = h(`<main class="wrap">
+      <header class="top">
+        <div class="crumb">${cfg.course} · ${cfg.topic}</div>
+        <h1 class="gtitle">${cfg.title}</h1>
+        <div class="hud">
+          <span class="lv" id="lv"></span><div class="segs" id="segs"></div>
+          <span class="pts" id="pts" aria-label="score">★ 0</span>
+          <button class="mute" id="mute" aria-label="Toggle sound">SND</button>
+        </div>
+      </header>
+      <section id="stage" style="display:flex;flex-direction:column;gap:16px"></section>
+      <section id="fb" hidden></section>
+    </main>`);
+    document.body.appendChild(w);
+    $('#mute').onclick = () => { muted = !muted; $('#mute').textContent = muted ? 'OFF' : 'SND'; store.set('mute', muted); };
+    muted = !!store.get('mute'); $('#mute').textContent = muted ? 'OFF' : 'SND';
+  }
+  function hud() {
+    const n = cfg.levels.length;
+    $('#lv').innerHTML = `LEVEL <b>${String(Math.min(idx + 1, n)).padStart(2, '0')}</b>/${String(n).padStart(2, '0')}`;
+    $('#segs').innerHTML = cfg.levels.map((_, i) => `<i class="${results[i] === true ? 'done' : results[i] === false ? 'miss' : i === idx ? 'now' : ''}"></i>`).join('');
+    $('#pts').textContent = `★ ${score}`;
+  }
+  function clean() { cleanups.forEach((f) => { try { f(); } catch (e) {} }); cleanups = []; }
+  function start(i, retry) {
+    clean(); idx = i; state = 'play'; if (!retry) firstTry = true;
+    const st = $('#stage'); st.innerHTML = ''; const fb = $('#fb'); fb.hidden = true; fb.innerHTML = '';
+    hud(); cfg.render(cfg.levels[i], st, api, i);
+    if (retry) st.classList.add('shake'), setTimeout(() => st.classList.remove('shake'), 300);
+  }
+  function feedback(kind, title, html) {
+    const fb = $('#fb'); fb.hidden = false;
+    const last = idx + 1 >= cfg.levels.length;
+    fb.innerHTML = `<div class="fb ${kind}"><h3>${title}</h3><div class="why">${html}</div>
+      <button class="btn ${kind === 'good' ? 'primary' : 'danger'} block" id="fbBtn">${kind === 'good' ? (last ? 'See results' : 'Next level →') : 'Try again'}</button></div>`;
+    $('#fbBtn').onclick = () => { sfx('tap'); kind === 'good' ? (last ? win() : start(idx + 1)) : start(idx, true); };
+    setTimeout(() => fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+  }
+  const api = {
+    get locked() { return state !== 'play'; },
+    lock() { state = 'busy'; }, unlock() { if (state === 'busy') state = 'play'; },
+    correct(html, title) { if (state === 'done') return; state = 'done'; if (results[idx] === undefined) { results[idx] = firstTry; if (firstTry) score++; } sfx('ok'); hud(); feedback('good', title || (firstTry ? 'Correct!' : 'Got it now'), html); },
+    wrong(html, title) { if (state === 'done' || state === 'wrong') return; state = 'wrong'; firstTry = false; sfx('bad'); feedback('bad', title || 'Not quite', html); },
+    onCleanup(f) { cleanups.push(f); }, sfx, h, esc, py, codeBlock,
+    wait: (ms) => new Promise((r) => { const t = setTimeout(r, ms); cleanups.push(() => clearTimeout(t)); }),
+  };
+  function win() {
+    clean(); state = 'win'; const n = cfg.levels.length; const key = 'best:' + cfg.id;
+    const best = Math.max(store.get(key) || 0, score); store.set(key, best);
+    idx = n; hud(); $('#fb').hidden = true; sfx('win');
+    const msg = score === n ? 'Perfect run' : score >= Math.ceil(n * 0.6) ? 'Nice work' : 'Keep practising';
+    $('#stage').innerHTML = `<div class="win">
+      <div class="card" style="padding:28px 18px;position:relative;overflow:hidden;isolation:isolate">
+        <div class="trophy">${cfg.winTitle || 'Level<br><span>complete</span>'}</div>
+        <div class="bigscore" style="margin-top:14px">${score}<small>/${n}</small></div>
+        <div class="best">${msg} · best ${best}/${n} · first-try answers count</div>
+      </div>
+      <div class="card recap"><p class="label">Remember</p><ul>${cfg.recap.map((r) => `<li>${r}</li>`).join('')}</ul></div>
+      <button class="btn primary block" id="again">Play again</button></div>`;
+    $('#again').onclick = () => { score = 0; results = []; start(0); };
+  }
+  function init(c) { cfg = c; shell(); start(0); }
+  return { init, h, esc, py, codeBlock };
+})();
+</script>
+<script>
+// Level kinds. Each game's content is a list of levels; `kind` picks how a level is shown.
+// Every kind calls api.correct(html) / api.wrong(html). Buttons carry data-* hooks used by the auto-tester.
+const K = {};
+const C = { y: '#FFE45C', ok: '#9BE58B', err: '#FF7A7A', m1: '#8A8A8A', m2: '#5E5E5E', t1: '#FFFFFF', t2: '#EDEDED', card: '#151515', deep: '#050505', b1: '#333333' };
+const intro = (lv, st, api, label) => st.appendChild(api.h(`<div class="card">${label ? `<p class="label">${label}</p>` : ''}<p class="lvtitle">${lv.title}</p>${lv.story ? `<p class="story">${lv.story}</p>` : ''}
+  ${lv.vars ? `<div class="vars">${Object.entries(lv.vars).map(([k, v]) => `<span class="var"><span class="k">${api.esc(k)}</span> = <span class="v">${api.esc(v)}</span></span>`).join('')}</div>` : ''}</div>`));
+const codeCard = (lines, api, label = 'The code') => api.h(`<div><p class="label">${label}</p>${api.codeBlock(lines)}</div>`);
+const mark = (b, ok) => { b.disabled = false; b.style.borderColor = ok ? C.ok : C.err; b.style.color = ok ? C.ok : C.err; };
+const lockAll = (root) => root.querySelectorAll('button').forEach(b => b.disabled = true);
+const verdict = (api, ok, why, tGood, tBad) => ok ? api.correct(why, tGood) : api.wrong(why, tBad);
+
+// ---------- mcq: question + optional code + options (text or code) ----------
+K.mcq = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Quick check');
+  if (lv.code) st.appendChild(codeCard(lv.code, api));
+  st.appendChild(api.h(`<p class="lvtitle" style="font-size:17px;margin:0">${lv.q}</p>`));
+  const box = api.h(`<div style="display:grid;gap:10px;grid-template-columns:${lv.cols === 2 ? '1fr 1fr' : '1fr'}"></div>`);
+  lv.options.forEach((o, i) => {
+    const isCode = Array.isArray(o);
+    const b = api.h(`<button class="btn" data-k="${i}" style="justify-content:flex-start;text-align:left;gap:12px;align-items:flex-start;${isCode ? 'flex-direction:column;' : ''}">
+      <span style="font-family:VT323,monospace;font-size:26px;color:${C.y};line-height:1">${String.fromCharCode(65 + i)}</span>
+      ${isCode ? `<div class="code" style="width:100%;margin:0">${o.map(l => `<span class="ln">${api.py(l) || ' '}</span>`).join('')}</div>` : `<span>${o}</span>`}</button>`);
+    b.onclick = () => { if (api.locked) return; lockAll(box); mark(b, i === lv.answer); verdict(api, i === lv.answer, lv.explain); };
+    box.appendChild(b);
+  });
+  st.appendChild(box);
+};
+
+// ---------- tf: statement card, True/False, optional char-by-char compare ----------
+function charRow(s, d, api) {
+  return `<div style="display:flex;gap:4px;flex-wrap:wrap">${[...s].map((c, i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+    <span style="min-width:30px;height:34px;display:grid;place-items:center;border-radius:6px;font-weight:800;border:1px solid ${i === d ? C.y : C.b1};background:${i === d ? '#3A3410' : C.deep};color:${i < d ? C.m1 : C.t1}">${c === ' ' ? '␣' : api.esc(c)}</span>
+    <span style="font-family:VT323,monospace;font-size:17px;color:${i === d ? C.y : C.m2}">${c.charCodeAt(0)}</span></div>`).join('')}
+    ${s.length === d ? `<span style="min-width:34px;height:34px;display:grid;place-items:center;border-radius:6px;border:1px dashed ${C.y};color:${C.y};font-size:11px">end</span>` : ''}</div>`;
+}
+function compareViz([a, b], api) {
+  let d = 0; while (d < a.length && d < b.length && a[d] === b[d]) d++;
+  const same = d === a.length && d === b.length;
+  return `<div style="display:flex;flex-direction:column;gap:8px;margin:6px 0">${charRow(a, same ? -1 : d, api)}${charRow(b, same ? -1 : d, api)}</div>
+    <p style="margin:0;font-size:13px;color:${C.m1}">${same ? 'All characters match.' : d === a.length || d === b.length ? 'One string ends first. The shorter string is smaller.' : `First difference at position ${d}: ${a.charCodeAt(d)} vs ${b.charCodeAt(d)}. Python decides here.`}</p>`;
+}
+K.tf = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'True or False?');
+  if (lv.code) st.appendChild(codeCard(lv.code, api));
+  st.appendChild(api.h(`<div class="card" style="background:${C.deep};text-align:center;font-size:clamp(18px,5vw,24px);font-weight:800;color:${C.t1};padding:22px 16px">${lv.statementCode ? api.py(lv.statementCode) : lv.statement}</div>`));
+  const row = api.h(`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>`);
+  const labels = lv.labels || ['True', 'False'];
+  [true, false].forEach((v, i) => { const b = api.h(`<button class="btn" data-k="${i}" style="padding:18px;font-size:19px">${labels[i]}</button>`);
+    b.onclick = () => { if (api.locked) return; lockAll(row); const ok = v === lv.answer; mark(b, ok);
+      verdict(api, ok, `${lv.compare ? compareViz(lv.compare, api) : ''}<p>It's <b style="color:${lv.answer ? C.ok : C.err}">${labels[lv.answer ? 0 : 1]}</b>. ${lv.explain}</p>`); };
+    row.appendChild(b); });
+  st.appendChild(row);
+};
+
+// ---------- predict: tap tiles to build the printed output, then a tracer runs ----------
+K.predict = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Predict the output');
+  const code = codeCard(lv.code, api); st.appendChild(code);
+  const term = api.h(`<div class="card" style="background:${C.deep}"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><p class="label" style="margin:0">Your prediction</p><span style="font-family:VT323,monospace;font-size:20px;color:${C.m2}">&gt;_ output</span></div><div class="out" style="min-height:70px;display:flex;flex-direction:column;gap:6px;font-size:18px"></div></div>`);
+  st.appendChild(term);
+  const tray = api.h(`<div><p class="label">Tap values in the order they print</p><div class="tiles" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+    <div style="display:flex;gap:10px;margin-top:14px"><button class="btn undo">Undo</button><button class="btn clear">Clear</button><button class="btn primary run" style="flex:1" disabled>Run ▶</button></div></div>`);
+  st.appendChild(tray);
+  const tr = api.h(`<div class="card" hidden><p class="label">${lv.traceLabel || 'Tracer'}</p><div class="rows" style="display:flex;flex-direction:column;gap:6px;font-size:14px"></div></div>`); st.appendChild(tr);
+  let pred = []; const out = term.querySelector('.out');
+  const draw = () => { out.innerHTML = pred.length ? pred.map((p, i) => `<div class="pl" style="display:flex;gap:12px"><span style="font-family:VT323,monospace;color:${C.m2};width:22px">${i + 1}</span><b class="pv" style="color:${C.t2}">${api.esc(p)}</b></div>`).join('') : `<div style="color:${C.m2}">Nothing yet. Tap a tile below.</div>`; tray.querySelector('.run').disabled = !pred.length; };
+  lv.tiles.forEach(t => { const b = api.h(`<button class="btn tile" data-t="${api.esc(t)}" style="min-width:56px;font-size:18px">${api.esc(t)}</button>`); b.onclick = () => { if (api.locked || pred.length >= 10) return; api.sfx('tap'); pred.push(t); draw(); }; tray.querySelector('.tiles').appendChild(b); });
+  tray.querySelector('.undo').onclick = () => { if (!api.locked) { pred.pop(); draw(); } };
+  tray.querySelector('.clear').onclick = () => { if (!api.locked) { pred = []; draw(); } };
+  tray.querySelector('.run').onclick = async () => {
+    if (api.locked) return; api.lock(); lockAll(tray); tr.hidden = false; const rows = tr.querySelector('.rows'); const lns = code.querySelectorAll('.ln');
+    const steps = lv.trace || lv.expected.map(o => ({ out: o })); let k = 0;
+    for (const s of steps) {
+      lns.forEach(l => l.classList.remove('hit')); (s.lines || []).forEach(i => lns[i] && lns[i].classList.add('hit'));
+      let res = '';
+      if (s.out !== undefined) { const good = pred[k] === s.out; res = `<span style="margin-left:auto;color:${good ? C.ok : C.err}">prints ${api.esc(s.out)} ${good ? '✓' : '✗'}</span>`;
+        const pv = out.querySelectorAll('.pv')[k]; if (pv) pv.style.color = good ? C.ok : C.err; k++; }
+      const vars = s.v ? Object.entries(s.v).map(([a, b]) => `<span style="color:${C.m1}">${a}</span>=<b style="color:${C.y}">${api.esc(b)}</b>`).join('  ') : '';
+      rows.appendChild(api.h(`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:${C.deep};border:1px solid #262626;border-radius:8px;padding:6px 10px;animation:rise .2s"><span style="font-family:VT323,monospace;font-size:20px;color:${C.m2}">${s.tag || ''}</span><span>${vars || (s.note || '')}</span>${res}</div>`));
+      api.sfx('tap'); await api.wait(lv.speed || 480);
+    }
+    const ok = pred.length === lv.expected.length && pred.every((p, i) => p === lv.expected[i]);
+    verdict(api, ok, `<p>Output: ${lv.expected.length ? lv.expected.map(e => `<code>${api.esc(e)}</code>`).join(' ') : '<i>nothing</i>'}</p><p>${lv.explain}</p>`);
+  };
+  draw();
+};
+
+// ---------- branch: click the code line whose block runs ----------
+K.branch = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Which block runs?');
+  const wrap = api.h(`<div><p class="label">Tap the line that runs</p><div class="code"></div></div>`); const cb = wrap.querySelector('.code');
+  lv.code.forEach((l, i) => {
+    const pick = lv.choices.includes(i);
+    const el = api.h(`<${pick ? 'button' : 'span'} class="ln ${pick ? 'pickable' : ''}" data-k="${i}" style="${pick ? 'width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;cursor:pointer;font:inherit;color:inherit;padding:6px 16px;' : ''}">${api.py(l) || ' '}${pick ? `<span style="float:right;font-family:VT323,monospace;color:${C.m2};font-size:18px">tap</span>` : ''}</${pick ? 'button' : 'span'}>`);
+    if (pick) el.onclick = async () => {
+      if (api.locked) return; api.lock(); cb.querySelectorAll('button').forEach(b => b.disabled = true);
+      for (const [li, r] of lv.checks || []) { const t = cb.querySelector(`[data-k="${li}"]`) || cb.children[li]; t.classList.add('hit'); t.insertAdjacentHTML('beforeend', ` <b style="color:${r ? C.ok : C.err}">← ${r ? 'True' : 'False'}</b>`); api.sfx('tap'); await api.wait(420); }
+      const ok = i === lv.answer; el.style.borderLeftColor = ok ? C.ok : C.err; el.style.background = ok ? 'rgba(155,229,139,.1)' : 'rgba(255,122,122,.1)';
+      const right = cb.querySelector(`[data-k="${lv.answer}"]`); right.style.borderLeftColor = C.ok;
+      verdict(api, ok, `<p>${lv.explain}</p>`);
+    };
+    cb.appendChild(el);
+  });
+  st.appendChild(wrap);
+};
+
+// ---------- maze: nested decision tree, pick the leaf that prints ----------
+const N = (py, val, yes, no, setup) => ({ py, val, yes, no, setup }); // val: true/false result of this condition for the given values
+const L = (code, out) => ({ code, out });
+K.maze = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Trace the maze');
+  let leaves = [], lines = [];
+  (function walk(n, d, ind) { n.depth = d; if (n.code !== undefined) { n.letter = String.fromCharCode(65 + leaves.length); n.line = lines.length; lines.push(ind + n.code); leaves.push(n); return; }
+    if (n.setup) lines.push(ind + n.setup); n.line = lines.length; lines.push(ind + `if ${n.py}:`); walk(n.yes, d + 1, ind + '    '); n.elseLine = lines.length; lines.push(ind + 'else:'); walk(n.no, d + 1, ind + '    '); })(lv.tree, 0, '');
+  const W = 420; let k = 0; const cnt = n => n.code !== undefined ? 1 : cnt(n.yes) + cnt(n.no); const tot = cnt(lv.tree);
+  (function place(n) { if (n.code !== undefined) { n.x = (k + .5) * W / tot; k++; } else { place(n.yes); place(n.no); n.x = (n.yes.x + n.no.x) / 2; } n.y = 40 + n.depth * 92; })(lv.tree);
+  const H = 40 + Math.max(...leaves.map(l => l.depth)) * 92 + 46; let edges = '', nodes = '';
+  (function draw(n) { if (n.code !== undefined) { nodes += `<g data-l="${n.letter}"><rect x="${n.x - 26}" y="${n.y - 20}" width="52" height="40" rx="8" fill="#151515" stroke="#333"/><text x="${n.x}" y="${n.y + 8}" text-anchor="middle" font-family="VT323,monospace" font-size="30" fill="${C.y}">${n.letter}</text></g>`; return; }
+    for (const [c, lab] of [[n.yes, 'True'], [n.no, 'False']]) { edges += `<path data-from="${n.line}" data-to="${c.code !== undefined ? 'L' + c.letter : c.line}" d="M${n.x} ${n.y + 18} C ${n.x} ${n.y + 55}, ${c.x} ${c.y - 55}, ${c.x} ${c.y - 20}" fill="none" stroke="#333" stroke-width="3" stroke-dasharray="6 6"/><text x="${(n.x + c.x) / 2 + (lab === 'True' ? -10 : 10)}" y="${(n.y + c.y) / 2 + 4}" text-anchor="middle" font-family="VT323,monospace" font-size="20" fill="${lab === 'True' ? C.ok : C.err}">${lab}</text>`; draw(c); }
+    const w = Math.max(90, n.py.length * 9.2 + 22); nodes += `<g data-n="${n.line}"><rect x="${n.x - w / 2}" y="${n.y - 18}" width="${w}" height="36" rx="8" fill="#050505" stroke="#333" stroke-width="2"/><text x="${n.x}" y="${n.y + 5}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-weight="700" font-size="15" fill="${C.t2}">${api.esc(n.py)}</text></g>`; })(lv.tree);
+  const ROBO = `<rect x="-11" y="-26" width="22" height="16" fill="${C.y}"/><rect x="-6" y="-21" width="4" height="4" fill="#0A0A0A"/><rect x="2" y="-21" width="4" height="4" fill="#0A0A0A"/><rect x="-2" y="-32" width="4" height="6" fill="${C.y}"/><rect x="-9" y="-9" width="18" height="12" fill="${C.t2}"/><rect x="-9" y="3" width="6" height="5" fill="#BDBDBD"/><rect x="3" y="3" width="6" height="5" fill="#BDBDBD"/>`;
+  const card = api.h(`<div class="card" style="padding:12px 8px"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${edges}${nodes}<g id="bot" transform="translate(${lv.tree.x} ${lv.tree.y - 22})">${ROBO}</g></svg></div>`);
+  st.appendChild(card); const code = codeCard((lv.pre || []).concat(lines), api); st.appendChild(code); const off = (lv.pre || []).length;
+  const pick = api.h(`<div><p class="label">${lv.q || 'Which line runs?'}</p><div style="display:grid;gap:10px"></div></div>`);
+  leaves.forEach(l => { const b = api.h(`<button class="btn" data-l="${l.letter}" style="justify-content:flex-start;gap:14px"><span style="font-family:VT323,monospace;font-size:28px;color:${C.y}">${l.letter}</span><span>${api.esc(l.code)}${l.out !== undefined ? ` <span style="color:${C.m1}">→ prints ${api.esc(l.out)}</span>` : ''}</span></button>`); b.onclick = () => go(l, b); pick.lastElementChild.appendChild(b); });
+  st.appendChild(pick);
+  const svg = card.querySelector('svg'), bot = svg.querySelector('#bot');
+  const move = async (x, y) => { const m = bot.getAttribute('transform').match(/translate\(([-\d.]+) ([-\d.]+)\)/); const x0 = +m[1], y0 = +m[2]; for (let s = 1; s <= 16; s++) { const t = s / 16, e = t * t * (3 - 2 * t); bot.setAttribute('transform', `translate(${x0 + (x - x0) * e} ${y0 + (y - y0) * e})`); await api.wait(22); } };
+  async function go(choice, btn) {
+    if (api.locked) return; api.lock(); lockAll(pick); const lns = code.querySelectorAll('.ln'); let n = lv.tree; const steps = [];
+    while (n.code === undefined) { const r = n.val; svg.querySelector(`[data-n="${n.line}"] rect`).setAttribute('stroke', r ? C.ok : C.err); lns[n.line + off].classList.add('hit'); if (!r) lns[n.elseLine + off].classList.add('hit');
+      steps.push(`<li><code>${api.esc(n.py)}</code> is <b style="color:${r ? C.ok : C.err}">${r ? 'True' : 'False'}</b>${r ? ', go inside' : ', go to its else'}</li>`); api.sfx('tap'); await api.wait(380);
+      const nx = r ? n.yes : n.no; const e = svg.querySelector(`[data-from="${n.line}"][data-to="${nx.code !== undefined ? 'L' + nx.letter : nx.line}"]`); e.setAttribute('stroke', C.y); e.removeAttribute('stroke-dasharray'); await move(nx.x, nx.y - 22); n = nx; }
+    lns[n.line + off].classList.add('hit'); svg.querySelector(`[data-l="${n.letter}"] rect`).setAttribute('fill', '#3A3410');
+    const ok = choice === n; mark(btn, ok);
+    verdict(api, ok, `<ol style="margin:0 0 8px;padding-left:20px">${steps.join('')}</ol><p>${lv.explain}</p>`, null, `It ran ${n.letter}, not ${choice.letter}`);
+  }
+};
+
+// ---------- sort: put each item in the right bin ----------
+K.sort = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Sort it');
+  const list = api.h(`<div style="display:flex;flex-direction:column;gap:10px"></div>`); const pick = lv.items.map(() => null);
+  lv.items.forEach(([text], i) => {
+    const row = api.h(`<div class="card" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px"><div style="font-weight:700;color:${C.t1}">${text}</div>
+      <div style="display:grid;grid-template-columns:repeat(${lv.bins.length},1fr);gap:8px">${lv.bins.map((b, j) => `<button class="btn" data-i="${i}" data-b="${j}" style="padding:9px 6px;font-size:13px">${b}</button>`).join('')}</div></div>`);
+    row.querySelectorAll('button').forEach(b => b.onclick = () => { if (api.locked) return; api.sfx('tap'); pick[i] = +b.dataset.b;
+      row.querySelectorAll('button').forEach(x => { const on = x === b; x.style.background = on ? '#3A3410' : C.card; x.style.borderColor = on ? C.y : C.b1; x.style.color = on ? C.t1 : C.t2; }); chk.disabled = pick.includes(null); });
+    list.appendChild(row);
+  });
+  st.appendChild(list);
+  const chk = api.h(`<button class="btn primary block" disabled>Check ▶</button>`); st.appendChild(chk);
+  chk.onclick = () => { if (api.locked) return; lockAll(st); let bad = 0;
+    lv.items.forEach(([t, ans, note], i) => { const row = list.children[i]; const ok = pick[i] === ans; if (!ok) bad++; row.style.borderColor = ok ? C.ok : C.err;
+      if (!ok || note) row.insertAdjacentHTML('beforeend', `<div style="font-size:13px;color:${ok ? C.m1 : C.err}">${ok ? '' : `→ ${lv.bins[ans]}. `}${note || ''}</div>`); });
+    verdict(api, !bad, `<p>${bad ? `${bad} of ${lv.items.length} in the wrong place. ` : ''}${lv.explain}</p>`, null, `${bad} misplaced`); };
+};
+
+// ---------- match: tap a left item, then its partner on the right ----------
+K.match = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Match the pairs');
+  const order = lv.pairs.map((_, i) => i).sort((a, b) => ((a * 5 + 2) % lv.pairs.length) - ((b * 5 + 2) % lv.pairs.length));
+  const g = api.h(`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start"><div class="L" style="display:flex;flex-direction:column;gap:8px"><p class="label" style="margin:0">${lv.left || 'Term'}</p></div><div class="R" style="display:flex;flex-direction:column;gap:8px"><p class="label" style="margin:0">${lv.right || 'Meaning'}</p></div></div>`);
+  let sel = null, done = 0, slips = 0;
+  lv.pairs.forEach(([l], i) => { const b = api.h(`<button class="btn" data-l="${i}" style="justify-content:flex-start;text-align:left;font-size:14px;min-height:56px">${l}</button>`);
+    b.onclick = () => { if (api.locked || b.dataset.done) return; api.sfx('tap'); sel = i; g.querySelectorAll('.L button').forEach(x => { if (!x.dataset.done) { x.style.borderColor = C.b1; x.style.background = C.card; } }); b.style.borderColor = C.y; b.style.background = '#3A3410'; }; g.querySelector('.L').appendChild(b); });
+  order.forEach(i => { const b = api.h(`<button class="btn" data-r="${i}" style="justify-content:flex-start;text-align:left;font-size:14px;min-height:56px;font-weight:600">${lv.pairs[i][1]}</button>`);
+    b.onclick = () => { if (api.locked || sel === null || b.dataset.done) return; const lb = g.querySelector(`[data-l="${sel}"]`);
+      if (sel === i) { [lb, b].forEach(x => { x.dataset.done = 1; x.style.borderColor = C.ok; x.style.background = 'rgba(155,229,139,.08)'; x.style.color = C.ok; }); api.sfx('ok'); sel = null; done++;
+        if (done === lv.pairs.length) verdict(api, slips === 0, `<p>${lv.explain}</p>`, slips ? 'All matched' : null, `All matched, ${slips} slip${slips > 1 ? 's' : ''}`); }
+      else { slips++; api.sfx('bad'); b.classList.add('shake'); b.style.borderColor = C.err; setTimeout(() => { b.classList.remove('shake'); b.style.borderColor = C.b1; }, 400); } };
+    g.querySelector('.R').appendChild(b); });
+  st.appendChild(g); st.appendChild(api.h(`<p class="hint">Tap an item on the left, then its match on the right. Slips cost the first-try point.</p>`));
+};
+
+// ---------- order: tap steps in sequence ----------
+K.order = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Put it in order');
+  const chain = api.h(`<div class="card" style="background:${C.deep}"><p class="label">${lv.chainLabel || 'Your sequence'}</p><ol class="ch" style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px"></ol></div>`);
+  const pool = api.h(`<div><p class="label">Tap in order · tap a placed step to remove it</p><div class="pl" style="display:flex;flex-direction:column;gap:8px"></div></div>`);
+  const run = api.h(`<button class="btn primary block" disabled>Check order ▶</button>`); st.append(chain, pool, run);
+  const sh = lv.steps.map((_, i) => i).sort((a, b) => ((a * 7 + 3) % lv.steps.length) - ((b * 7 + 3) % lv.steps.length)); let seq = [];
+  const tag = s => lv.tags && lv.tags[s] ? `<span style="font-family:VT323,monospace;font-size:17px;letter-spacing:.1em;color:${C.y}">${lv.tags[s]}</span>` : '';
+  function draw() {
+    const ch = chain.querySelector('.ch'); ch.innerHTML = seq.length ? '' : `<li style="color:${C.m2}">Empty. Tap a step below.</li>`;
+    seq.forEach((k, n) => { const li = api.h(`<li><button class="btn" style="width:100%;justify-content:flex-start;text-align:left;gap:12px"><span style="font-family:VT323,monospace;font-size:26px;color:${C.y};width:22px">${n + 1}</span><span style="display:flex;flex-direction:column">${tag(k)}<b>${lv.steps[k]}</b></span></button></li>`); li.firstChild.onclick = () => { if (!api.locked) { seq.splice(n, 1); draw(); } }; ch.appendChild(li); });
+    const pl = pool.querySelector('.pl'); pl.innerHTML = '';
+    sh.filter(k => !seq.includes(k)).forEach(k => { const b = api.h(`<button class="btn" data-s="${k}" style="justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px">${tag(k)}<b>${lv.steps[k]}</b></button>`); b.onclick = () => { if (!api.locked) { api.sfx('tap'); seq.push(k); draw(); } }; pl.appendChild(b); });
+    run.disabled = seq.length !== lv.steps.length;
+  }
+  run.onclick = async () => { if (api.locked) return; api.lock(); run.disabled = true; const bs = chain.querySelectorAll('.ch button'); let bad = -1;
+    for (let n = 0; n < seq.length; n++) { const ok = seq[n] === n; bs[n].style.borderColor = ok ? C.ok : C.err; if (!ok && bad < 0) bad = n; api.sfx(ok ? 'tap' : 'bad'); await api.wait(240); }
+    verdict(api, bad < 0, `${bad >= 0 ? `<p>Correct order: ${lv.steps.map((s, i) => `${i + 1}. ${s}`).join(' → ')}</p>` : ''}<p>${lv.explain}</p>`, null, 'Out of order'); };
+  draw();
+};
+
+// ---------- build: snap blocks into workflow slots, data flows through ----------
+K.build = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Build the workflow');
+  const flow = api.h(`<div class="card" style="background:${C.deep}"><p class="label">Workflow</p><div class="slots"></div></div>`);
+  const tray = api.h(`<div><p class="label">Nodes · tap to add, tap a placed node to remove</p><div class="tray" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div></div>`);
+  const run = api.h(`<button class="btn primary block" disabled>Execute workflow ▶</button>`); st.append(flow, tray, run);
+  const placed = lv.slots.map(() => null); const ids = Object.keys(lv.blocks).sort((a, b) => (a.length * 3 + a.charCodeAt(0)) % 7 - (b.length * 3 + b.charCodeAt(0)) % 7);
+  const bh = id => { const [k, t] = lv.blocks[id]; return `<span style="font-family:VT323,monospace;font-size:17px;letter-spacing:.1em;color:${C.y}">${k}</span><b style="color:${C.t2}">${t}</b>`; };
+  function draw() {
+    const s = flow.querySelector('.slots'); s.innerHTML = '';
+    lv.slots.forEach(([lab], i) => { if (i) s.appendChild(api.h(`<div class="wire" style="height:20px;margin-left:26px;border-left:3px dashed #333"></div>`));
+      const el = api.h(`<button class="btn slot" style="width:100%;justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;min-height:60px;${placed[i] ? '' : 'background:transparent;border:2px dashed #333'}">${placed[i] ? bh(placed[i]) : `<span style="color:${C.m2};font-weight:700">${lab}</span>`}<span class="data" style="display:none;font-size:13px;color:${C.y};white-space:pre-line"></span></button>`);
+      el.onclick = () => { if (!api.locked && placed[i]) { placed[i] = null; draw(); } }; s.appendChild(el); });
+    const t = tray.querySelector('.tray'); t.innerHTML = '';
+    ids.forEach(id => { const used = placed.includes(id); const b = api.h(`<button class="btn" data-id="${id}" style="flex-direction:column;align-items:flex-start;text-align:left;gap:2px;${used ? 'opacity:.25' : ''}" ${used ? 'disabled' : ''}>${bh(id)}</button>`);
+      b.onclick = () => { if (api.locked) return; const k = placed.indexOf(null); if (k < 0) return; api.sfx('tap'); placed[k] = id; draw(); }; t.appendChild(b); });
+    run.disabled = placed.includes(null);
+  }
+  run.onclick = async () => { if (api.locked) return; api.lock(); run.disabled = true; lockAll(tray); const sl = flow.querySelectorAll('.slot'), wr = flow.querySelectorAll('.wire'); let bad = -1;
+    for (let i = 0; i < lv.slots.length; i++) { const ok = placed[i] === lv.slots[i][1]; if (i) wr[i - 1].style.borderLeft = `3px solid ${ok ? C.y : C.err}`; sl[i].style.borderColor = ok ? C.ok : C.err; sl[i].style.borderStyle = 'solid';
+      const d = sl[i].querySelector('.data'); d.style.display = 'block'; d.textContent = ok ? '↳ ' + (lv.data ? lv.data[i] : '✓') : '↳ ✗ wrong node here'; api.sfx(ok ? 'tap' : 'bad'); await api.wait(520); if (!ok) { bad = i; break; } }
+    verdict(api, bad < 0, `${bad >= 0 ? `<p>Slot ${bad + 1} needs <code>${lv.blocks[lv.slots[bad][1]][1]}</code>.</p>` : ''}<p>${lv.explain}</p>`, 'Workflow ran', 'Workflow stopped'); };
+  draw();
+};
+
+// ---------- fix: tap the buggy line, then choose the fix ----------
+K.fix = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Spot the mistake');
+  const wrap = api.h(`<div><p class="label">Step 1 · tap the line with the mistake</p><div class="code"></div></div>`); const cb = wrap.querySelector('.code');
+  const step2 = api.h(`<div hidden><p class="label">Step 2 · how do you fix it?</p><div style="display:grid;gap:10px"></div></div>`); let lineOk = null;
+  lv.code.forEach((l, i) => { const b = api.h(`<button class="ln" data-k="${i}" style="width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;cursor:pointer;font:inherit;color:inherit;padding:6px 16px;white-space:pre">${api.py(l) || ' '}</button>`);
+    b.onclick = () => { if (api.locked || lineOk !== null) return; api.sfx('tap'); lineOk = i === lv.bad; cb.querySelectorAll('button').forEach(x => x.disabled = true);
+      b.style.borderLeftColor = lineOk ? C.ok : C.err; cb.querySelector(`[data-k="${lv.bad}"]`).style.borderLeftColor = C.ok; cb.querySelector(`[data-k="${lv.bad}"]`).style.background = 'rgba(255,228,92,.1)'; step2.hidden = false; };
+    cb.appendChild(b); });
+  lv.fixes.forEach((f, i) => { const b = api.h(`<button class="btn" data-f="${i}" style="justify-content:flex-start;text-align:left">${f}</button>`);
+    b.onclick = () => { if (api.locked) return; lockAll(step2); const ok = i === lv.fix; mark(b, ok);
+      verdict(api, ok && lineOk, `${lv.fixed ? `<p>Fixed code:</p>${api.codeBlock(lv.fixed)}` : ''}<p>${lv.explain}</p>`, 'Bug fixed', lineOk ? 'Right line, wrong fix' : 'Not that line'); };
+    step2.lastElementChild.appendChild(b); });
+  st.append(wrap, step2);
+};
+
+// ---------- dial: set range() arguments until the output matches the target ----------
+K.dial = (lv, st, api) => {
+  intro(lv, st, api, lv.label || 'Turn the dials');
+  st.appendChild(api.h(`<div class="card" style="background:${C.deep}"><p class="label">Target output</p><div style="display:flex;gap:8px;flex-wrap:wrap">${lv.target.map(t => `<span class="chip" style="font-size:18px;color:${C.y};border-color:${C.y}">${t}</span>`).join('')}</div></div>`));
+  const vals = [...lv.init]; const names = lv.args;
+  const dials = api.h(`<div style="display:grid;grid-template-columns:repeat(${names.length},1fr);gap:10px"></div>`);
+  names.forEach((nm, i) => { const d = api.h(`<div class="card" style="padding:12px;text-align:center"><p class="label" style="margin:0 0 6px">${nm}</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><button class="btn dn" data-a="${i}" data-d="-1" style="padding:8px 14px">−</button><span class="v" style="font-family:VT323,monospace;font-size:44px;color:${C.y};line-height:1">${vals[i]}</span><button class="btn up" data-a="${i}" data-d="1" style="padding:8px 14px">+</button></div></div>`);
+    d.querySelectorAll('button').forEach(b => b.onclick = () => { if (api.locked) return; api.sfx('tap'); vals[i] = Math.max(lv.min ?? -10, Math.min(lv.max ?? 20, vals[i] + +b.dataset.d)); update(); }); dials.appendChild(d); });
+  const live = api.h(`<div><p class="label">Your code · live output</p><div class="code"><span class="ln src"></span></div><div class="card" style="background:${C.deep};margin-top:10px;min-height:56px"><div class="o" style="display:flex;gap:8px;flex-wrap:wrap"></div></div></div>`);
+  const lock = api.h(`<button class="btn primary block">Lock in ▶</button>`);
+  st.append(dials, live, lock);
+  const gen = () => { const [a, b, c] = names.length === 1 ? [0, vals[0], 1] : names.length === 2 ? [vals[0], vals[1], 1] : vals; const r = []; if (c === 0) return { r, err: 'step cannot be 0' }; for (let x = a; c > 0 ? x < b : x > b; x += c) { r.push(x); if (r.length > 30) break; } return { r }; };
+  function update() { dials.querySelectorAll('.v').forEach((v, i) => v.textContent = vals[i]); live.querySelector('.src').innerHTML = api.py(`${lv.loopVar || 'for i in'} range(${vals.join(', ')}):`) + '<br>' + api.py(`    print(${(lv.loopVar || 'for i in').split(' ')[1]})`);
+    const { r, err } = gen(); live.querySelector('.o').innerHTML = err ? `<span style="color:${C.err}">${err}</span>` : r.length ? r.map(x => `<span class="chip" style="font-size:16px">${x}</span>`).join('') : `<span style="color:${C.m2}">prints nothing (empty range)</span>`; }
+  lock.onclick = () => { if (api.locked) return; lockAll(st); const { r } = gen(); const ok = r.length === lv.target.length && r.every((x, i) => x === lv.target[i]);
+    verdict(api, ok, `<p>One answer: <code>range(${lv.answer.join(', ')})</code></p><p>${lv.explain}</p>`, null, 'Output does not match'); };
+  update();
+};
+
+// ---------- dispatch ----------
+function renderLevel(lv, st, api) { (K[lv.kind] || K.mcq)(lv, st, api); }
+</script>
+
+<script>
+// ============================================================================
+// EDIT CONTENT HERE
+// GAME = title, topic and the "Remember" recap shown at the end.
+// LEVELS = one entry per level, played in order. Each level has a `kind`:
+//   mcq     q, options: ['text', ...] or [['code line', ...], ...], answer: index (0 = first), code?: [lines]
+//   tf      statement (HTML) or statementCode (Python), answer: true/false, compare?: ['str1','str2'] (letter-by-letter view)
+//   predict code: [lines], tiles: ['buttons'], expected: ['printed', 'lines'], trace?: [{ tag, v: {var: value}, out?, lines: [highlighted line numbers] }]
+//   branch  code: [lines], choices: [tappable line numbers], answer: line number, checks?: [[line, true/false], ...]
+//   maze    pre?: [lines before], tree: N('condition', true/false, yesBranch, noBranch, 'optional line before the if'), L('print(x)', 'output')
+//   sort    bins: ['Bin A', 'Bin B'], items: [['text', binIndex, 'optional note'], ...]
+//   match   pairs: [['left', 'right'], ...] (right side is shuffled), left/right: column labels
+//   order   steps: [...in the correct order...] (shuffled for students), tags?: { stepIndex: 'LABEL' }
+//   build   slots: [['slot label', blockId], ...], blocks: { id: ['TYPE', 'label'] } (extra blocks = distractors), data?: [one line per slot]
+//   fix     code: [lines], bad: line number, fixes: ['option', ...], fix: index, fixed?: [corrected lines]
+//   dial    target: [numbers], args: ['n'] or ['start','end'] or ['start','end','step'], init: [...], answer: [...]
+// Every level also takes: label (the sub-topic, shown as a tag), title, story (HTML), explain (HTML).
+// Line numbers start at 0. After editing, open the file in a browser and play it through.
+// ============================================================================
+
+const GAME = { id: 'ga-foundations', course: 'Intro to GenAI', topic: 'Session 1 · Generative AI Foundations', title: 'LLM <span>Garage</span>', winTitle: 'Engine<br><span>tuned</span>',
+  recap: ['The LLM is the engine behind most Generative AI applications.', 'Pre-trained models are ready to use. Fine-tuning = adding specific context + a pre-trained model.',
+    'Open source models can be used, modified and distributed. Closed source models are run by companies.', 'Hugging Face is the largest open-source AI model repository: 400K+ models, 150K+ apps, 100K+ datasets.'] };
+const LEVELS = [
+  { kind: 'mcq', label: 'LLMs: the engine', title: 'The car analogy', story: 'The engine gives a car its power, driving the wheels and deciding its performance.', q: 'In a Generative AI application, what plays the role of the engine?',
+    options: ['The Large Language Model (LLM)', 'The prompt you type', 'The chat window', 'The internet connection'], answer: 0,
+    explain: 'Just as an engine powers a car, the LLM is the powerful engine behind most Generative AI applications.' },
+  { kind: 'match', label: 'LLMs: the engine', title: 'What it takes to build one', story: 'An LLM is trained on vast amounts of text. Match each resource to its scale.', left: 'Resource', right: 'Scale',
+    pairs: [['Compute', 'CPU / GPU / TPU (millions)'], ['Memory', 'Terabytes'], ['Time & cost', 'Months of training, hundreds of crores'], ['Datasets', 'Petabytes']],
+    explain: 'This is why most people use models that big companies have already trained.' },
+  { kind: 'mcq', label: 'LLMs: the engine', title: 'More than text', q: 'What are models that handle text, images, audio and video called?',
+    options: ['Multimodal LLMs', 'Fine-tuned LLMs', 'Closed source LLMs', 'Small LLMs'], answer: 0,
+    explain: 'Multimodal LLMs process input and generate output across multiple formats, not just text.' },
+  { kind: 'sort', label: 'Pre-trained vs fine-tuned', title: 'Which one is it?', story: 'Think of the 8th-grade student from the reading.', bins: ['Pre-trained', 'Fine-tuned'],
+    items: [['The student already passed 8th-grade maths', 0], ['The same student preparing for the 9th-grade maths exam', 1], ['GPT-4o, already trained by a big company and ready to use', 0],
+      ['A pre-trained base trained further with specific context for a specialised task', 1], ['Lets small companies build without training their own model', 0]],
+    explain: 'Pre-trained = prior learning, ready to use. Fine-tuning = adding specific context + a pre-trained model, for targeted performance.' },
+  { kind: 'sort', label: 'Open vs closed source', title: 'Sort the models', bins: ['Open source', 'Closed source'],
+    items: [['Llama 4', 0], ['Claude Opus 4.8', 1], ['Mistral Large 3', 0], ['Gemini 3', 1], ['Gemma 4', 0], ['GPT-5.5', 1]],
+    explain: 'Open source models are publicly available to use, modify and distribute. Closed source models are developed and maintained by companies.' },
+  { kind: 'sort', label: 'Open vs closed source', title: 'Pros and cons', story: 'Which type of model does each point describe?', bins: ['Open source', 'Closed source'],
+    items: [['Easy to use: just sign up and start', 1], ['Free to use and modify', 0], ['Privacy concerns: data goes to their servers', 1], ['Requires technical knowledge to set up', 0], ['Privacy: run locally on your own computer', 0], ['Limited customization', 1]],
+    explain: 'Closed: easy, updated, supported, but can be expensive, less private, less customizable. Open: free, full control, private, but needs skills and hardware.' },
+  { kind: 'match', label: 'Hugging Face', title: 'What is inside', story: 'Hugging Face is where the machine learning community collaborates on models, datasets and applications.', left: 'On Hugging Face', right: 'Count',
+    pairs: [['Models', '400K+'], ['Applications', '150K+'], ['Datasets', '100K+'], ['Companies that deployed models', '50,000+']],
+    explain: 'Hugging Face is the largest open-source AI model repository.' },
+  { kind: 'match', label: 'Hugging Face', title: 'GitHub vs Hugging Face', left: 'Fact', right: 'Value',
+    pairs: [['GitHub launched', '2008'], ['Hugging Face launched', '2016'], ['GitHub monthly visits', '~462.4 million'], ['Hugging Face valuation', '~$4 billion']],
+    explain: 'Developers share applications on GitHub; the ML community shares models, datasets and AI apps on Hugging Face.' },
+  { kind: 'mcq', label: 'Hugging Face', title: 'Running a model', q: 'When you use a Hugging Face model through an Inference Provider, where does the model run?',
+    options: ["On the provider's cloud servers", 'On your phone', 'Inside GitHub', 'It does not run at all'], answer: 0,
+    explain: 'Hugging Face integrates with inference providers such as Together AI, Replicate, fal.ai and Cohere. You can also run models locally.' },
+];
+
+</script>
+<script>G.init(Object.assign({}, GAME, { levels: LEVELS, render: renderLevel }));</script>
+</body>
+</html>

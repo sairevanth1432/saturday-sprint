@@ -1,0 +1,16 @@
+# What `vercel deploy` must NOT upload from server/.
+# Student data, local database, uploads and secrets stay on this computer.
+node_modules
+.env
+.env.local
+data
+generated
+public/portal.html
+public/vendor
+public/packs
+test
+loadtest
+*.xlsx
+*.xls
+*.csv
+!data/students.example.csv

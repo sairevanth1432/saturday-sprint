@@ -1,0 +1,7 @@
+node_modules/
+dist/
+tests/shots/
+# Student data (names, phones, emails) must never be committed.
+*.xlsx
+*.xls
+*.csv

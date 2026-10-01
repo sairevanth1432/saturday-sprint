@@ -1,0 +1,28 @@
+# Applies to builds using server/Dockerfile (context = the "Saturday Sprint" folder).
+**/node_modules
+.git
+**/.git
+**/.env
+**/.env.local
+dist
+index.html
+vite.config.js
+package.json
+package-lock.json
+README.md
+server/data
+server/generated
+server/public/portal.html
+server/public/vendor
+server/public/learning-bytes
+server/.vercel
+server/test
+server/loadtest
+!server/package.json
+!server/package-lock.json
+# Student data must never be baked into the image.
+*.xlsx
+*.xls
+*.csv
+**/*.xlsx
+**/*.csv
