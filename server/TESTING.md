@@ -50,7 +50,16 @@ docker compose exec app node scripts/test-accounts.js remove      # before the r
 
 Mark each ✅ / ❌ per browser. *Expected* is what should happen.
 
-### A. Student login and registration
+### A0. Simple log-in (initial roll-out: Admin → Sprint settings → Student log-in = Simple, the default)
+| # | Steps | Expected |
+|---|---|---|
+| S1 | Log in as `TEST0002` with name `Test Student Two` | Portal opens; no registration, code or password |
+| S2 | Same ID with `test two student` / `TEST STUDENT TWO` | Works: case, dots and word order do not matter |
+| S3 | Same ID with only `Test` | "That NIAT ID and name do not match the student list…" |
+| S4 | Admin → Student analytics → `TEST0002` | The login is listed with time, device and network address |
+| S5 | Switch Student log-in to Secure → reload /login | Log in / Register tabs with password and phone code (section A) |
+
+### A. Student login and registration (Secure mode)
 | # | Steps | Expected |
 |---|---|---|
 | A1 | Open `/` while logged out | Redirected to the login page |

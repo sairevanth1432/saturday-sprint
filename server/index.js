@@ -11,7 +11,7 @@ import { ready, one, all, run, tx, audit, getSetting, setSetting, clearSettingCa
 import * as kv from './kv.js';
 import {
   AuthError, loadStudent, loadAdmin, adminSessionRow, startOtp, verifyOtp, endSession, revokeSessions, cleanupExpired,
-  approveRequest, rejectRequest, changeAccountPhone, passwordLogin, setStudentPassword, resetStudentPassword,
+  approveRequest, rejectRequest, changeAccountPhone, passwordLogin, setStudentPassword, resetStudentPassword, nameLogin, loginMode,
   adminPasswordLogin, adminTotpLogin, finishTotpSetup, listSessions, forgetSessions
 } from './auth.js';
 import { normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
@@ -23,6 +23,7 @@ import {
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
+import { recordActivity, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -96,6 +97,11 @@ api.post('/auth/:purpose/verify', async (req, res) => {
   res.json(r.status === 'pending' ? { ok: true, status: 'pending' } : { ok: true, status: 'active', rollNo: r.user.roll_no, hasPassword: !!r.hasPassword });
 });
 // NIAT ID + password (no OTP needed after the password is set).
+// Initial roll-out: NIAT ID + name from the student list (setting student_login_mode = "simple").
+api.post('/auth/name-login', async (req, res) => {
+  const u = await nameLogin(req, res, req.body && req.body.rollNo, req.body && req.body.name);
+  res.json({ ok: true, rollNo: u.roll_no });
+});
 api.post('/auth/password-login', async (req, res) => {
   const u = await passwordLogin(req, res, req.body && req.body.rollNo, req.body && req.body.password);
   res.json({ ok: true, rollNo: u.roll_no });
@@ -121,7 +127,7 @@ api.get('/me', who, (req, res) => {
 
 // Public facts for the Help page and the landing page (no login): Sprint window, format, rules and the units it is based on.
 api.get('/info', async (req, res) => {
-  const [sprint, proctor] = await Promise.all([getSprint(), proctorSettings()]);
+  const [sprint, proctor, mode] = await Promise.all([getSprint(), proctorSettings(), loginMode()]);
   const qs = getQuestions(), byCourse = {};
   qs.forEach((q) => { byCourse[q.course] = (byCourse[q.course] || 0) + 1; });
   res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
@@ -129,6 +135,7 @@ api.get('/info', async (req, res) => {
     sprint: { title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durationMin: sprint.durationMin, questions: qs.length, byCourse,
       types: [...new Set(qs.map((q) => q.type))], leaderboardVisible: sprint.leaderboardVisible },
     proctor,
+    loginMode: mode,
     units: (packUnits().units || []).map((u) => ({ course: u.course, title: u.name || u.title })),
     practice: practiceCounts(),
     serverNow: Date.now()
@@ -177,6 +184,11 @@ api.post('/sprint/events', who, async (req, res) => {
   const r = await recordEvents(req.who, req.body);
   if (r.attempt) clearBoardCacheSoon();
   res.json({ ...r, attempt: r.attempt ? await attemptView(r.attempt) : undefined, serverNow: Date.now() });
+});
+// Portal activity (time and clicks per area / unit / step), batched by the browser every ~2 minutes.
+api.post('/activity', who, async (req, res) => {
+  if (req.who.kind === 'student' && !(await kv.rateLimit('act:' + req.who.roll_no, 20, 60000)).ok) return res.status(429).json({ error: 'RATE_LIMITED', message: 'Too many reports.' });
+  res.json(await recordActivity(req.who, req.body));
 });
 api.post('/sprint/submit', who, async (req, res) => {
   const a = await submitAttempt(req.who, req.body);
@@ -508,6 +520,17 @@ adm.delete('/users/:roll', requireSuper, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- student analytics (super admin): time, clicks, units, logins per student
+const daysOf = (req) => Math.min(365, Math.max(1, Number(req.query.days) || 30));
+adm.get('/analytics/overview', requireSuper, async (req, res) => res.json(await analyticsOverview({ days: daysOf(req) })));
+adm.get('/analytics/students', requireSuper, async (req, res) => res.json(await studentRows({ q: String(req.query.q || '').trim(), days: daysOf(req),
+  sort: String(req.query.sort || 'time'), limit: Number(req.query.limit) || 500, offset: Number(req.query.offset) || 0 })));
+adm.get('/analytics/students/:roll', requireSuper, async (req, res) => {
+  const d = await studentDetail(normRoll(req.params.roll), { days: daysOf(req) });
+  if (!d) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such NIAT ID.' });
+  res.json(d);
+});
+
 // ---------- practice analytics (attempts per practice question, correct %, option spread, coding solved)
 adm.get('/practice', async (req, res) => {
   res.json(await practiceAnalytics({ fresh: req.query.fresh === '1' }));
@@ -718,6 +741,15 @@ adm.get('/export/:what', async (req, res) => {
     const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id')).map((r) => ({ ...r, at: iso(r.created_at) }));
     name = 'feedback.csv';
     body = toCSV(['at', 'roll_no', 'name', 'kind', 'rating', 'text'], rows);
+  } else if (req.params.what === 'activity.csv') {
+    if (req.admin.role !== 'super_admin') return res.status(403).json({ error: 'FORBIDDEN', message: 'Super admins only.' });
+    const d = await studentRows({ days: daysOf(req), limit: 100000 });
+    const mins = (ms) => Math.round(ms / 6000) / 10;
+    const rows = d.rows.map((r) => ({ ...r, minutes: mins(r.ms), learn_minutes: mins(r.learn_ms), practice_minutes: mins(r.practice_ms), video_minutes: mins(r.video_ms),
+      last_active: iso(r.last_active), last_login: iso(r.last_login_at), registered: r.registered ? 'yes' : 'no' }));
+    name = `activity-last-${d.days}-days.csv`;
+    body = toCSV(['roll_no', 'name', 'batch', 'registered', 'logins', 'last_login', 'last_active', 'days_active', 'minutes', 'learn_minutes', 'practice_minutes', 'video_minutes',
+      'units_opened', 'unit_clicks', 'steps_done', 'units_completed', 'practice_answered', 'practice_correct', 'coding_solved'], rows);
   } else return res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown export.' });
   await audit(req, 'export', req.params.what);
   res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}"` });
@@ -726,7 +758,7 @@ adm.get('/export/:what', async (req, res) => {
 
 // ---------- settings (super admin)
 adm.get('/settings', async (req, res) => res.json({ sprint: await getSprint(), marks: MARKS, questions: getQuestions().length, proctor: await proctorSettings(),
-  registrationAutoApprove: !!(await getSetting('registration_auto_approve', false)) }));
+  registrationAutoApprove: !!(await getSetting('registration_auto_approve', false)), loginMode: await loginMode() }));
 adm.patch('/settings', requireSuper, async (req, res) => {
   const b = req.body || {}, before = await getSprint(), changes = {};
   if (b.sprint_id !== undefined) {
@@ -747,6 +779,7 @@ adm.patch('/settings', requireSuper, async (req, res) => {
   }
   if (b.leaderboard_visible !== undefined) changes.leaderboard_visible = !!b.leaderboard_visible;
   if (b.registration_auto_approve !== undefined) changes.registration_auto_approve = !!b.registration_auto_approve;
+  if (b.student_login_mode !== undefined) changes.student_login_mode = b.student_login_mode === 'secure' ? 'secure' : 'simple';
   for (const k of ['proctor_enabled', 'proctor_fullscreen', 'proctor_block_copy']) if (b[k] !== undefined) changes[k] = !!b[k];
   if (b.proctor_max_violations !== undefined) {
     const n = Number(b.proctor_max_violations);

@@ -5,6 +5,7 @@
  *    hidden tests and final grading run on the server
  *  - leaderboard tab, Home card and post-test standings
  *  - lesson/practice progress synced to the account
+ *  - activity for Student analytics: active time and clicks per area / unit / step, video watch time (ssActMount)
  *  - Sprint proctoring: full screen, tab-switch detection, copy blocking, activity log (see ssProctorMount)
  */
 (function () {
@@ -119,6 +120,7 @@
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
       this.ssLoadBoard();
       this.ssProctorMount();
+      this.ssActMount();
     }
 
     // ---------- persistence
@@ -214,6 +216,76 @@
         self._ssRetryAt = Date.now() + 8000;
         self.setState({ ssSubmitting: false, ssSubmitErr: e.message + ' Your answers are saved. Try again.' });
       });
+    }
+
+    // ---------- activity (Admin → Student analytics)
+    // Counts ACTIVE time only: the page is visible and the student used it in the last minute, is inside a game
+    // (an iframe has focus), or a video is playing. Opening a unit or a step counts as one click ("open").
+    ssActKey() {
+      var S = this.state;
+      if (S.tab === 'learn') {
+        var CO = this.courseList()[S.course], mod = CO && CO.modules[S.mod], les = mod && mod.lessons[S.les];
+        if (!les) return 'learn||';
+        return 'learn|' + les.id + '|' + (les.tabs ? ((S.ssTab || {})[les.id] || 'watch') : '');
+      }
+      if (S.tab === 'practice') return 'practice|' + (S.psess || this._ssPTopic || '') + '|';
+      if (S.tab === 'code') return 'code|' + (S.csel || '') + '|';
+      if (S.tab === 'test' || S.tab === 'board') return S.tab + '||';
+      return 'home||';
+    }
+    ssActRow(key) { var A = this._act; return A.rows[key] || (A.rows[key] = { ms: 0, opens: 0, videoMs: 0, videoPct: 0 }); }
+    ssActTick() {
+      var A = this._act, now = Date.now();
+      if (!A) return;
+      var key = this.ssActKey();
+      if (key !== A.key) { A.key = key; this.ssActRow(key).opens++; }
+      var vis = document.visibilityState === 'visible';
+      var inFrame = document.activeElement && document.activeElement.tagName === 'IFRAME' && document.hasFocus();
+      var playing = A.playing > 0;
+      if (vis && (now - A.lastInput < 60000 || inFrame || playing)) this.ssActRow(key).ms += Math.min(5000, now - A.lastTick);
+      A.lastTick = now;
+    }
+    ssActFlush(beacon) {
+      var A = this._act;
+      if (!A) return;
+      var items = Object.keys(A.rows).map(function (k) {
+        var r = A.rows[k], parts = k.split('|');
+        return { area: parts[0], item: parts[1], step: parts[2], ms: r.ms, opens: r.opens, videoMs: Math.round(r.videoMs), videoPct: Math.round(r.videoPct) };
+      }).filter(function (r) { return r.ms >= 1000 || r.opens || r.videoMs >= 1000; });
+      if (!items.length) return;
+      A.rows = {};
+      api('POST', '/api/activity', { items: items }, { keepalive: !!beacon }).catch(function () {
+        items.forEach(function (r) { var x = A.rows[r.area + '|' + r.item + '|' + r.step] = A.rows[r.area + '|' + r.item + '|' + r.step] || { ms: 0, opens: 0, videoMs: 0, videoPct: 0 };
+          x.ms += r.ms; x.opens += r.opens; x.videoMs += r.videoMs; x.videoPct = Math.max(x.videoPct, r.videoPct); });
+      });
+    }
+    ssActVideo(el, src) {
+      var self = this, last = null;
+      el.addEventListener('play', function () { self._act && self._act.playing++; });
+      ['pause', 'ended'].forEach(function (t) { el.addEventListener(t, function () { if (self._act && self._act.playing > 0) self._act.playing--; }); });
+      el.addEventListener('timeupdate', function () {
+        // one <video> element can be reused for the next unit: always use the source it plays now
+        var A = self._act, cur = el._src; if (!A || !cur) return;
+        if (cur !== src) { src = cur; last = null; }
+        var unit = (self._ssVidUnit || {})[cur]; if (!unit) return;
+        var row = self.ssActRow('learn|' + unit + '|watch'), t = el.currentTime;
+        if (last !== null && !el.paused && t > last && t - last < 2) row.videoMs += (t - last) * 1000;
+        last = t;
+        if (isFinite(el.duration) && el.duration > 0) row.videoPct = Math.max(row.videoPct, Math.min(100, t / el.duration * 100 + (el.ended ? 100 : 0)));
+      });
+      el.addEventListener('seeking', function () { last = null; });
+    }
+    ssActMount() {
+      if (this.ss.user.kind !== 'student') return;
+      var self = this, A = this._act = { rows: {}, key: null, lastInput: Date.now(), lastTick: Date.now(), playing: 0 };
+      var poke = function () { A.lastInput = Date.now(); };
+      ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (t) { window.addEventListener(t, poke, { passive: true, capture: true }); });
+      var lastMove = 0;
+      window.addEventListener('mousemove', function () { var n = Date.now(); if (n - lastMove > 5000) { lastMove = n; poke(); } }, { passive: true });
+      this._ssActT = setInterval(function () { self.ssActTick(); }, 1000);
+      this._ssActF = setInterval(function () { self.ssActFlush(false); }, 120000 + Math.floor(Math.random() * 30000));
+      window.addEventListener('pagehide', function () { self.ssActTick(); self.ssActFlush(true); });
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { self.ssActTick(); self.ssActFlush(true); } });
     }
 
     // ---------- proctoring (Sprint settings → Proctoring)
@@ -501,6 +573,7 @@
     }
     ssVideoRef(src) {
       this._ssVref = this._ssVref || {};
+      var self = this;
       return this._ssVref[src] || (this._ssVref[src] = function (el) {
         if (!el) return;
         // The portal's template turns the empty `controls` attribute into controls=false, which left
@@ -518,6 +591,7 @@
           try { el.currentTime = t; } catch (e) {}
         };
         el.addEventListener('loadedmetadata', cover, { once: true });
+        if (!el._ssActHook) { el._ssActHook = true; self.ssActVideo(el, src); }
         if (!el._ssPlayHook) {
           el._ssPlayHook = true;
           el.addEventListener('play', function () {
@@ -535,6 +609,8 @@
 
     renderVals() {
       var v = super.renderVals(), S = this.state, self = this, U = this.ss.user;
+      // the practice topic on screen (the portal picks a default when the student has not chosen one)
+      if (v.pq && v.pq.topicLabel && v.pq.topicLabel !== 'Topic') this._ssPTopic = v.pq.topicLabel;
       var on = S.tab === 'board';
       v.nav.board = { go: function () { self.xpStop(); self.setState({ tab: 'board' }); self.ssLoadBoard(true); }, bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#FFFFFF' };
       v.show.board = on;
@@ -606,6 +682,7 @@
         // Content for the current step
         v.xpShow = false; v.recShow = true; v.recAvail = false;
         if (tab === 'watch') {
+          if (src.watch) { this._ssVidUnit = this._ssVidUnit || {}; this._ssVidUnit[src.watch] = les.id; }
           v.wt = Object.assign({}, v.wt, { isVideo: !!src.watch, isSlides: false, src: src.watch, title: les.title, groups: [], tall: false,
             vw: portrait ? 'min(100%, 440px)' : '100%', aspect: portrait ? '9 / 16' : '16 / 9', ref: src.watch ? this.ssVideoRef(src.watch) : null });
         } else {

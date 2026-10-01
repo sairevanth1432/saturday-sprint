@@ -253,9 +253,51 @@ export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone, r
     throw e;
   });
   // Sessions opened with an OTP may set a new password for 15 minutes (first login without a password, or "forgot password").
-  if (result.status === 'active') await createSession(req, res, 'student', result.user.id, { stage: 'otp' });
+  if (result.status === 'active') { await createSession(req, res, 'student', result.user.id, { stage: 'otp' }); await recordLogin(req, result.user.roll_no, 'code'); }
   if (result.user) result.hasPassword = !!result.user.password_hash;
   return result;
+}
+
+// ---------- simple login (initial roll-out): NIAT ID + name as in the student list
+// Setting "student_login_mode": "simple" (default) or "secure" (phone code, password, admin approval).
+// Simple mode has no secret: anyone who knows a student's NIAT ID and name can log in as them. Every login is
+// recorded (student_logins) and admins can still disable an account. Switch to "secure" before wider roll-out.
+export async function loginMode() {
+  const m = await getSetting('student_login_mode', 'simple');
+  return m === 'secure' ? 'secure' : 'simple';
+}
+// "Asha  K. Kumar" ≈ "asha k kumar" ≈ "Kumar Asha K": case, dots, extra spaces and word order do not matter.
+export function nameKey(name) {
+  return String(name || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+}
+export async function recordLogin(req, roll, method) {
+  await run('INSERT INTO student_logins (roll_no, at, method, ip, ua) VALUES (?, ?, ?, ?, ?)',
+    roll, Date.now(), method, req.ip || null, String(req.headers['user-agent'] || '').slice(0, 200)).catch(() => {});
+}
+export async function nameLogin(req, res, rawRoll, rawName) {
+  if ((await loginMode()) !== 'simple') throw new AuthError('MODE', 'Log in with your NIAT ID and password.', 409);
+  const roll = checkRoll(rawRoll);
+  // generous per network (a whole campus can share one address), strict per NIAT ID
+  await limitOrThrow('name-ip:' + req.ip, 3000, 15 * 60000, 'Too many log-ins from this network. Try again in a few minutes.');
+  await limitOrThrow('name-roll:' + roll, 10, 15 * 60000, 'Too many attempts for this NIAT ID. Try again in 15 minutes.');
+  const m = await one('SELECT * FROM students_master WHERE roll_no = ?', roll);
+  const given = nameKey(rawName);
+  if (!given) throw new AuthError('BAD_NAME', 'Enter your name as it is in the student list.', 400);
+  if (!m || !m.active || nameKey(m.name) !== given) {
+    throw new AuthError('BAD_LOGIN', 'That NIAT ID and name do not match the student list. Check the spelling, or ask your mentor.', 401);
+  }
+  let u = await one('SELECT * FROM users WHERE roll_no = ?', roll);
+  const now = Date.now();
+  if (!u) {
+    await run('INSERT INTO users (roll_no, phone, status, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (roll_no) DO NOTHING', roll, m.phone || '', 'active', now);
+    u = await one('SELECT * FROM users WHERE roll_no = ?', roll);
+  }
+  if (u.status !== 'active') throw new AuthError('ACCOUNT_DISABLED', 'This account is disabled. Contact your mentor.', 403);
+  await run('UPDATE users SET last_login_at = ? WHERE id = ?', now, u.id);
+  await createSession(req, res, 'student', u.id);
+  await recordLogin(req, roll, 'name');
+  return u;
 }
 
 // ---------- student passwords
@@ -293,6 +335,7 @@ export async function passwordLogin(req, res, rawRoll, password) {
   if (u.status !== 'active' || !u.master_active) throw new AuthError('ACCOUNT_DISABLED', 'This account is disabled. Contact your program admin.', 403);
   await run('UPDATE users SET failed_logins = 0, locked_until = 0, last_login_at = ? WHERE id = ?', now, u.id);
   await createSession(req, res, 'student', u.id);
+  await recordLogin(req, u.roll_no, 'password');
   return u;
 }
 

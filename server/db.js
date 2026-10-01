@@ -192,6 +192,16 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until BIGINT NOT NULL DEFAULT 
 ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS password_hash TEXT;
 
 -- Proctoring for the Sprint test: every tracked event, plus a summary on the attempt.
+-- Every student login (simple mode has no secret, so this is the audit trail) and portal activity per day.
+CREATE TABLE IF NOT EXISTS student_logins (id BIGSERIAL PRIMARY KEY, roll_no TEXT NOT NULL, at BIGINT NOT NULL, method TEXT NOT NULL, ip TEXT, ua TEXT);
+CREATE INDEX IF NOT EXISTS student_logins_roll ON student_logins(roll_no, at);
+CREATE INDEX IF NOT EXISTS student_logins_at ON student_logins(at);
+-- Active time and opens per student, day (IST), area (home/learn/practice/code/test/board), item (unit / topic) and step.
+CREATE TABLE IF NOT EXISTS activity (
+  roll_no TEXT NOT NULL, day TEXT NOT NULL, area TEXT NOT NULL, item TEXT NOT NULL DEFAULT '', step TEXT NOT NULL DEFAULT '',
+  ms BIGINT NOT NULL DEFAULT 0, opens INTEGER NOT NULL DEFAULT 0, video_ms BIGINT NOT NULL DEFAULT 0, video_pct INTEGER NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL, PRIMARY KEY (roll_no, day, area, item, step));
+CREATE INDEX IF NOT EXISTS activity_day ON activity(day);
 CREATE TABLE IF NOT EXISTS attempt_events (
   id          BIGSERIAL PRIMARY KEY,
   attempt_id  BIGINT NOT NULL,

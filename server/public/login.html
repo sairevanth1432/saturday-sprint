@@ -77,11 +77,12 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
 .sprint-line{font-family:"VT323",monospace;font-size:20px;color:var(--accent)}
 .foot{font-size:13px;color:var(--muted);line-height:1.5}
 [hidden]{display:none !important}
+body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:none !important}
 @media (max-width:860px){.wrap{grid-template-columns:1fr;gap:24px}.brand{font-size:40px}.card{order:-1}.intro{order:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
 </head>
-<body>
+<body class="m-simple">
 <main class="wrap">
   <section class="intro">
     <p class="tag">~/saturday-sprint · NIAT</p>
@@ -97,25 +98,34 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
 
       <div class="role" id="role-student" role="tabpanel" aria-labelledby="r-student">
         <h3>What to do as a student</h3>
-        <p class="why">Five steps from registering to your rank on the leaderboard.</p>
-        <ol>
+        <p class="why" data-mode="secure">Five steps from registering to your rank on the leaderboard.</p>
+        <p class="why" data-mode="simple">Four steps from logging in to your rank on the leaderboard.</p>
+        <ol data-mode="simple">
+          <li><b>1</b><span><strong>Log in</strong> with your NIAT ID and your name exactly as in the college list. No registration is needed.</span></li>
+          <li><b>2</b><span><strong>Finish the learning units</strong> in <em>Learn</em>. Each unit is Watch → Play → Read.</span></li>
+          <li><b>3</b><span><strong>Practise every topic</strong> in <em>Practice</em>: quizzes and coding problems, with explanations.</span></li>
+          <li><b>4</b><span><strong>Take the End-of-Sprint Test</strong> <span class="sprint-when">on Saturday</span>. It is timed and proctored, and you get one attempt. Then see your rank.</span></li>
+        </ol>
+        <ol data-mode="secure">
           <li><b>1</b><span><strong>Register once</strong> with your NIAT ID, your own mobile number and a password, then enter the code sent to your phone.</span></li>
           <li><b>2</b><span><strong>Wait for a mentor to approve you.</strong> After that, log in with your NIAT ID and password.</span></li>
           <li><b>3</b><span><strong>Finish the learning units</strong> in <em>Learn</em>. Each unit is Watch → Play → Read.</span></li>
           <li><b>4</b><span><strong>Practise every topic</strong> in <em>Practice</em>: quizzes and coding problems, with explanations.</span></li>
-          <li><b>5</b><span><strong>Take the End-of-Sprint Test</strong> <span id="sprint-when">on Saturday</span>. It is timed and proctored, and you get one attempt. Then see your rank.</span></li>
+          <li><b>5</b><span><strong>Take the End-of-Sprint Test</strong> <span class="sprint-when">on Saturday</span>. It is timed and proctored, and you get one attempt. Then see your rank.</span></li>
         </ol>
         <div class="go"><a class="pri" href="/help">Read the student guide →</a><a href="/help#rules">Test rules</a><a href="/help#faq">Help &amp; FAQ</a></div>
       </div>
 
       <div class="role" id="role-mentor" role="tabpanel" aria-labelledby="r-mentor" hidden>
         <h3>What to do as a mentor</h3>
-        <p class="why">Mentors approve students, follow their progress and run the Sprint from the mentor console.</p>
+        <p class="why">Mentors look after the student list, follow progress and run the Sprint from the mentor console.</p>
         <ol>
           <li><b>1</b><span><strong>Get your account</strong> from the program super admin, then log in at the <a href="/admin">mentor console</a> with your email, password and an authenticator app.</span></li>
-          <li><b>2</b><span><strong>Approve registrations</strong> in <em>Approvals</em>. Check that the NIAT ID and name belong to your student.</span></li>
+          <li data-mode="secure"><b>2</b><span><strong>Approve registrations</strong> in <em>Approvals</em>. Check that the NIAT ID and name belong to your student.</span></li>
+          <li data-mode="simple"><b>2</b><span><strong>Check the student list</strong> in <em>Master data</em>. Students log in with their NIAT ID and the name written there, so the names must be right.</span></li>
           <li><b>3</b><span><strong>Follow the learning</strong> in <em>Students</em> (each student's progress) and <em>Practice analytics</em> (which questions the batch gets wrong). Reteach those topics.</span></li>
-          <li><b>4</b><span><strong>Help students get in</strong>: change a login phone number or reset a password from the student's page.</span></li>
+          <li data-mode="secure"><b>4</b><span><strong>Help students get in</strong>: change a login phone number or reset a password from the student's page.</span></li>
+          <li data-mode="simple"><b>4</b><span><strong>Help students get in</strong>: if a name does not match, correct it in <em>Master data</em>. Each student's logins are listed in <em>Student analytics</em>.</span></li>
           <li><b>5</b><span><strong>On Sprint day</strong>, follow <em>Results</em> live: proctoring flags and each attempt's activity timeline. Then share the <em>Leaderboard</em>.</span></li>
         </ol>
         <div class="go"><a class="pri" href="/admin">Open the mentor console →</a><a href="/help#mentors">Mentor notes</a></div>
@@ -124,12 +134,30 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
   </section>
 
   <section class="card" aria-live="polite">
-    <div class="tabs" role="tablist" aria-label="Log in or register">
+    <form id="f-name" data-mode="simple" novalidate style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <h1>Welcome</h1>
+        <p class="sub">Log in with your NIAT ID and your name as it is in the college list.</p>
+      </div>
+      <div>
+        <label for="n-roll">NIAT ID</label>
+        <input id="n-roll" name="username" autocomplete="username" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="e.g. N26P02A0001" required>
+      </div>
+      <div>
+        <label for="n-name">Full name</label>
+        <input id="n-name" class="pw" name="name" autocomplete="name" spellcheck="false" maxlength="100" placeholder="e.g. Asha Kumar" required>
+        <span class="hint">Capital letters, dots and the order of the words do not matter.</span>
+      </div>
+      <button class="btn" id="b-name" type="submit">Log in</button>
+      <div id="n-msg" class="msg err" hidden></div>
+    </form>
+
+    <div class="tabs" data-mode="secure" role="tablist" aria-label="Log in or register">
       <button role="tab" id="tab-login" aria-selected="true" aria-controls="panel">Log in</button>
       <button role="tab" id="tab-register" aria-selected="false" aria-controls="panel">Register</button>
     </div>
 
-    <div id="panel" role="tabpanel" style="display:flex;flex-direction:column;gap:18px">
+    <div id="panel" data-mode="secure" role="tabpanel" style="display:flex;flex-direction:column;gap:18px">
       <div id="head">
         <h1 id="title">Welcome back</h1>
         <p class="sub" id="subtitle">Enter your NIAT ID. We send a login code to your registered mobile number.</p>
@@ -205,7 +233,7 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
       <div id="dev" class="msg dev" hidden></div>
     </div>
 
-    <p class="foot">New here? <a href="/help">How the Sprint works</a>. Changed your phone number, or your NIAT ID is not accepted? Contact your mentor.</p>
+    <p class="foot">New here? <a href="/help">How the Sprint works</a>. <span data-mode="secure">Changed your phone number, or your NIAT ID is not accepted?</span><span data-mode="simple">NIAT ID or name not accepted?</span> Contact your mentor.</p>
   </section>
 </main>
 
@@ -402,19 +430,42 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
     show($('role-student'), r === 'student'); show($('role-mentor'), r === 'mentor');
     try { localStorage.setItem('ss-role', r); } catch (e) {}
   }
+  // Simple log-in (initial roll-out): NIAT ID + name
+  $('f-name').onsubmit = function (e) {
+    e.preventDefault();
+    if (busy) return;
+    var r = $('n-roll').value.trim().toUpperCase().replace(/\s+/g, ''), n = $('n-name').value.trim(), m = $('n-msg');
+    show(m, false);
+    if (!r) { m.textContent = 'Enter your NIAT ID.'; show(m, true); $('n-roll').focus(); return; }
+    if (!n) { m.textContent = 'Enter your name.'; show(m, true); $('n-name').focus(); return; }
+    busy = true; $('b-name').disabled = true;
+    call('/api/auth/name-login', { rollNo: r, name: n }).then(function () {
+      m.className = 'msg ok'; m.textContent = 'Logged in. Opening the portal…'; show(m, true); location.replace('/');
+    }, function (err) {
+      if (err.error === 'MODE') { applyMode('secure'); return; }
+      m.className = 'msg err'; m.textContent = err.message || 'Something went wrong.'; show(m, true);
+    }).then(function () { busy = false; $('b-name').disabled = false; });
+  };
+  function applyMode(mode) {
+    document.body.classList.toggle('m-simple', mode === 'simple');
+    document.body.classList.toggle('m-secure', mode !== 'simple');
+  }
+
   $('r-student').onclick = function () { role('student'); };
   $('r-mentor').onclick = function () { role('mentor'); };
   try { if (localStorage.getItem('ss-role') === 'mentor') role('mentor'); } catch (e) {}
 
   // The real Sprint date and length, from the server
   fetch('/api/info').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (d && d.loginMode) applyMode(d.loginMode);
     if (!d || !d.sprint || !isFinite(d.sprint.openMs)) return;
     var f = function (ms, o) { try { return new Date(ms).toLocaleString('en-IN', Object.assign({ timeZone: 'Asia/Kolkata' }, o)); } catch (e) { return new Date(ms).toLocaleString(); } };
     var day = f(d.sprint.openMs, { weekday: 'short', day: 'numeric', month: 'short' });
     var tm = function (ms) { return f(ms, { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase(); };
     var endDay = f(d.sprint.closeMs, { weekday: 'short', day: 'numeric', month: 'short' });
     var closeTxt = endDay === day ? tm(d.sprint.closeMs) : endDay + ', ' + tm(d.sprint.closeMs);
-    $('sprint-when').textContent = 'on ' + day + ' (' + tm(d.sprint.openMs) + ' – ' + closeTxt + ' IST, ' + d.sprint.durationMin + ' minutes)';
+    var whenTxt = 'on ' + day + ' (' + tm(d.sprint.openMs) + ' – ' + closeTxt + ' IST, ' + d.sprint.durationMin + ' minutes)';
+    document.querySelectorAll('.sprint-when').forEach(function (el) { el.textContent = whenTxt; });
     var now = d.serverNow || Date.now(), line = $('sprint-line');
     line.textContent = now < d.sprint.openMs ? '> next sprint test: ' + day + ' · ' + tm(d.sprint.openMs) + ' IST' : now < d.sprint.closeMs ? '> the sprint test is live now · closes ' + closeTxt + ' IST' : '> the last sprint test has closed';
     show(line, true);

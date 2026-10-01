@@ -569,3 +569,63 @@ test('help page and landing info are public; info shows the Sprint, rules and un
   assert.equal(typeof i.body.proctor.maxViolations, 'number');
   assert.ok(!/"c":|"tests":/.test(i.text), 'no answers in public info');
 });
+
+test('simple login: NIAT ID + name (any case, dots, word order); account created on first login; every login recorded', async () => {
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES ('SIMPLE01', 'Ravi Teja K.', '', 'B', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", Date.now());
+  assert.equal((await client()('GET', '/api/info')).body.loginMode, 'simple', 'simple is the default for the initial roll-out');
+  const c = client();
+  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi' })).body.error, 'BAD_LOGIN');
+  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE99', name: 'Ravi Teja K' })).body.error, 'BAD_LOGIN', 'unknown IDs get the same answer');
+  const ok = await c('POST', '/api/auth/name-login', { rollNo: 'simple01', name: '  k teja RAVI ' });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal((await c('GET', '/api/me')).body.rollNo, 'SIMPLE01');
+  assert.equal((await db.one("SELECT COUNT(*) AS n FROM users WHERE roll_no = 'SIMPLE01'")).n, 1);
+  assert.equal((await db.one("SELECT method FROM student_logins WHERE roll_no = 'SIMPLE01'")).method, 'name');
+  // a disabled account stays out
+  await ADM('POST', '/api/admin/users/SIMPLE01/status', { status: 'disabled' });
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' })).body.error, 'ACCOUNT_DISABLED');
+  await ADM('POST', '/api/admin/users/SIMPLE01/status', { status: 'active' });
+  // secure mode turns it off
+  assert.equal((await ADM('PATCH', '/api/admin/settings', { student_login_mode: 'secure' })).status, 200);
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' })).body.error, 'MODE');
+  assert.equal((await client()('GET', '/api/info')).body.loginMode, 'secure');
+  await ADM('PATCH', '/api/admin/settings', { student_login_mode: 'simple' });
+});
+
+test('student analytics: active time, unit clicks, video watched, logins per student; super admin only', async () => {
+  const c = client();
+  await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' });
+  const r = await c('POST', '/api/activity', { items: [
+    { area: 'learn', item: 'tp-nested', step: 'watch', ms: 90000, opens: 2, videoMs: 80000, videoPct: 85 },
+    { area: 'learn', item: 'tp-nested', step: 'play', ms: 120000, opens: 1 },
+    { area: 'practice', item: 'For Loop', ms: 60000, opens: 1 },
+    { area: 'learn', item: 'tp-forloop', step: 'watch', ms: 99999999, opens: 1 },
+    { area: 'hacking', item: 'x', ms: 1000 } ] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.saved, 4, 'unknown areas are dropped');
+  await c('POST', '/api/activity', { items: [{ area: 'learn', item: 'tp-nested', step: 'watch', ms: 30000, opens: 1, videoPct: 60 }] });
+  const row = await db.one("SELECT ms, opens, video_pct FROM activity WHERE roll_no = 'SIMPLE01' AND item = 'tp-nested' AND step = 'watch'");
+  assert.deepEqual([Number(row.ms), row.opens, row.video_pct], [120000, 3, 85], 'summed per day; video keeps the furthest point');
+  assert.equal(Number((await db.one("SELECT ms FROM activity WHERE roll_no = 'SIMPLE01' AND item = 'tp-forloop'")).ms), 300000, 'one report row is capped at 5 minutes');
+  await c('PUT', '/api/progress', { data: { stepDone: { 'pf-0-0:watch': true, 'pf-0-0:play': true, 'pf-0-0:read': true } } });
+
+  const o = await ADM('GET', '/api/admin/analytics/overview?days=7');
+  assert.equal(o.status, 200, JSON.stringify(o.body));
+  const u = o.body.units.find((x) => x.id === 'tp-nested');
+  assert.equal(u.students >= 1 && u.opens >= 4, true);
+  assert.equal(u.steps.watch.videoPct, 85);
+  assert.ok(u.done.all3 >= 1, 'finished steps map to the unit');
+  assert.ok(o.body.areas.find((a) => a.area === 'practice').ms >= 60000);
+  const list = await ADM('GET', '/api/admin/analytics/students?q=SIMPLE01');
+  const me = list.body.rows[0];
+  assert.equal(me.roll_no, 'SIMPLE01');
+  assert.equal(me.units_opened, 2); assert.equal(me.units_completed, 1); assert.ok(me.logins >= 2);
+  assert.equal(me.ms, 120000 + 120000 + 60000 + 300000);
+  const det = await ADM('GET', '/api/admin/analytics/students/SIMPLE01');
+  assert.equal(det.body.units.find((x) => x.id === 'tp-nested').steps.play.ms, 120000);
+  assert.ok(det.body.logins.length >= 2);
+  assert.equal(det.body.practice.find((t) => t.sess === 'For Loop').ms, 60000);
+  const csv = await ADM('GET', '/api/admin/export/activity.csv?days=7');
+  assert.match(csv.text, /SIMPLE01/);
+  assert.equal((await c('GET', '/api/admin/analytics/overview')).status, 401);
+});

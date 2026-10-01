@@ -61,6 +61,8 @@ async function compute() {
   return { at: Date.now(), students: rows.length, active, quiz, code, topics };
 }
 
+export const practiceCatalogue = () => loadCatalogue();
+
 // Question counts per course (public Help page).
 export function practiceCounts() {
   const c = loadCatalogue(), out = {};

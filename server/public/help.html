@@ -68,12 +68,16 @@ summary::-webkit-details-marker{display:none}
 summary:before{content:"+ ";color:var(--accent)}
 details[open] summary:before{content:"− "}
 details p{margin:0 0 14px}
+body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:none !important}
+.path{counter-reset:step}
+.path li{counter-increment:step}
+.path b.n:before{content:counter(step)}
 .foot{color:var(--muted);font-size:13px;text-align:center;margin-top:10px}
 @media (max-width:960px){.layout{grid-template-columns:1fr}.toc{position:static;flex-direction:row;flex-wrap:wrap}.toc b{width:100%}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:680px){.g2,.g3,.units{grid-template-columns:1fr}h1{font-size:32px}section{padding:20px 18px}.layout,.top{padding-left:16px;padding-right:16px}}
 </style>
 </head>
-<body>
+<body class="m-simple">
 <header class="top">
   <a class="logo" href="/" aria-label="Saturday Sprint portal">Saturday<br><span>Sprint</span></a>
   <nav><a class="btn" href="/login">Log in / Register</a><a class="btn pri" href="/">Open the portal</a></nav>
@@ -147,13 +151,14 @@ details p{margin:0 0 14px}
       <p class="k">04 · what to do</p>
       <h2>Your path, step by step</h2>
       <ol class="path">
-        <li><b class="n">1</b><div><strong>Register once</strong><span>On the <a href="/login#register">Register</a> tab, enter your NIAT ID, your own mobile number and a password. Type the 6-digit code sent to your phone.</span></div></li>
-        <li><b class="n">2</b><div><strong>Wait for approval</strong><span>A mentor checks your NIAT ID against the student list and approves you, usually within a day. Until then, logging in shows "waiting for approval".</span></div></li>
-        <li><b class="n">3</b><div><strong>Log in with your NIAT ID and password</strong><span>No code is needed after that. Your progress is saved to your account, so you can continue on any computer.</span></div></li>
-        <li><b class="n">4</b><div><strong>Complete the learning units</strong><span><b>Learn</b> → pick a course → open each unit and go Watch → Play → Read. A ✓ marks every finished step.</span></div></li>
-        <li><b class="n">5</b><div><strong>Practise every topic</strong><span><b>Practice</b> → choose the course and topic → answer the quizzes and solve the coding problems. Each answer shows the explanation straight away.</span></div></li>
-        <li><b class="n">6</b><div><strong>Take the End-of-Sprint Test</strong><span id="path-test">On Saturday, during the test window: <b>Sprint test</b> → read the rules → Start. You get one attempt.</span></div></li>
-        <li><b class="n">7</b><div><strong>See your score and rank</strong><span>Your score appears as soon as you submit. <b>Leaderboard</b> shows your rank in the batch.</span></div></li>
+        <li data-mode="simple"><b class="n"></b><div><strong>Log in with your NIAT ID and name</strong><span>On the <a href="/login">log-in page</a>, type your NIAT ID and your name as it is in the college list. Capital letters and word order do not matter. No registration, phone or password is needed. Your progress is saved to your account, so you can continue on any computer.</span></div></li>
+        <li data-mode="secure"><b class="n"></b><div><strong>Register once</strong><span>On the <a href="/login#register">Register</a> tab, enter your NIAT ID, your own mobile number and a password. Type the 6-digit code sent to your phone.</span></div></li>
+        <li data-mode="secure"><b class="n"></b><div><strong>Wait for approval</strong><span>A mentor checks your NIAT ID against the student list and approves you, usually within a day. Until then, logging in shows "waiting for approval".</span></div></li>
+        <li data-mode="secure"><b class="n"></b><div><strong>Log in with your NIAT ID and password</strong><span>No code is needed after that. Your progress is saved to your account, so you can continue on any computer.</span></div></li>
+        <li><b class="n"></b><div><strong>Complete the learning units</strong><span><b>Learn</b> → pick a course → open each unit and go Watch → Play → Read. A ✓ marks every finished step.</span></div></li>
+        <li><b class="n"></b><div><strong>Practise every topic</strong><span><b>Practice</b> → choose the course and topic → answer the quizzes and solve the coding problems. Each answer shows the explanation straight away.</span></div></li>
+        <li><b class="n"></b><div><strong>Take the End-of-Sprint Test</strong><span id="path-test">On Saturday, during the test window: <b>Sprint test</b> → read the rules → Start. You get one attempt.</span></div></li>
+        <li><b class="n"></b><div><strong>See your score and rank</strong><span>Your score appears as soon as you submit. <b>Leaderboard</b> shows your rank in the batch.</span></div></li>
       </ol>
     </section>
 
@@ -208,11 +213,12 @@ details p{margin:0 0 14px}
     <section id="faq">
       <p class="k">08 · help</p>
       <h2>Questions &amp; help</h2>
-      <details><summary>I forgot my password</summary><p>On the log-in page, choose <b>Forgot password?</b>. We send a code to your registered mobile number; enter it and choose a new password. Your other devices are signed out.</p></details>
-      <details><summary>I registered before passwords existed / I have never set a password</summary><p>Choose <b>First time? Log in with a code</b>, enter the code sent to your phone, and set your password. From then on you log in with your NIAT ID and password.</p></details>
-      <details><summary>It says "waiting for approval"</summary><p>A mentor has not approved your registration yet. Approvals are usually done within a day. If it takes longer, ask your mentor.</p></details>
+      <details data-mode="simple"><summary>My NIAT ID and name are not accepted</summary><p>Type your name exactly as it is in the college list, with all its words (for example "Asha Kumar", not just "Asha"). Check the NIAT ID for the digit 0 and the letter O. If it is still not accepted, your name may be spelt differently in the list: ask your mentor to check it.</p></details>
+      <details data-mode="secure"><summary>I forgot my password</summary><p>On the log-in page, choose <b>Forgot password?</b>. We send a code to your registered mobile number; enter it and choose a new password. Your other devices are signed out.</p></details>
+      <details data-mode="secure"><summary>I registered before passwords existed / I have never set a password</summary><p>Choose <b>First time? Log in with a code</b>, enter the code sent to your phone, and set your password. From then on you log in with your NIAT ID and password.</p></details>
+      <details data-mode="secure"><summary>It says "waiting for approval"</summary><p>A mentor has not approved your registration yet. Approvals are usually done within a day. If it takes longer, ask your mentor.</p></details>
       <details><summary>My NIAT ID is not accepted</summary><p>Check it for typos (for example, the digit 0 and the letter O). If it is still not accepted, you may not be in the student list yet. Ask your mentor to add you.</p></details>
-      <details><summary>I changed my phone number</summary><p>Codes always go to the number you registered with. Ask your mentor to change your login phone number.</p></details>
+      <details data-mode="secure"><summary>I changed my phone number</summary><p>Codes always go to the number you registered with. Ask your mentor to change your login phone number.</p></details>
       <details><summary>A video does not play</summary><p>Press the play button on the video itself. If it still does not play, reload the page, update your browser (Chrome, Edge, Firefox or Safari), or try another network. Tell your mentor which unit it was.</p></details>
       <details><summary>My internet dropped during the test</summary><p>Your answers up to the last save are kept, and the timer keeps running on the server. Reconnect and open the portal again as soon as you can. You will see your answers and the time left.</p></details>
       <details><summary>I got a warning by mistake</summary><p>Press the button on the warning to go back to the test, and stay in full screen. Mentors can see the full activity record if you need to explain what happened.</p></details>
@@ -226,7 +232,9 @@ details p{margin:0 0 14px}
       <h2>For mentors</h2>
       <p>Mentors use the <a href="/admin">mentor console</a> (admin console). Your account is created by the program's super admin; you log in with your email, your password and an authenticator app.</p>
       <ul>
-        <li><b>Approvals</b>: approve student registrations after checking the NIAT ID and name.</li>
+        <li data-mode="secure"><b>Approvals</b>: approve student registrations after checking the NIAT ID and name.</li>
+        <li data-mode="simple"><b>Master data</b>: keep the student list right. Students log in with the NIAT ID and the name written there.</li>
+        <li><b>Student analytics</b> (super admin): time spent, units opened, videos watched and logins for every student.</li>
         <li><b>Students</b>: each student's progress, account, phone number and password reset.</li>
         <li><b>Practice analytics</b>: how many students attempted each practice question and how many got it right. Use it to find the topics to reteach.</li>
         <li><b>Results</b>: the test attempts with their proctoring flags and activity timeline. <b>Leaderboard</b>: the rankings, with a CSV export.</li>
@@ -245,6 +253,7 @@ details p{margin:0 0 14px}
   fetch('/api/info', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d) return;
     var s = d.sprint, p = d.proctor || {};
+    if (d.loginMode) { document.body.classList.toggle('m-simple', d.loginMode === 'simple'); document.body.classList.toggle('m-secure', d.loginMode !== 'simple'); }
     set('questions', s.questions);
     set('duration', s.durationMin + ' min');
     var prac = 0; Object.keys(d.practice || {}).forEach(function (k) { prac += (d.practice[k].quiz || 0) + (d.practice[k].code || 0); });

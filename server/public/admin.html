@@ -239,7 +239,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ------------------------------------------------------------------ layout
   var NAV = [
-    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['leaderboard', 'Leaderboard'], ['practice', 'Practice analytics'],
+    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'],
     ['media', 'Learning bytes'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
@@ -264,7 +264,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   }
   function go(view) {
     VIEW = VIEWS[view] ? view : 'overview';
-    if (VIEW === 'admins' && !isSuper()) VIEW = 'overview';
+    if ((VIEW === 'admins' || VIEW === 'analytics') && !isSuper()) VIEW = 'overview';
     try { history.replaceState(null, '', '#' + VIEW); } catch (e) {}
     var holder = h('div', { class: 'muted' }, 'Loading…');
     root.replaceChildren(layout(holder));
@@ -593,6 +593,141 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           }) : h('tr', null, h('td', { colspan: 10, class: 'muted' }, 'No submissions yet.'))))));
     });
   };
+
+  // ---------- student analytics (super admin): time, clicks, units, videos, logins per student
+  var AREA_NAMES = { home: 'Home', learn: 'Learn', practice: 'Practice', code: 'Write code', test: 'Sprint test', board: 'Leaderboard' };
+  var COURSE_NAMES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+  function dur(ms) {
+    ms = Number(ms) || 0;
+    if (ms < 60000) return ms ? Math.round(ms / 1000) + 's' : '–';
+    var m = Math.round(ms / 60000), hh = Math.floor(m / 60);
+    return hh ? hh + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm';
+  }
+  function bars(rows, opts) { // horizontal bars: [{label, value, text}]
+    var max = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.value; })));
+    return h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, rows.map(function (r) {
+      return h('div', { style: 'display:grid;grid-template-columns:' + (opts && opts.labelW || '120px') + ' minmax(0,1fr) 80px;gap:10px;align-items:center;font-size:13px' },
+        h('span', { class: 'soft', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: r.label }, r.label),
+        h('span', { style: 'height:12px;border-radius:6px;background:var(--well);overflow:hidden' }, h('span', { style: 'display:block;height:100%;width:' + Math.round(r.value / max * 100) + '%;background:' + (r.color || 'var(--accent)') })),
+        h('span', { class: 'mono', style: 'text-align:right' }, r.text));
+    }));
+  }
+  function dayChart(daily, days, key, fmt) { // column chart per day
+    var from = new Date(Date.now() + 5.5 * 3600000 - (days - 1) * 86400000), list = [], map = {};
+    daily.forEach(function (d) { map[d.day] = d; });
+    for (var i = 0; i < days; i++) { var d = new Date(from.getTime() + i * 86400000).toISOString().slice(0, 10); list.push({ day: d, v: map[d] ? Number(map[d][key]) || 0 : 0 }); }
+    var max = Math.max(1, Math.max.apply(null, list.map(function (x) { return x.v; })));
+    return h('div', null,
+      h('div', { style: 'display:flex;align-items:flex-end;gap:2px;height:120px;border-bottom:1px solid var(--line)' }, list.map(function (x) {
+        return h('div', { title: x.day + ': ' + fmt(x.v), style: 'flex:1;min-width:2px;height:' + Math.max(x.v ? 3 : 0, Math.round(x.v / max * 100)) + '%;background:var(--accent);border-radius:3px 3px 0 0;opacity:' + (x.v ? 1 : .2) });
+      })),
+      h('div', { class: 'row muted', style: 'justify-content:space-between;font-size:12px;margin-top:4px' }, h('span', null, list[0].day), h('span', null, 'peak ' + fmt(max)), h('span', null, list[list.length - 1].day)));
+  }
+
+  CACHE.analytics = { days: 30, q: '', sort: 'time' };
+  VIEWS.analytics = function () {
+    var st = CACHE.analytics;
+    return api('GET', '/api/admin/analytics/overview?days=' + st.days).then(function (o) {
+      var stat = function (k, v, sub) { return h('div', { class: 'card stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), sub ? h('div', { class: 's' }, sub) : null); };
+      var T = o.totals;
+      var period = h('select', { onchange: function () { st.days = Number(this.value); refresh(); } },
+        [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], [365, 'Last 12 months']].map(function (x) { return h('option', { value: x[0], selected: st.days === x[0] ? true : null }, x[1]); }));
+      var unitRows = o.units.map(function (u) {
+        var w = u.steps.watch || {}, pl = u.steps.play || {}, rd = u.steps.read || {};
+        return h('tr', null,
+          h('td', null, u.title, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)),
+          h('td', { class: 'num mono' }, u.students + ' / ' + o.cohort), h('td', { class: 'num mono' }, u.opens), h('td', { class: 'num mono' }, dur(u.ms)),
+          h('td', { class: 'num mono' }, dur(w.ms)), h('td', { class: 'num mono' }, dur(w.videoMs)), h('td', { class: 'num mono' }, w.videoPct == null ? '–' : w.videoPct + '%'),
+          h('td', { class: 'num mono' }, dur(pl.ms)), h('td', { class: 'num mono' }, dur(rd.ms)),
+          h('td', { class: 'num mono' }, u.done.watch + ' · ' + u.done.play + ' · ' + u.done.read), h('td', { class: 'num mono', style: 'color:var(--good)' }, u.done.all3));
+      });
+      var studentsHolder = h('div', { class: 'muted' }, 'Loading students…');
+      var search = h('input', { type: 'search', placeholder: 'NIAT ID, name or batch', value: st.q, oninput: debounce(function (e) { st.q = e.target.value; loadStudents(); }, 300) });
+      var sortSel = h('select', { onchange: function () { st.sort = this.value; loadStudents(); } },
+        [['time', 'Most time'], ['least', 'Least time'], ['recent', 'Recently active'], ['name', 'Name'], ['id', 'NIAT ID']].map(function (x) { return h('option', { value: x[0], selected: st.sort === x[0] ? true : null }, x[1]); }));
+      function loadStudents() {
+        api('GET', '/api/admin/analytics/students?days=' + st.days + '&sort=' + st.sort + '&q=' + encodeURIComponent(st.q)).then(function (d) {
+          studentsHolder.className = '';
+          studentsHolder.replaceChildren(h('div', { class: 'tablewrap' }, h('table', null,
+            h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Last active', 'Days', 'Time', 'Learn', 'Practice', 'Videos', 'Units opened', 'Unit clicks', 'Steps done', 'Practice answers', 'Logins'].map(function (t, i) { return h('th', { class: i >= 3 ? 'num' : null }, t); }))),
+            h('tbody', null, d.rows.length ? d.rows.map(function (r) {
+              return h('tr', { class: 'click', onclick: function () { openStudentAnalytics(r.roll_no); } },
+                h('td', { class: 'mono' }, r.roll_no), h('td', { style: 'min-width:170px' }, r.name || '–', r.batch ? h('div', { class: 'muted' }, r.batch) : null),
+                h('td', { class: 'muted', style: 'white-space:nowrap' }, r.last_active ? dt(r.last_active) : 'never'), h('td', { class: 'num mono' }, r.days_active),
+                h('td', { class: 'num mono', style: 'color:var(--accent)' }, dur(r.ms)), h('td', { class: 'num mono' }, dur(r.learn_ms)), h('td', { class: 'num mono' }, dur(r.practice_ms)),
+                h('td', { class: 'num mono' }, dur(r.video_ms)), h('td', { class: 'num mono' }, r.units_opened + ' / ' + d.units), h('td', { class: 'num mono' }, r.unit_clicks),
+                h('td', { class: 'num mono' }, r.steps_done + ' / ' + d.units * 3), h('td', { class: 'num mono' }, r.practice_answered ? r.practice_answered + ' (' + Math.round(r.practice_correct / r.practice_answered * 100) + '% right)' : '–'),
+                h('td', { class: 'num mono' }, r.logins));
+            }) : h('tr', null, h('td', { colspan: 13, class: 'muted' }, 'No students match.'))))),
+            d.total > d.rows.length ? h('p', { class: 'muted' }, 'Showing ' + d.rows.length + ' of ' + d.total + '. Search to narrow it down, or export the CSV for everyone.') : '');
+        }, fail);
+      }
+      loadStudents();
+      return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+        header('~/admin/analytics', 'Student analytics', 'Active time in the portal (page open and in use), clicks into units and steps, videos watched and logins. ' + o.from + ' to ' + o.today + ' (IST).',
+          [period, h('button', { class: 'btn', onclick: refresh }, 'Refresh'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/activity.csv?days=' + st.days); } }, 'Export CSV')]),
+        h('div', { class: 'grid g4' },
+          stat('Active students', T.students + ' / ' + o.cohort, (o.cohort ? Math.round(T.students / o.cohort * 100) : 0) + '% of the list · ' + T.activeToday + ' today'),
+          stat('Time in the portal', dur(T.ms), 'all students together'),
+          stat('Average per active student', dur(T.students ? T.ms / T.students : 0), 'over the period'),
+          stat('Logins', T.logins, 'by ' + T.loginStudents + ' students')),
+        h('div', { class: 'grid g2' },
+          h('div', { class: 'card' }, h('h2', null, 'Active students per day'), dayChart(o.daily, Math.min(o.days, 90), 'students', function (v) { return v + ' students'; })),
+          h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(o.areas.map(function (a) { return { label: AREA_NAMES[a.area] || a.area, value: a.ms, text: dur(a.ms) }; })),
+            h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Clicks: ' + o.areas.map(function (a) { return (AREA_NAMES[a.area] || a.area) + ' ' + a.opens; }).join(' · ')))),
+        h('div', { class: 'card' }, h('h2', null, 'Learning units'),
+          h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Clicks = times a unit step was opened. Video watched = how far into the video students got, on average. Finished = students who ticked off Watch · Play · Read.'),
+          h('div', { class: 'tablewrap' }, h('table', null,
+            h('thead', null, h('tr', null, ['Unit', 'Students', 'Clicks', 'Time', 'Watch', 'Video played', 'Video watched', 'Play', 'Read', 'Finished W · P · R', 'All 3 done'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
+            h('tbody', null, unitRows)))),
+        h('div', { class: 'card' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:10px' }, h('h2', { style: 'margin:0' }, 'Students'), h('div', { class: 'row' }, search, sortSel)),
+          h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Click a student for units, days, videos, practice topics and every login.'), studentsHolder));
+    });
+  };
+
+  function openStudentAnalytics(roll) {
+    var d = drawer(), days = CACHE.analytics.days;
+    api('GET', '/api/admin/analytics/students/' + encodeURIComponent(roll) + '?days=' + days).then(function (x) {
+      var s = x.student, T = x.totals;
+      var stat = function (k, v) { return h('div', { class: 'card stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)); };
+      var tick = function (on) { return on ? h('span', { style: 'color:var(--good)' }, ' ✓') : null; };
+      var completed = x.units.filter(function (u) { return u.steps.watch.done && u.steps.play.done && u.steps.read.done; }).length;
+      var ua = function (s) { s = s || ''; return /Mobile|Android|iPhone/.test(s) ? 'phone' : /Windows/.test(s) ? 'Windows' : /Mac OS/.test(s) ? 'Mac' : /Linux/.test(s) ? 'Linux' : '–'; };
+      var browser = function (s) { s = s || ''; return /Edg\//.test(s) ? 'Edge' : /Chrome\//.test(s) ? 'Chrome' : /Firefox\//.test(s) ? 'Firefox' : /Safari\//.test(s) ? 'Safari' : ''; };
+      d.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+        header('~/admin/analytics/' + s.roll_no, s.name || s.roll_no, s.roll_no + (s.batch ? ' · ' + s.batch : '') + ' · last ' + x.days + ' days' + (x.account ? '' : ' · has not logged in yet'),
+          [h('button', { class: 'btn sm', onclick: function () { d.close(); openStudent(s.roll_no); } }, 'Account & progress')]),
+        h('div', { class: 'grid g4' }, stat('Time in the portal', dur(T.ms)), stat('Days active', T.days), stat('Logins', T.logins), stat('Units finished', completed + ' / ' + x.units.length)),
+        h('div', { class: 'card' }, h('h2', null, 'Units'), h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Unit', 'Clicks', 'Watch', 'Video played', 'Video watched', 'Play', 'Read'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
+          h('tbody', null, x.units.map(function (u) {
+            var w = u.steps.watch, p = u.steps.play, r = u.steps.read;
+            return h('tr', null, h('td', null, u.title, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)), h('td', { class: 'num mono' }, u.opens),
+              h('td', { class: 'num mono' }, dur(w.ms), tick(w.done)), h('td', { class: 'num mono' }, dur(w.videoMs)), h('td', { class: 'num mono' }, w.videoPct ? w.videoPct + '%' : '–'),
+              h('td', { class: 'num mono' }, dur(p.ms), tick(p.done)), h('td', { class: 'num mono' }, dur(r.ms), tick(r.done)));
+          }))))),
+        h('div', { class: 'grid g2' },
+          h('div', { class: 'card' }, h('h2', null, 'Time per day'), x.daily.length ? dayChart(x.daily, Math.min(x.days, 60), 'ms', dur) : h('p', { class: 'muted' }, 'No activity in this period.')),
+          h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(x.areas.map(function (a) { return { label: AREA_NAMES[a.area] || a.area, value: a.ms, text: dur(a.ms) }; })))),
+        h('div', { class: 'card' }, h('h2', null, 'Practice by topic'), h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Topic', 'Answered', 'Correct', 'Time'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
+          h('tbody', null, x.practice.map(function (t) {
+            return h('tr', null, h('td', null, t.sess, h('div', { class: 'muted' }, COURSE_NAMES[t.course] || t.course)), h('td', { class: 'num mono' }, t.answered + ' / ' + t.total),
+              h('td', { class: 'num mono' }, t.answered ? Math.round(t.correct / t.answered * 100) + '%' : '–'), h('td', { class: 'num mono' }, dur(t.ms)));
+          }))))),
+        x.attempts.length ? h('div', { class: 'card' }, h('h2', null, 'Sprint tests'), h('table', null, h('tbody', null, x.attempts.map(function (a) {
+          return h('tr', { class: 'click', onclick: function () { d.close(); openAttempt(a.id); } }, h('td', { class: 'mono' }, a.sprint_id), h('td', null, a.status),
+            h('td', { class: 'num mono' }, a.status === 'submitted' ? sc(a.total) + '/' + sc(a.max_total) : '–'), h('td', { class: 'num mono' }, mmss(a.used_ms)),
+            h('td', null, a.violations ? pill(a.violations + ' violation(s)', 'warn') : pill('clean', 'ok')));
+        })))) : null,
+        h('div', { class: 'card' }, h('h2', null, 'Logins (latest 50)'), x.logins.length ? h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['When', 'How', 'Device', 'Network address'].map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, x.logins.map(function (l) {
+            return h('tr', null, h('td', { class: 'muted' }, dt(l.at)), h('td', null, { name: 'NIAT ID + name', password: 'password', code: 'phone code' }[l.method] || l.method),
+              h('td', null, ua(l.ua) + (browser(l.ua) ? ' · ' + browser(l.ua) : '')), h('td', { class: 'mono muted' }, l.ip || '–'));
+          })))) : h('p', { class: 'muted' }, 'No logins recorded.'))));
+    }, function (e) { fail(e); d.close(); });
+  }
 
   // ---------- practice analytics
   CACHE.practice = { course: 'all', sess: 'all', sort: 'order', q: '' };
@@ -1079,6 +1214,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         sprint_duration_min: h('input', { type: 'number', min: 1, max: 600, value: s.durationMin, disabled: ro || null }),
         leaderboard_visible: h('input', { type: 'checkbox', checked: s.leaderboardVisible, disabled: ro || null }),
         registration_auto_approve: h('input', { type: 'checkbox', checked: d.registrationAutoApprove, disabled: ro || null }),
+        student_login_mode: h('select', { disabled: ro || null }, [['simple', 'Simple: NIAT ID + name (initial roll-out)'], ['secure', 'Secure: phone code, password and approval']].map(function (o) { return h('option', { value: o[0], selected: d.loginMode === o[0] ? true : null }, o[1]); })),
         proctor_enabled: h('input', { type: 'checkbox', checked: d.proctor.enabled, disabled: ro || null }),
         proctor_fullscreen: h('input', { type: 'checkbox', checked: d.proctor.fullscreen, disabled: ro || null }),
         proctor_block_copy: h('input', { type: 'checkbox', checked: d.proctor.blockCopy, disabled: ro || null }),
@@ -1091,9 +1227,10 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         h('form', { class: 'card', style: 'display:flex;flex-direction:column;gap:14px', onsubmit: function (e) {
           e.preventDefault();
           var body = { sprint_title: f.sprint_title.value, sprint_id: f.sprint_id.value, sprint_open: new Date(f.sprint_open.value).toISOString(), sprint_close: new Date(f.sprint_close.value).toISOString(),
-            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, registration_auto_approve: f.registration_auto_approve.checked,
+            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, registration_auto_approve: f.registration_auto_approve.checked, student_login_mode: f.student_login_mode.value,
             proctor_enabled: f.proctor_enabled.checked, proctor_fullscreen: f.proctor_fullscreen.checked, proctor_block_copy: f.proctor_block_copy.checked, proctor_max_violations: Number(f.proctor_max_violations.value) };
           if (body.registration_auto_approve && !d.registrationAutoApprove && !confirm('Auto-approve lets anyone who knows a NIAT ID register it with any phone, without review. Use only for load tests or a trusted cohort. Turn it on?')) return;
+          if (body.student_login_mode === 'simple' && d.loginMode !== 'simple' && !confirm('Simple log-in has no password: anyone who knows the NIAT ID and name of a student can log in as them. Use it only for the initial roll-out. Switch?')) return;
           if (body.sprint_id !== s.id && !confirm('Changing the Sprint ID starts a fresh Sprint: a new set of attempts and a new leaderboard. Previous results are kept under "' + s.id + '". Continue?')) return;
           api('PATCH', '/api/admin/settings', body).then(function () { toast('Settings saved.'); refresh(); }, fail);
         } },
@@ -1105,6 +1242,9 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'field' }, h('label', null, 'Duration per student (minutes)'), f.sprint_duration_min),
             h('label', { class: 'row', style: 'margin-top:22px' }, f.leaderboard_visible, 'Leaderboard visible to students'),
             h('label', { class: 'row', style: 'margin-top:4px' }, f.registration_auto_approve, h('span', null, 'Auto-approve registrations ', h('span', { class: 'muted' }, '(skips the approval step; load tests only)')))),
+          h('h2', { style: 'margin:8px 0 0' }, 'Student log-in'),
+          h('div', { class: 'field' }, h('label', null, 'How students log in'), f.student_login_mode),
+          h('div', { class: 'note' }, 'Simple: students type their NIAT ID and their name as in Master data; there is no registration, phone code or password, and every login is recorded (Student analytics). Secure: registration with their own phone, admin approval, then NIAT ID + password. Switch to Secure before the wider roll-out.'),
           h('h2', { style: 'margin:8px 0 0' }, 'Proctoring'),
           h('div', { class: 'grid g2' },
             h('label', { class: 'row' }, f.proctor_enabled, h('span', null, 'Proctor the Sprint ', h('span', { class: 'muted' }, '(tab-switch detection, activity log, warnings)'))),
