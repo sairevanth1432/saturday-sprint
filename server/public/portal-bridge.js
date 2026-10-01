@@ -665,6 +665,11 @@
           api('POST', '/api/auth/logout').then(function () { location.href = '/login'; }, function () { location.href = '/login'; });
         },
         toAdmin: function () { location.href = '/admin'; },
+        // The guide opens in a new tab; during a proctored test that would count as leaving the test.
+        help: function () {
+          if (self.ssProctorActive()) { self.ssToast('Help is closed while the test runs. Finish and submit first.', true); return; }
+          window.open('/help', '_blank', 'noopener');
+        },
         banner: { on: U.kind === 'admin', text: 'Admin preview: you are viewing the student portal. Your test attempts are not saved to the leaderboard.' },
         toast: { on: !!S.ssToast, text: S.ssToast ? S.ssToast.text : '', ring: S.ssToast && S.ssToast.err ? '#FF7A7A' : '#9BE58B' },
         submit: { pending: !!S.ssSubmitting || (!!v.t.done && !R && !S.ssSubmitErr), failed: !!S.ssSubmitErr && !R, error: S.ssSubmitErr || '', retry: function () { self._ssRetryAt = 0; self.gradeTest(); } },

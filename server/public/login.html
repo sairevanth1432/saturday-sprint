@@ -13,14 +13,12 @@ html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-f
 body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;
   background-image:radial-gradient(1000px 520px at 85% -15%,rgba(255,228,92,.08),transparent 60%),radial-gradient(800px 600px at -10% 110%,rgba(255,255,255,.03),transparent 60%)}
 button{font-family:inherit;cursor:pointer}
-.wrap{width:100%;max-width:960px;display:grid;grid-template-columns:1fr 440px;gap:48px;align-items:center}
-.brand{font-family:"Silkscreen",monospace;font-weight:700;font-size:64px;line-height:.92;margin:0}
+a{color:var(--accent)}
+.wrap{width:100%;max-width:1080px;display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:48px;align-items:start}
+.brand{font-family:"Silkscreen",monospace;font-weight:700;font-size:56px;line-height:.92;margin:0}
 .brand span{color:var(--accent)}
 .tag{font-family:"VT323",monospace;font-size:22px;color:var(--accent);margin:0 0 18px}
 .lede{font-size:17px;line-height:1.6;color:#EDEDED;max-width:420px;margin:22px 0 0}
-.steps{margin:26px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
-.steps li{display:flex;gap:12px;align-items:center;font-size:15px;color:var(--soft)}
-.steps b{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:"VT323",monospace;font-size:20px;color:var(--text);flex-shrink:0}
 .card{background:var(--panel);border-radius:22px;padding:28px;display:flex;flex-direction:column;gap:20px;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 44px -20px rgba(0,0,0,.95),0 3px 0 #000}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;border-radius:14px;background:var(--well)}
@@ -60,23 +58,69 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
 .pending p{margin:0;font-size:15px;line-height:1.55;color:#EDEDED}
 input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size:18px;letter-spacing:0}
 .pwrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.intro{display:flex;flex-direction:column;gap:18px;padding-top:6px}
+.lede{margin:0}
+.roles{display:flex;flex-direction:column;gap:12px}
+.rtabs{display:inline-flex;gap:6px;padding:5px;border-radius:12px;background:var(--well);align-self:flex-start}
+.rtabs button{min-height:38px;padding:0 16px;border:0;border-radius:9px;background:transparent;color:var(--soft);font-size:14px;font-weight:800}
+.rtabs button[aria-selected="true"]{background:#262626;color:var(--accent)}
+.role{background:var(--panel);border-radius:18px;padding:20px 22px;border:1px solid #262626}
+.role h3{margin:0;font-size:17px;font-weight:800}
+.role .why{margin:6px 0 0;font-size:14px;line-height:1.55;color:var(--soft)}
+.role ol{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.role li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start;font-size:14px;line-height:1.5;color:#E6E6E6}
+.role li b{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:"VT323",monospace;font-size:19px;color:var(--accent)}
+.role li span strong{color:#fff}
+.role .go{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.role .go a{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;border:2px solid var(--line);color:var(--text);text-decoration:none;font-size:14px;font-weight:800}
+.role .go a.pri{border-color:var(--accent);color:var(--accent)}
+.sprint-line{font-family:"VT323",monospace;font-size:20px;color:var(--accent)}
 .foot{font-size:13px;color:var(--muted);line-height:1.5}
 [hidden]{display:none !important}
-@media (max-width:860px){.wrap{grid-template-columns:1fr;gap:28px}.brand{font-size:44px}.lede,.steps{display:none}}
+@media (max-width:860px){.wrap{grid-template-columns:1fr;gap:24px}.brand{font-size:40px}.card{order:-1}.intro{order:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
 </head>
 <body>
 <main class="wrap">
-  <section>
-    <p class="tag">~/login · student portal</p>
+  <section class="intro">
+    <p class="tag">~/saturday-sprint · NIAT</p>
     <h2 class="brand">Saturday<br><span>Sprint</span></h2>
-    <p class="lede">Register once with your <b>NIAT ID</b> and your own mobile number. After an admin approves it, you log in with your NIAT ID and your password.</p>
-    <ol class="steps">
-      <li><b>1</b>Register: NIAT ID, your mobile number and a password</li>
-      <li><b>2</b>Confirm the 6-digit code sent to your phone</li>
-      <li><b>3</b>Wait for admin approval, then log in with your password</li>
-    </ol>
+    <p class="lede">Learn a few focused topics during the week, practise them, then show what you learnt in a timed <b>End-of-Sprint Test</b> on Saturday. The test is built on the <b>learning units</b> in this portal.</p>
+    <p class="sprint-line" id="sprint-line" hidden></p>
+
+    <div class="roles">
+      <div class="rtabs" role="tablist" aria-label="What to do">
+        <button role="tab" id="r-student" aria-selected="true" aria-controls="role-student">I am a student</button>
+        <button role="tab" id="r-mentor" aria-selected="false" aria-controls="role-mentor">I am a mentor</button>
+      </div>
+
+      <div class="role" id="role-student" role="tabpanel" aria-labelledby="r-student">
+        <h3>What to do as a student</h3>
+        <p class="why">Five steps from registering to your rank on the leaderboard.</p>
+        <ol>
+          <li><b>1</b><span><strong>Register once</strong> with your NIAT ID, your own mobile number and a password, then enter the code sent to your phone.</span></li>
+          <li><b>2</b><span><strong>Wait for a mentor to approve you.</strong> After that, log in with your NIAT ID and password.</span></li>
+          <li><b>3</b><span><strong>Finish the learning units</strong> in <em>Learn</em>. Each unit is Watch → Play → Read.</span></li>
+          <li><b>4</b><span><strong>Practise every topic</strong> in <em>Practice</em>: quizzes and coding problems, with explanations.</span></li>
+          <li><b>5</b><span><strong>Take the End-of-Sprint Test</strong> <span id="sprint-when">on Saturday</span>. It is timed and proctored, and you get one attempt. Then see your rank.</span></li>
+        </ol>
+        <div class="go"><a class="pri" href="/help">Read the student guide →</a><a href="/help#rules">Test rules</a><a href="/help#faq">Help &amp; FAQ</a></div>
+      </div>
+
+      <div class="role" id="role-mentor" role="tabpanel" aria-labelledby="r-mentor" hidden>
+        <h3>What to do as a mentor</h3>
+        <p class="why">Mentors approve students, follow their progress and run the Sprint from the mentor console.</p>
+        <ol>
+          <li><b>1</b><span><strong>Get your account</strong> from the program super admin, then log in at the <a href="/admin">mentor console</a> with your email, password and an authenticator app.</span></li>
+          <li><b>2</b><span><strong>Approve registrations</strong> in <em>Approvals</em>. Check that the NIAT ID and name belong to your student.</span></li>
+          <li><b>3</b><span><strong>Follow the learning</strong> in <em>Students</em> (each student's progress) and <em>Practice analytics</em> (which questions the batch gets wrong). Reteach those topics.</span></li>
+          <li><b>4</b><span><strong>Help students get in</strong>: change a login phone number or reset a password from the student's page.</span></li>
+          <li><b>5</b><span><strong>On Sprint day</strong>, follow <em>Results</em> live: proctoring flags and each attempt's activity timeline. Then share the <em>Leaderboard</em>.</span></li>
+        </ol>
+        <div class="go"><a class="pri" href="/admin">Open the mentor console →</a><a href="/help#mentors">Mentor notes</a></div>
+      </div>
+    </div>
   </section>
 
   <section class="card" aria-live="polite">
@@ -161,7 +205,7 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
       <div id="dev" class="msg dev" hidden></div>
     </div>
 
-    <p class="foot">Changed your phone number, or your NIAT ID is not accepted? Contact your program admin.</p>
+    <p class="foot">New here? <a href="/help">How the Sprint works</a>. Changed your phone number, or your NIAT ID is not accepted? Contact your mentor.</p>
   </section>
 </main>
 
@@ -350,6 +394,31 @@ input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size
   });
   var h = location.hash.slice(1);
   setMode(h === 'register' || h === 'code' ? h : 'login');
+
+  // "What to do" for students / mentors
+  function role(r) {
+    $('r-student').setAttribute('aria-selected', String(r === 'student'));
+    $('r-mentor').setAttribute('aria-selected', String(r === 'mentor'));
+    show($('role-student'), r === 'student'); show($('role-mentor'), r === 'mentor');
+    try { localStorage.setItem('ss-role', r); } catch (e) {}
+  }
+  $('r-student').onclick = function () { role('student'); };
+  $('r-mentor').onclick = function () { role('mentor'); };
+  try { if (localStorage.getItem('ss-role') === 'mentor') role('mentor'); } catch (e) {}
+
+  // The real Sprint date and length, from the server
+  fetch('/api/info').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d || !d.sprint || !isFinite(d.sprint.openMs)) return;
+    var f = function (ms, o) { try { return new Date(ms).toLocaleString('en-IN', Object.assign({ timeZone: 'Asia/Kolkata' }, o)); } catch (e) { return new Date(ms).toLocaleString(); } };
+    var day = f(d.sprint.openMs, { weekday: 'short', day: 'numeric', month: 'short' });
+    var tm = function (ms) { return f(ms, { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase(); };
+    var endDay = f(d.sprint.closeMs, { weekday: 'short', day: 'numeric', month: 'short' });
+    var closeTxt = endDay === day ? tm(d.sprint.closeMs) : endDay + ', ' + tm(d.sprint.closeMs);
+    $('sprint-when').textContent = 'on ' + day + ' (' + tm(d.sprint.openMs) + ' – ' + closeTxt + ' IST, ' + d.sprint.durationMin + ' minutes)';
+    var now = d.serverNow || Date.now(), line = $('sprint-line');
+    line.textContent = now < d.sprint.openMs ? '> next sprint test: ' + day + ' · ' + tm(d.sprint.openMs) + ' IST' : now < d.sprint.closeMs ? '> the sprint test is live now · closes ' + closeTxt + ' IST' : '> the last sprint test has closed';
+    show(line, true);
+  }).catch(function () {});
 })();
 </script>
 </body>

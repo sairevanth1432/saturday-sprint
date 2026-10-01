@@ -22,7 +22,7 @@ import {
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
-import { practiceAnalytics, practiceQuestion } from './practice.js';
+import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -69,6 +69,7 @@ app.get('/', async (req, res) => {
 });
 app.get('/login', async (req, res) => ((await loadStudent(req)) ? res.redirect('/') : sendPage('login.html')(req, res)));
 app.get('/admin', sendPage('admin.html'));
+app.get('/help', sendPage('help.html'));
 app.get('/portal.html', (req, res) => res.redirect('/'));
 app.get('/favicon.ico', (req, res) => res.status(204).end()); // no icon yet; avoids a 404 in every browser console
 // Admin-uploaded HTML (Play/Read steps) runs in a sandbox: it can run its own scripts but gets an opaque origin,
@@ -116,6 +117,22 @@ api.get('/me', who, (req, res) => {
   const w = req.who;
   res.json(w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, phone: maskPhone(w.phone), hasPassword: !!w.hasPassword }
     : { kind: 'admin', name: w.name, email: w.email, role: w.role });
+});
+
+// Public facts for the Help page and the landing page (no login): Sprint window, format, rules and the units it is based on.
+api.get('/info', async (req, res) => {
+  const [sprint, proctor] = await Promise.all([getSprint(), proctorSettings()]);
+  const qs = getQuestions(), byCourse = {};
+  qs.forEach((q) => { byCourse[q.course] = (byCourse[q.course] || 0) + 1; });
+  res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+  res.json({
+    sprint: { title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durationMin: sprint.durationMin, questions: qs.length, byCourse,
+      types: [...new Set(qs.map((q) => q.type))], leaderboardVisible: sprint.leaderboardVisible },
+    proctor,
+    units: (packUnits().units || []).map((u) => ({ course: u.course, title: u.name || u.title })),
+    practice: practiceCounts(),
+    serverNow: Date.now()
+  });
 });
 
 api.get('/bootstrap', who, async (req, res) => {

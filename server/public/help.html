@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saturday Sprint · Student guide</title>
+<meta name="description" content="How Saturday Sprint works: what to do in the portal, the learning units, practice, the End-of-Sprint Test and its rules.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=JetBrains+Mono:wght@400;500;700;800&amp;family=VT323&amp;display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0A0A;--panel:#151515;--well:#050505;--line:#2A2A2A;--muted:#8A8A8A;--soft:#BDBDBD;--text:#FFFFFF;--accent:#FFE45C;--bad:#FF7A7A;--good:#9BE58B;--info:#8EC5FF}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"JetBrains Mono",system-ui,sans-serif}
+body{background-image:radial-gradient(1000px 520px at 85% -15%,rgba(255,228,92,.08),transparent 60%)}
+a{color:var(--accent)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;max-width:1180px;margin:0 auto;padding:22px 24px}
+.logo{font-family:"Silkscreen",monospace;font-weight:700;font-size:22px;line-height:.95;text-decoration:none;color:var(--text)}
+.logo span{color:var(--accent)}
+.top nav{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:12px;border:2px solid #333;color:var(--text);text-decoration:none;font-weight:800;font-size:14px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#050505}
+.layout{max-width:1180px;margin:0 auto;padding:0 24px 80px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px;align-items:start}
+.toc{position:sticky;top:20px;display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:16px;background:var(--panel)}
+.toc b{font-family:"VT323",monospace;font-weight:400;font-size:20px;color:var(--accent);padding:0 10px 6px}
+.toc a{color:var(--soft);text-decoration:none;font-size:14px;font-weight:700;padding:8px 10px;border-radius:10px}
+.toc a:hover{background:#222;color:var(--text)}
+main{min-width:0;display:flex;flex-direction:column;gap:22px}
+.hero{padding:8px 0 6px}
+.tag{font-family:"VT323",monospace;font-size:22px;color:var(--accent);margin:0}
+h1{font-family:"Silkscreen",monospace;font-weight:700;font-size:44px;line-height:1;margin:10px 0 14px}
+h1 span{color:var(--accent)}
+.lede{font-size:17px;line-height:1.65;color:#EDEDED;max-width:760px;margin:0}
+section{background:var(--panel);border-radius:20px;padding:26px 28px;border:1px solid var(--line)}
+h2{margin:0 0 6px;font-size:22px;font-weight:800}
+.k{font-family:"VT323",monospace;font-size:19px;color:var(--accent);margin:0 0 4px}
+p,li{font-size:15px;line-height:1.65;color:#E2E2E2}
+p{margin:10px 0 0}
+ul,ol{margin:10px 0 0;padding-left:22px}
+li{margin:4px 0}
+.muted{color:var(--muted)}
+.grid{display:grid;gap:14px;margin-top:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tile{background:var(--well);border:1px solid var(--line);border-radius:16px;padding:18px}
+.tile h3{margin:0 0 4px;font-size:16px;font-weight:800}
+.tile p,.tile li{font-size:14px;margin-top:6px}
+.tile .ico{font-family:"VT323",monospace;font-size:22px;color:var(--accent)}
+.path{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:10px}
+.path li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;align-items:start;margin:0;padding:14px 16px;border-radius:14px;background:var(--well);border:1px solid var(--line)}
+.path b.n{width:34px;height:34px;border-radius:10px;background:var(--accent);color:#050505;display:flex;align-items:center;justify-content:center;font-family:"VT323",monospace;font-size:22px}
+.path strong{display:block;font-size:15px}
+.path span{color:var(--soft);font-size:14px;line-height:1.55}
+.steps3{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:999px;border:2px solid #333;font-size:13px;font-weight:800}
+.chip.y{border-color:var(--accent);color:var(--accent)}
+.units{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.units ol{margin:8px 0 0;padding-left:20px}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.fact{background:var(--well);border:1px solid var(--line);border-radius:14px;padding:14px}
+.fact .v{font-family:"VT323",monospace;font-size:30px;line-height:1.1;color:var(--accent)}
+.fact .l{font-size:12px;color:var(--soft);font-weight:700}
+.note{margin-top:16px;padding:14px 16px;border-radius:14px;border:2px solid var(--accent);background:rgba(255,228,92,.06);font-size:14px;line-height:1.6}
+.note.bad{border-color:var(--bad);background:rgba(255,122,122,.06)}
+details{background:var(--well);border:1px solid var(--line);border-radius:14px;padding:0 16px;margin-top:10px}
+summary{cursor:pointer;font-weight:800;font-size:15px;padding:14px 0;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary:before{content:"+ ";color:var(--accent)}
+details[open] summary:before{content:"− "}
+details p{margin:0 0 14px}
+.foot{color:var(--muted);font-size:13px;text-align:center;margin-top:10px}
+@media (max-width:960px){.layout{grid-template-columns:1fr}.toc{position:static;flex-direction:row;flex-wrap:wrap}.toc b{width:100%}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:680px){.g2,.g3,.units{grid-template-columns:1fr}h1{font-size:32px}section{padding:20px 18px}.layout,.top{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="/" aria-label="Saturday Sprint portal">Saturday<br><span>Sprint</span></a>
+  <nav><a class="btn" href="/login">Log in / Register</a><a class="btn pri" href="/">Open the portal</a></nav>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="On this page">
+    <b>~/help</b>
+    <a href="#what">What is Saturday Sprint</a>
+    <a href="#why">Why we run a Sprint</a>
+    <a href="#units">Built on the learning units</a>
+    <a href="#path">Your path, step by step</a>
+    <a href="#explore">Explore the portal</a>
+    <a href="#test">The End-of-Sprint Test</a>
+    <a href="#rules">Test rules</a>
+    <a href="#faq">Questions &amp; help</a>
+    <a href="#mentors">For mentors</a>
+  </aside>
+
+  <main>
+    <div class="hero">
+      <p class="tag">~/help · student guide</p>
+      <h1>How the <span>Sprint</span> works</h1>
+      <p class="lede">Everything you need to know as a student: what to do in the portal, what each part is for, and how the End-of-Sprint Test on Saturday works. It takes about five minutes to read.</p>
+    </div>
+
+    <section id="what">
+      <p class="k">01 · overview</p>
+      <h2>What is Saturday Sprint?</h2>
+      <p>Saturday Sprint is a short, focused learning sprint. During the week you work through a few <b>learning units</b> in this portal: you watch a short video, play an interactive game, and read the notes. You practise each topic with quizzes and coding problems. Then, on Saturday, you take a timed <b>End-of-Sprint Test</b> to show what you learnt, and see where you stand on the leaderboard.</p>
+      <p>There are two courses: <b>Programming Foundations</b> (Python) and <b>Intro to GenAI</b>.</p>
+      <div class="facts" id="facts">
+        <div class="fact"><div class="v" data-f="units">6</div><div class="l">learning units</div></div>
+        <div class="fact"><div class="v" data-f="practice">–</div><div class="l">practice questions</div></div>
+        <div class="fact"><div class="v" data-f="questions">–</div><div class="l">questions in the test</div></div>
+        <div class="fact"><div class="v" data-f="duration">–</div><div class="l">to finish the test</div></div>
+      </div>
+    </section>
+
+    <section id="why">
+      <p class="k">02 · purpose</p>
+      <h2>Why we run a Sprint</h2>
+      <div class="grid g2">
+        <div class="tile"><h3>A small, clear goal</h3><p>A handful of topics in one week is easy to finish. You always know what to do next and when you are done.</p></div>
+        <div class="tile"><h3>Learning by doing</h3><p>Each topic is seen three ways (watch, play, read) and then practised. That is how it sticks, instead of just reading slides.</p></div>
+        <div class="tile"><h3>Know what you really know</h3><p>The test shows which topics you have mastered and which need another look, while there is still time to fix them.</p></div>
+        <div class="tile"><h3>Friendly competition</h3><p>The leaderboard turns the week into a challenge. Score first, then speed: careful work beats guessing.</p></div>
+        <div class="tile"><h3>Better help from mentors</h3><p>Mentors see which practice questions the batch finds hardest and use that to plan the next session.</p></div>
+        <div class="tile"><h3>Practice for real assessments</h3><p>The test runs like a hiring or competitive assessment: timed, in full screen, one attempt. A safe place to get used to that.</p></div>
+      </div>
+    </section>
+
+    <section id="units">
+      <p class="k">03 · content</p>
+      <h2>The Sprint is built on the learning units</h2>
+      <p>The End-of-Sprint Test covers the topics of the learning units in the portal, and nothing else. Every unit has three steps, in this order:</p>
+      <div class="steps3"><span class="chip y">1 · Watch</span><span class="chip y">2 · Play</span><span class="chip y">3 · Read</span></div>
+      <ul>
+        <li><b>Watch</b>: a short video that explains the idea.</li>
+        <li><b>Play</b>: an interactive game where you try it yourself, level by level.</li>
+        <li><b>Read</b>: notes to revise from. Some units show "coming soon" until the notes are added.</li>
+      </ul>
+      <div class="units" id="unit-list">
+        <div class="tile"><h3>Programming Foundations</h3><ol><li>Nested Conditional Statements</li><li>For Loop</li><li>Comparing Strings &amp; Naming Variables</li></ol></div>
+        <div class="tile"><h3>Intro to GenAI</h3><ol><li>Generative AI Foundations</li><li>Social Media Content Automation Workflow</li><li>AI News Summarizer</li></ol></div>
+      </div>
+      <div class="note"><b>The simple rule:</b> finish every unit (all three steps) and the practice questions for its topic before Saturday. Then you have seen everything the test asks about.</div>
+    </section>
+
+    <section id="path">
+      <p class="k">04 · what to do</p>
+      <h2>Your path, step by step</h2>
+      <ol class="path">
+        <li><b class="n">1</b><div><strong>Register once</strong><span>On the <a href="/login#register">Register</a> tab, enter your NIAT ID, your own mobile number and a password. Type the 6-digit code sent to your phone.</span></div></li>
+        <li><b class="n">2</b><div><strong>Wait for approval</strong><span>A mentor checks your NIAT ID against the student list and approves you, usually within a day. Until then, logging in shows "waiting for approval".</span></div></li>
+        <li><b class="n">3</b><div><strong>Log in with your NIAT ID and password</strong><span>No code is needed after that. Your progress is saved to your account, so you can continue on any computer.</span></div></li>
+        <li><b class="n">4</b><div><strong>Complete the learning units</strong><span><b>Learn</b> → pick a course → open each unit and go Watch → Play → Read. A ✓ marks every finished step.</span></div></li>
+        <li><b class="n">5</b><div><strong>Practise every topic</strong><span><b>Practice</b> → choose the course and topic → answer the quizzes and solve the coding problems. Each answer shows the explanation straight away.</span></div></li>
+        <li><b class="n">6</b><div><strong>Take the End-of-Sprint Test</strong><span id="path-test">On Saturday, during the test window: <b>Sprint test</b> → read the rules → Start. You get one attempt.</span></div></li>
+        <li><b class="n">7</b><div><strong>See your score and rank</strong><span>Your score appears as soon as you submit. <b>Leaderboard</b> shows your rank in the batch.</span></div></li>
+      </ol>
+    </section>
+
+    <section id="explore">
+      <p class="k">05 · the portal</p>
+      <h2>What you can do in the portal</h2>
+      <div class="grid g3">
+        <div class="tile"><span class="ico">~/home</span><h3>Home</h3><p>Where you are this week: your level and XP, what to do next, the Sprint countdown and the top of the leaderboard.</p></div>
+        <div class="tile"><span class="ico">~/learn</span><h3>Learn</h3><p>The two courses and their units. Use <b>Next</b> and <b>← Previous</b> to move between steps and units. Videos have play, pause and seek controls.</p></div>
+        <div class="tile"><span class="ico">~/practice</span><h3>Practice</h3><p>Quizzes for every topic, with an explanation after each answer. Your first answer counts towards your practice score, so think before you click. Skip any question and come back later.</p></div>
+        <div class="tile"><span class="ico">~/code</span><h3>Write code</h3><p>Coding problems for the Programming topics. Write Python in the browser, press <b>Run</b> to try it with your own input, then <b>Submit</b> to check it against the test cases.</p></div>
+        <div class="tile"><span class="ico">~/sprint-test</span><h3>Sprint test</h3><p>The End-of-Sprint Test. It opens only during the test window; before that you see when it opens and how long it lasts.</p></div>
+        <div class="tile"><span class="ico">~/leaderboard</span><h3>Leaderboard</h3><p>Ranks after the test, by score, then by time taken. Only part of each NIAT ID is shown. It refreshes on its own.</p></div>
+      </div>
+      <p><b>Levels and XP:</b> every finished lesson gives 20 XP and every correct practice answer 10 XP. You move up from <b>Rookie</b> to <b>Coder</b> (120 XP), <b>Hacker</b> (300 XP) and <b>Architect</b> (500 XP).</p>
+    </section>
+
+    <section id="test">
+      <p class="k">06 · saturday</p>
+      <h2>The End-of-Sprint Test</h2>
+      <div class="facts">
+        <div class="fact"><div class="v" data-f="when">Saturday</div><div class="l">test window (IST)</div></div>
+        <div class="fact"><div class="v" data-f="duration">–</div><div class="l">once you press Start</div></div>
+        <div class="fact"><div class="v" data-f="questions">–</div><div class="l">multiple-choice questions</div></div>
+        <div class="fact"><div class="v">1</div><div class="l">attempt only</div></div>
+      </div>
+      <ul>
+        <li>Each question is worth <b>1 mark</b>. A wrong answer does not cost marks, so answer every question.</li>
+        <li>The timer starts when you press <b>Start</b> and cannot be paused. If you start late, you still have to finish before the window closes.</li>
+        <li>Your answers save automatically. If the page reloads or your internet drops, open the portal again: your answers and the timer are still there.</li>
+        <li>Move between questions with the numbers on the right, and change any answer until you submit.</li>
+        <li>When the time is up, the test is submitted for you with the answers you have.</li>
+        <li><b>Ranking:</b> higher score first. Equal scores are ranked by time taken (less is better).</li>
+      </ul>
+    </section>
+
+    <section id="rules">
+      <p class="k">07 · proctoring</p>
+      <h2>Test rules</h2>
+      <p>The test is proctored, like a hiring assessment. Before you start, the portal shows these rules again.</p>
+      <ul id="rule-list">
+        <li>The test runs in <b>full screen</b> on a computer. Leaving full screen counts as a violation.</li>
+        <li>Leaving the test tab, switching to another app or window, or opening the test in a second tab or device counts as a violation.</li>
+        <li>Each violation shows a warning with your count. After <b data-f="maxv">3</b> violations the test is <b>submitted automatically</b> with the answers you have.</li>
+        <li>Copying, selecting text, right-click and printing are turned off during the test.</li>
+        <li>Your NIAT ID is shown over the questions, and mentors can see a record of your test activity.</li>
+        <li>While the test is running you cannot open Learn, Practice or Help. Finish and submit first.</li>
+      </ul>
+      <div class="note"><b>Before you press Start:</b> use a laptop or desktop with Chrome or Edge, charge it or plug it in, close other apps and chat windows, turn off notifications, and check your internet. Keep your phone away.</div>
+    </section>
+
+    <section id="faq">
+      <p class="k">08 · help</p>
+      <h2>Questions &amp; help</h2>
+      <details><summary>I forgot my password</summary><p>On the log-in page, choose <b>Forgot password?</b>. We send a code to your registered mobile number; enter it and choose a new password. Your other devices are signed out.</p></details>
+      <details><summary>I registered before passwords existed / I have never set a password</summary><p>Choose <b>First time? Log in with a code</b>, enter the code sent to your phone, and set your password. From then on you log in with your NIAT ID and password.</p></details>
+      <details><summary>It says "waiting for approval"</summary><p>A mentor has not approved your registration yet. Approvals are usually done within a day. If it takes longer, ask your mentor.</p></details>
+      <details><summary>My NIAT ID is not accepted</summary><p>Check it for typos (for example, the digit 0 and the letter O). If it is still not accepted, you may not be in the student list yet. Ask your mentor to add you.</p></details>
+      <details><summary>I changed my phone number</summary><p>Codes always go to the number you registered with. Ask your mentor to change your login phone number.</p></details>
+      <details><summary>A video does not play</summary><p>Press the play button on the video itself. If it still does not play, reload the page, update your browser (Chrome, Edge, Firefox or Safari), or try another network. Tell your mentor which unit it was.</p></details>
+      <details><summary>My internet dropped during the test</summary><p>Your answers up to the last save are kept, and the timer keeps running on the server. Reconnect and open the portal again as soon as you can. You will see your answers and the time left.</p></details>
+      <details><summary>I got a warning by mistake</summary><p>Press the button on the warning to go back to the test, and stay in full screen. Mentors can see the full activity record if you need to explain what happened.</p></details>
+      <details><summary>Can I take the test again?</summary><p>No, there is one attempt per Sprint. Only the program admin can reset an attempt (for example after a technical problem), and only while the test window is open.</p></details>
+      <details><summary>Where do I see my score?</summary><p>Straight after you submit, on the test screen, and on the <b>Leaderboard</b> (when the mentors have made it visible).</p></details>
+      <p class="muted">Still stuck? Contact your mentor or program admin.</p>
+    </section>
+
+    <section id="mentors">
+      <p class="k">09 · mentors</p>
+      <h2>For mentors</h2>
+      <p>Mentors use the <a href="/admin">mentor console</a> (admin console). Your account is created by the program's super admin; you log in with your email, your password and an authenticator app.</p>
+      <ul>
+        <li><b>Approvals</b>: approve student registrations after checking the NIAT ID and name.</li>
+        <li><b>Students</b>: each student's progress, account, phone number and password reset.</li>
+        <li><b>Practice analytics</b>: how many students attempted each practice question and how many got it right. Use it to find the topics to reteach.</li>
+        <li><b>Results</b>: the test attempts with their proctoring flags and activity timeline. <b>Leaderboard</b>: the rankings, with a CSV export.</li>
+      </ul>
+    </section>
+
+    <p class="foot">Saturday Sprint · NIAT</p>
+  </main>
+</div>
+
+<script>
+(function () {
+  var COURSE = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+  function set(f, v) { document.querySelectorAll('[data-f="' + f + '"]').forEach(function (el) { el.textContent = v; }); }
+  function fmt(ms, o) { try { return new Date(ms).toLocaleString('en-IN', Object.assign({ timeZone: 'Asia/Kolkata' }, o)); } catch (e) { return new Date(ms).toLocaleString(); } }
+  fetch('/api/info', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    var s = d.sprint, p = d.proctor || {};
+    set('questions', s.questions);
+    set('duration', s.durationMin + ' min');
+    var prac = 0; Object.keys(d.practice || {}).forEach(function (k) { prac += (d.practice[k].quiz || 0) + (d.practice[k].code || 0); });
+    if (prac) set('practice', prac);
+    if (d.units && d.units.length) {
+      set('units', d.units.length);
+      var list = document.getElementById('unit-list'); list.replaceChildren();
+      Object.keys(COURSE).forEach(function (c) {
+        var us = d.units.filter(function (u) { return u.course === c; });
+        if (!us.length) return;
+        var t = document.createElement('div'); t.className = 'tile';
+        var h = document.createElement('h3'); h.textContent = COURSE[c]; t.appendChild(h);
+        var ol = document.createElement('ol'); us.forEach(function (u) { var li = document.createElement('li'); li.textContent = u.title; ol.appendChild(li); }); t.appendChild(ol);
+        if (s.byCourse && s.byCourse[c]) { var q = document.createElement('p'); q.className = 'muted'; q.textContent = s.byCourse[c] + ' test question' + (s.byCourse[c] === 1 ? '' : 's') + ' from this course'; t.appendChild(q); }
+        list.appendChild(t);
+      });
+    }
+    if (Number.isFinite(s.openMs)) {
+      var day = fmt(s.openMs, { weekday: 'short', day: 'numeric', month: 'short' });
+      var tm = function (ms) { return fmt(ms, { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase(); };
+      var endDay = fmt(s.closeMs, { weekday: 'short', day: 'numeric', month: 'short' });
+      var closeTxt = endDay === day ? tm(s.closeMs) : endDay + ', ' + tm(s.closeMs);
+      set('when', day);
+      var el = document.querySelector('[data-f="when"]'); if (el) el.nextElementSibling.textContent = tm(s.openMs) + ' – ' + closeTxt + ' IST';
+      document.getElementById('path-test').innerHTML = '';
+      var span = document.getElementById('path-test');
+      span.appendChild(document.createTextNode('On ' + day + ', between ' + tm(s.openMs) + ' and ' + closeTxt + ' IST: '));
+      var b = document.createElement('b'); b.textContent = 'Sprint test'; span.appendChild(b);
+      span.appendChild(document.createTextNode(' → read the rules → Start. You have ' + s.durationMin + ' minutes and one attempt.'));
+    }
+    // Rules follow the live settings
+    var rules = [];
+    if (p.enabled !== false) {
+      if (p.fullscreen) rules.push('The test runs in <b>full screen</b> on a computer. Leaving full screen counts as a violation.');
+      rules.push('Leaving the test tab, switching to another app or window, or opening the test in a second tab or device counts as a violation.');
+      rules.push(p.maxViolations > 0 ? 'Each violation shows a warning with your count. After <b>' + p.maxViolations + '</b> violation' + (p.maxViolations === 1 ? '' : 's') + ' the test is <b>submitted automatically</b> with the answers you have.'
+        : 'Each violation shows a warning and is recorded for the mentors.');
+    }
+    if (p.blockCopy) rules.push('Copying, selecting text, right-click and printing are turned off during the test.');
+    if (p.enabled !== false) {
+      rules.push('Your NIAT ID is shown over the questions, and mentors can see a record of your test activity.');
+      rules.push('While the test is running you cannot open Learn, Practice or Help. Finish and submit first.');
+    }
+    if (rules.length) document.getElementById('rule-list').innerHTML = rules.map(function (r) { return '<li>' + r + '</li>'; }).join('');
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

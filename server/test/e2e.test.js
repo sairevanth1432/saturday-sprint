@@ -554,3 +554,18 @@ test('practice analytics: attempts, correct answers and option spread per questi
   assert.deepEqual(one.body.students.filter((s) => /^PRTEST/.test(s.roll_no)).map((s) => [s.roll_no, s.correct]), [['PRTEST01', true], ['PRTEST02', false]]);
   assert.equal((await client()('GET', '/api/admin/practice')).status, 401);
 });
+
+test('help page and landing info are public; info shows the Sprint, rules and units but no answers', async () => {
+  const c = client();
+  const h = await c('GET', '/help');
+  assert.equal(h.status, 200);
+  assert.match(h.text, /How the <span>Sprint<\/span> works/);
+  assert.match((await c('GET', '/login')).text, /What to do as a mentor/);
+  const i = await c('GET', '/api/info');
+  assert.equal(i.status, 200);
+  assert.equal(i.body.sprint.questions, Q.length);
+  assert.equal(i.body.units.length, 6);
+  assert.ok(i.body.units.every((u) => u.title && ['pf', 'genai'].includes(u.course)));
+  assert.equal(typeof i.body.proctor.maxViolations, 'number');
+  assert.ok(!/"c":|"tests":/.test(i.text), 'no answers in public info');
+});

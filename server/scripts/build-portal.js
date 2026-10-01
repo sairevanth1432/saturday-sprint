@@ -235,6 +235,8 @@ html = html.slice(0, bodyEnd) + '<script src="/portal-bridge.js"></script>\n' + 
 const ICON_BOARD = '<svg style="flex-shrink: 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path></svg>';
 const ICON_OUT = '<svg style="flex-shrink: 0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>';
 
+const ICON_HELP = '<svg style="flex-shrink: 0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>';
+
 const NAV_BOARD = `<button class="k3" onClick="{{ nav.board.go }}" aria-label="Leaderboard" title="Leaderboard" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 12px; min-height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: {{ nav.board.bg }}; color: {{ nav.board.fg }}; font-size: 17px; font-weight: 700; text-align: left">
 ${ICON_BOARD}
 <sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span style="flex-grow: 1">Leaderboard</span></sc-if>
@@ -250,6 +252,10 @@ const NAV_USER = `<div style="margin-top: auto; display: flex; flex-direction: c
 <sc-if value="{{ ss.user.isAdmin }}" hint-placeholder-val="{{ false }}">
 <button class="k3" onClick="{{ ss.toAdmin }}" aria-label="Admin console" title="Admin console" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 10px; min-height: 44px; padding: 0 14px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 15px; font-weight: 700"><svg style="flex-shrink: 0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path></svg><sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span>Admin console</span></sc-if></button>
 </sc-if>
+<button class="k3" onClick="{{ ss.help }}" aria-label="Help: how the Sprint works" title="Help: how the Sprint works" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 10px; min-height: 44px; padding: 0 14px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 15px; font-weight: 700">
+${ICON_HELP}
+<sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span>Help &amp; guide</span></sc-if>
+</button>
 <button class="k3" onClick="{{ ss.logout }}" aria-label="Log out" title="Log out" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 10px; min-height: 44px; padding: 0 14px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #BDBDBD; font-size: 15px; font-weight: 700">
 ${ICON_OUT}
 <sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span>Log out</span></sc-if>

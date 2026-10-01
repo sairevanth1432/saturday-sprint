@@ -61,6 +61,14 @@ async function compute() {
   return { at: Date.now(), students: rows.length, active, quiz, code, topics };
 }
 
+// Question counts per course (public Help page).
+export function practiceCounts() {
+  const c = loadCatalogue(), out = {};
+  for (const q of c.quiz) { out[q.course] = out[q.course] || { quiz: 0, code: 0 }; out[q.course].quiz++; }
+  out.pf = out.pf || { quiz: 0, code: 0 }; out.pf.code = c.code.length;
+  return out;
+}
+
 // Cached for a minute: it reads every student's progress.
 export async function practiceAnalytics({ fresh = false } = {}) {
   if (fresh) await kv.invalidate('practice-analytics').catch(() => {});

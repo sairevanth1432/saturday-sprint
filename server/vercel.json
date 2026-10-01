@@ -28,6 +28,10 @@
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/help",
+      "destination": "/help.html"
     }
   ],
   "crons": [
