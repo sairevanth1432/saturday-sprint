@@ -183,6 +183,28 @@ CREATE TABLE IF NOT EXISTS unit_content (
 );
 -- Play/Read HTML is kept in the database and served by /api/content (Vercel Blob will not serve HTML pages).
 ALTER TABLE unit_content ADD COLUMN IF NOT EXISTS body TEXT;
+
+-- Student passwords: set at registration (or after a one-time OTP login), then NIAT ID + password logs in.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_set_at BIGINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
+-- Proctoring for the Sprint test: every tracked event, plus a summary on the attempt.
+CREATE TABLE IF NOT EXISTS attempt_events (
+  id          BIGSERIAL PRIMARY KEY,
+  attempt_id  BIGINT NOT NULL,
+  roll_no     TEXT NOT NULL,
+  type        TEXT NOT NULL,      -- start, fullscreen_exit, tab_hidden, copy_attempt, … (see sprint.js PROCTOR_EVENTS)
+  at          BIGINT NOT NULL,    -- client time (server-corrected)
+  instance    TEXT,               -- one random id per open browser tab
+  detail      TEXT,
+  created_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS attempt_events_attempt ON attempt_events(attempt_id, at);
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS violations INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS proctor TEXT;   -- JSON counts: tab switches, fullscreen exits, copy attempts, windows…
 -- One-time move of earlier video uploads (learning_bytes) into unit_content as the Watch step.
 INSERT INTO unit_content (unit_id, slot, url, storage, file_name, size_bytes, content_type, updated_by, updated_at)
   SELECT lesson_id, 'watch', url, storage, file_name, size_bytes, content_type, updated_by, updated_at FROM learning_bytes

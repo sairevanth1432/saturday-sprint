@@ -65,6 +65,32 @@ html = html.slice(0, s) + '\n  test = []; // served by /api/sprint (answers stay
 const counts = testOut.reduce((c, q) => ((c[q.type] = (c[q.type] || 0) + 1), c), {});
 console.log(`Sprint test → ${path.relative(ROOT, config.sprintTestFile)} (${testOut.length} questions: ${Object.entries(counts).map(([k, v]) => v + ' ' + k).join(', ')})`);
 
+// ---------- 1b. practice question catalogue for the admin "Practice analytics" view
+// Students' answers are saved in progress.data: pPick[gi] (gi = index in practice ++ ccbpQuiz ++ genaiQuiz)
+// and solved[id] for coding problems. The page keeps its copy; this file only names the questions for the admin.
+function classArray(name) {
+  const m = new RegExp('\\n  ' + name + ' = \\[').exec(html);
+  if (!m) return null;
+  let k = m.index + m[0].length - 1, depth = 0, q = null;
+  const from = k;
+  for (; k < html.length; k++) {
+    const ch = html[k];
+    if (q) { if (ch === '\\') k++; else if (ch === q) q = null; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') q = ch;
+    else if (ch === '[' || ch === '{') depth++;
+    else if (ch === ']' || ch === '}') { depth--; if (depth === 0) break; }
+  }
+  return vm.runInNewContext('(' + html.slice(from, k + 1) + ')', {}, { timeout: 2000 });
+}
+{
+  const parts = ['practice', 'ccbpQuiz', 'genaiQuiz'].map((n) => classArray(n) || []);
+  const quiz = [].concat(...parts).map((q, gi) => ({ gi, course: q.course || '', sess: q.sess || '', q: q.q || '', o: q.o || [], c: q.c, multi: !!q.multi, code: q.code || '' }))
+    .filter((q) => q.sess && ['pf', 'genai'].includes(q.course)); // the courses and sessions the Practice tab shows
+  const code = (classArray('ccbpCoding') || []).map((c) => ({ id: c.id, topic: c.topic || '', title: c.title || c.id }));
+  fs.writeFileSync(path.join(ROOT, 'generated', 'practice.json'), JSON.stringify({ quiz, code }));
+  console.log('Practice catalogue → generated/practice.json (' + quiz.length + ' quiz, ' + code.length + ' coding)');
+}
+
 // ---------- 1b. lesson / concept catalog (for learning-byte videos)
 function classField(name, open = '[', close = ']') {
   const start = html.indexOf(`\n  ${name} = ${open}`);

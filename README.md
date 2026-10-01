@@ -1,7 +1,8 @@
 # saturday-sprint
 
-Saturday Sprint student portal for NIAT: NIAT ID + OTP login with admin approval, learning units
-(Watch → Play → Read), a server-graded End-of-Sprint Test, a leaderboard and an admin console.
+Saturday Sprint student portal for NIAT: NIAT ID + password login (phone OTP for registration and
+"forgot password") with admin approval, learning units (Watch → Play → Read), practice analytics, a proctored
+server-graded End-of-Sprint Test, a leaderboard and an admin console.
 
 | Folder / file | What it is |
 |---|---|

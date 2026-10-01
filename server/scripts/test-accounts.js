@@ -1,13 +1,14 @@
 // Test students for the PRODUCTION portal (or any deployment). OTPs are real SMS, so use phones your testers hold.
 //
 //   node scripts/test-accounts.js add --phones 9876543210,9123456789      → TEST0001, TEST0002 (approved, batch TEST)
+//   … add --phones 98…,91… --password Sprint2026                         → also sets a login password
 //   node scripts/test-accounts.js list
 //   node scripts/test-accounts.js remove                                  → deletes all TEST* accounts, attempts, progress
 //
 // On the Docker server:  docker compose exec app node scripts/test-accounts.js add --phones 98…,91…
 // Test students (batch TEST) never appear on the production leaderboard. Remove them before the real Sprint.
 import { ready, one, all, run, tx, close, audit } from '../db.js';
-import { normPhone } from '../security.js';
+import { normPhone, hashPassword } from '../security.js';
 
 const [cmd] = process.argv.slice(2);
 const arg = (n) => { const i = process.argv.indexOf('--' + n); return i >= 0 ? process.argv[i + 1] : undefined; };
@@ -19,6 +20,9 @@ if (cmd === 'add') {
   if (!phones.length) { console.error('Usage: node scripts/test-accounts.js add --phones 9876543210,9123456789'); process.exit(1); }
   const bad = phones.filter((p) => !normPhone(p));
   if (bad.length) { console.error('Invalid phone number(s): ' + bad.join(', ')); process.exit(1); }
+  // Optional --password: testers log in with NIAT ID + password; without it they use "Log in with a code" first.
+  const password = arg('password') ? String(arg('password')) : '';
+  if (password && (password.length < 8 || !/[a-z]/i.test(password) || !/[0-9]/.test(password))) { console.error('Password: at least 8 characters with letters and a number.'); process.exit(1); }
   const made = [];
   await tx(async () => {
     for (const [i, raw] of phones.entries()) {
@@ -30,13 +34,13 @@ if (cmd === 'add') {
         roll, 'Test Student ' + (i + 1), phone, now);
       await run("DELETE FROM sessions WHERE kind = 'student' AND subject_id IN (SELECT id FROM users WHERE roll_no = ?)", roll);
       await run('DELETE FROM users WHERE roll_no = ?', roll);
-      await run('INSERT INTO users (roll_no, phone, status, created_at) VALUES (?, ?, ?, ?)', roll, phone, 'active', now);
+      await run('INSERT INTO users (roll_no, phone, status, created_at, password_hash, password_set_at) VALUES (?, ?, ?, ?, ?, ?)', roll, phone, 'active', now, password ? hashPassword(password) : null, password ? now : null);
       await run("INSERT INTO registration_requests (roll_no, phone, status, created_at, decided_at, decided_by) VALUES (?, ?, 'approved', ?, ?, 'test-accounts script')", roll, phone, now, now);
       made.push([roll, raw]);
     }
   });
   await audit({ admin: { email: 'test-accounts script' } }, 'test_accounts.added', made.map((m) => m[0]).join(','));
-  console.log('\nTest students ready (approved). Log in at /login with the NIAT ID; the code goes to the phone by SMS.\n');
+  console.log('\nTest students ready (approved). ' + (password ? 'Log in at /login with the NIAT ID and the password you gave.' : 'Log in at /login with "Log in with a code" (SMS), then set a password.') + '\n');
   for (const [roll, p] of made) console.log('  ' + roll + '   ' + p);
   console.log('\nThey are hidden from the production leaderboard. Remove them before the real Sprint:\n  node scripts/test-accounts.js remove\n');
 } else if (cmd === 'list') {

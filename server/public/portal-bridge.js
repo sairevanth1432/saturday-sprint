@@ -5,6 +5,7 @@
  *    hidden tests and final grading run on the server
  *  - leaderboard tab, Home card and post-test standings
  *  - lesson/practice progress synced to the account
+ *  - Sprint proctoring: full screen, tab-switch detection, copy blocking, activity log (see ssProctorMount)
  */
 (function () {
   'use strict';
@@ -117,6 +118,7 @@
       window.addEventListener('pagehide', flush);
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
       this.ssLoadBoard();
+      this.ssProctorMount();
     }
 
     // ---------- persistence
@@ -212,6 +214,240 @@
         self._ssRetryAt = Date.now() + 8000;
         self.setState({ ssSubmitting: false, ssSubmitErr: e.message + ' Your answers are saved. Try again.' });
       });
+    }
+
+    // ---------- proctoring (Sprint settings → Proctoring)
+    // While the test runs: full screen (on computers), tab/window switches and full-screen exits are violations with a
+    // warning; copy, select, right-click and print are blocked; activity goes to the server in batches. Past the limit
+    // the server submits the attempt. A watermark with the NIAT ID covers the questions.
+    ssProctorCfg() { return (this.ss.sprint && this.ss.sprint.proctor) || { enabled: false }; }
+    ssEndAt() {
+      var S = this.state;
+      if (S.tStart === null) return 0;
+      return this.ss.sprint.preview ? S.tStart + this.DUR : Math.min(S.tStart + this.DUR, this.CLOSE);
+    }
+    ssProctorActive() { return !!this.ssProctorCfg().enabled && this.ssRunning() && Date.now() < this.ssEndAt(); }
+    // Copy protection covers the test screen from the start until the student leaves it (including the review after submitting).
+    ssProtectActive() { var S = this.state; return !!this.ssProctorCfg().blockCopy && S.tab === 'test' && S.tStart !== null; }
+    ssLog(type, detail, urgent) {
+      var P = this._p;
+      if (!P || !this.ssProctorCfg().enabled) return;
+      // the same blocked action is reported at most once every 2 s
+      if (!urgent) { var last = P.lastOf[type] || 0; if (Date.now() - last < 2000) return; P.lastOf[type] = Date.now(); }
+      P.queue.push({ type: type, at: Date.now() + clock.offset, detail: detail == null ? null : String(detail).slice(0, 300) });
+      if (urgent) this.ssFlushEvents(false, true);
+    }
+    ssFlushEvents(beacon, withAnswers) {
+      var P = this._p, self = this;
+      if (!P || (!P.queue.length && !withAnswers) || (P.sending && !beacon)) return;
+      var events = P.queue.splice(0, 50);
+      var body = { instance: P.inst, events: events };
+      if (withAnswers && this.ssRunning()) body.answers = this.ssAnswers();
+      P.sending = true;
+      api('POST', '/api/sprint/events', body, { keepalive: !!beacon }).then(function (r) {
+        P.sending = false;
+        if (typeof r.violations === 'number') { P.count = Math.max(P.count, r.violations); P.max = r.max; self.ssOverlay(); }
+        if (r.status === 'submitted' && r.attempt && r.attempt.result) self.ssEndedByProctor(r.attempt);
+        if (P.queue.length) self.ssFlushEvents(false, false);
+      }, function (e) {
+        P.sending = false;
+        if (e.code === 'NETWORK' || (e.status && e.status >= 500)) P.queue = events.concat(P.queue).slice(0, 200); // retry later
+      });
+    }
+    ssEndedByProctor(a) {
+      var P = this._p;
+      if (P) P.ended = true;
+      this.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: a.result.codeRes || {} });
+      this.ssLoadBoard(true);
+      this.ssOverlay();
+    }
+    ssViolation(type, detail) {
+      var P = this._p;
+      if (!P || !P.on || P.ended || Date.now() < P.graceUntil) return;
+      // leaving the tab also blurs the window: count it once
+      if (Date.now() - P.lastViolationAt < 1500) { this.ssLog(type, detail, false); return; }
+      P.lastViolationAt = Date.now();
+      P.count++; P.warn = { type: type, at: Date.now() };
+      this.ssLog(type, detail, true);
+      this.ssOverlay();
+    }
+    ssFsSupported() { var d = document.documentElement; return !!(document.fullscreenEnabled && d.requestFullscreen); }
+    ssFsNeeded() { return !!this.ssProctorCfg().fullscreen && this.ssFsSupported(); }
+    ssEnterFs() {
+      var self = this;
+      if (!this.ssFsNeeded() || document.fullscreenElement) return;
+      try {
+        var p = document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+        if (p && p.catch) p.catch(function (e) { self.ssLog('fs_denied', e && e.message); });
+      } catch (e) { this.ssLog('fs_denied', e.message); }
+    }
+    ssProctorTick() {
+      var S = this.state, P = this._p, active = this.ssProctorActive();
+      document.body.classList.toggle('ss-noselect', this.ssProtectActive());
+      if (!P) return;
+      if (active && !P.on) {
+        P.on = true; P.graceUntil = Date.now() + 2500;
+        this.ssLog(P.started ? 'start' : 'resume', 'screen ' + screen.width + '×' + screen.height + ' · full screen ' + (this.ssFsSupported() ? 'supported' : 'not supported') + ' · ' + navigator.userAgent.slice(0, 160), true);
+        if (!this.ssFsSupported() && this.ssProctorCfg().fullscreen) this.ssLog('fs_unsupported', null);
+        if (P.bc) try { P.bc.postMessage({ t: 'hello', inst: P.inst }); } catch (e) {}
+        this._ssHb = setInterval(function () { if (P.on) { P.queue.push({ type: 'hb', at: Date.now() + clock.offset }); } }, 60000);
+      } else if (!active && P.on) {
+        P.on = false; clearInterval(this._ssHb);
+        this.ssFlushEvents(false, false);
+        if (document.fullscreenElement && !P.ended) { try { document.exitFullscreen(); } catch (e) {} }
+      }
+      if (active && S.tab !== 'test') this.setState({ tab: 'test' });
+      this.ssWatermark(active || this.ssProtectActive());
+      this.ssOverlay();
+    }
+    ssWatermark(on) {
+      var el = document.getElementById('ss-wm');
+      if (!on) { if (el) el.remove(); return; }
+      if (el) return;
+      var U = this.ss.user, label = (U.rollNo || U.email || '') + ' · ' + (U.name || '');
+      var esc = label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='340' height='180'><text x='20' y='100' transform='rotate(-18 170 90)' fill='rgba(255,255,255,0.07)' font-family='monospace' font-size='15'>" + esc + '</text></svg>';
+      el = document.createElement('div'); el.id = 'ss-wm'; el.setAttribute('aria-hidden', 'true');
+      el.style.backgroundImage = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+      document.body.appendChild(el);
+    }
+    // One overlay for: the rules before starting, the full-screen gate, warnings, another open tab, and the end.
+    ssOverlay() {
+      var P = this._p, S = this.state, self = this;
+      if (!P) return;
+      var cfg = this.ssProctorCfg(), mode = null;
+      if (P.ended) mode = 'ended';
+      else if (P.rules) mode = 'rules';
+      else if (P.on && P.blocked) mode = 'multi';
+      else if (P.on && P.warn) mode = 'warn';
+      else if (P.on && this.ssFsNeeded() && !document.fullscreenElement) mode = 'fs';
+      var el = document.getElementById('ss-proctor');
+      if (!mode) { if (el) el.remove(); return; }
+      var key = mode + ':' + P.count + ':' + (P.max || '');
+      if (el && el.dataset.key === key) return;
+      if (!el) { el = document.createElement('div'); el.id = 'ss-proctor'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); document.body.appendChild(el); }
+      el.dataset.key = key;
+      var max = P.max != null ? P.max : cfg.maxViolations;
+      var left = max > 0 ? Math.max(0, max - P.count) : null;
+      var REASON = { tab_hidden: 'You left the test tab.', window_blur: 'You switched to another window or app.', fs_exit: 'You left full screen.', multi_instance: 'The test is open somewhere else.' };
+      var T = {
+        rules: ['Before you start', 'This is a proctored test, like a hiring assessment.',
+          [this.ssFsNeeded() ? 'It runs in full screen. Leaving full screen is a violation.' : null,
+            'Leaving this tab, switching to another app or window, or opening the test in another tab is a violation.',
+            max > 0 ? 'After ' + max + ' violation' + (max === 1 ? '' : 's') + ' the test is submitted automatically with the answers you have.' : 'Every violation is recorded and seen by the admins.',
+            cfg.blockCopy ? 'Copying, selecting text, right-click and printing are disabled.' : null,
+            'Your activity is recorded with your NIAT ID. The timer starts when you press Start.'], 'Start the test', 'Not now'],
+        fs: ['Back to full screen', 'The Sprint runs in full screen. Your timer is still running.', [], 'Return to full screen'],
+        warn: ['Warning ' + P.count + (max > 0 ? ' of ' + max : ''), (REASON[P.warn && P.warn.type] || 'Activity outside the test was detected.') + ' This is recorded.',
+          [left === null ? 'Stay on this screen until you submit.' : left > 0 ? left + ' more violation' + (left === 1 ? '' : 's') + ' and your test is submitted automatically.' : 'Your test is being submitted.'],
+          this.ssFsNeeded() && !document.fullscreenElement ? 'Return to full screen and continue' : 'Continue the test'],
+        multi: ['Test open in another tab', 'The Sprint is already open in another tab of this browser. Close this tab and continue there.', ['This was recorded as a violation.'], null],
+        ended: ['Test submitted', 'Your Sprint was submitted automatically after ' + P.count + ' violation' + (P.count === 1 ? '' : 's') + '.', ['Your answers up to that moment were graded. Your score is on the result screen.'], 'View my result']
+      }[mode];
+      var box = document.createElement('div'); box.className = 'ss-pbox' + (mode === 'warn' || mode === 'multi' || mode === 'ended' ? ' bad' : '');
+      var k = document.createElement('div'); k.className = 'ss-pk'; k.textContent = mode === 'rules' ? 'proctored · ' + Math.round(this.DUR / 60000) + ' min' : 'sprint · proctoring'; box.appendChild(k);
+      var h = document.createElement('h2'); h.textContent = T[0]; box.appendChild(h);
+      var p = document.createElement('p'); p.textContent = T[1]; box.appendChild(p);
+      var items = T[2].filter(Boolean);
+      if (items.length) { var ul = document.createElement('ul'); items.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); box.appendChild(ul); }
+      var row = document.createElement('div'); row.className = 'ss-prow';
+      if (T[3]) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'ss-pbtn'; b.textContent = T[3];
+        b.onclick = function () {
+          if (mode === 'rules') { P.rules = false; P.started = true; self.ssEnterFs(); self.ssStart(); }
+          else if (mode === 'ended') { P.ended = false; P.warn = null; }
+          else { if (mode === 'warn') { self.ssLog('warning_ack', 'warning ' + P.count); P.warn = null; } P.graceUntil = Date.now() + 1500; self.ssEnterFs(); }
+          self.ssOverlay();
+        };
+        row.appendChild(b);
+      }
+      if (T[4]) { var c = document.createElement('button'); c.type = 'button'; c.className = 'ss-pbtn ghost'; c.textContent = T[4]; c.onclick = function () { P.rules = false; self.ssOverlay(); }; row.appendChild(c); }
+      box.appendChild(row);
+      el.replaceChildren(box);
+      var first = el.querySelector('button'); if (first) try { first.focus(); } catch (e) {}
+    }
+    ssProctorMount() {
+      var self = this, cfg = this.ssProctorCfg();
+      if (!cfg.enabled && !cfg.blockCopy) return;
+      var inst;
+      try { inst = sessionStorage.getItem('ss-inst'); if (!inst) { inst = Math.random().toString(36).slice(2, 10); sessionStorage.setItem('ss-inst', inst); } } catch (e) { inst = Math.random().toString(36).slice(2, 10); }
+      var P = this._p = { inst: inst, queue: [], lastOf: {}, on: false, count: this.ss.violations || 0, max: cfg.maxViolations, graceUntil: 0, lastViolationAt: 0, warn: null, rules: false, started: false };
+      if (!document.getElementById('ss-proctor-css')) {
+        var st = document.createElement('style'); st.id = 'ss-proctor-css';
+        st.textContent = [
+          'body.ss-noselect, body.ss-noselect *{-webkit-user-select:none !important;user-select:none !important;-webkit-touch-callout:none !important}',
+          'body.ss-noselect input, body.ss-noselect textarea{-webkit-user-select:text !important;user-select:text !important}',
+          '@media print{body.ss-noselect *{display:none !important}body.ss-noselect:after{content:"Printing is disabled during the Sprint.";display:block;padding:40px;font:20px monospace}}',
+          '#ss-wm{position:fixed;inset:0;pointer-events:none;z-index:2147482000}',
+          '#ss-proctor{position:fixed;inset:0;z-index:2147483000;background:#050505;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"JetBrains Mono",monospace;color:#fff}',
+          '#ss-proctor .ss-pbox{max-width:560px;width:100%;background:#151515;border:2px solid #FFE45C;border-radius:20px;padding:26px;display:flex;flex-direction:column;gap:12px;box-shadow:0 30px 60px -20px #000}',
+          '#ss-proctor .ss-pbox.bad{border-color:#FF7A7A}',
+          '#ss-proctor .ss-pk{font-family:VT323,monospace;font-size:20px;color:#FFE45C}',
+          '#ss-proctor .bad .ss-pk{color:#FF7A7A}',
+          '#ss-proctor h2{margin:0;font-size:24px;font-weight:800}',
+          '#ss-proctor p{margin:0;font-size:15px;line-height:1.55;color:#EDEDED}',
+          '#ss-proctor ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.5;color:#BDBDBD}',
+          '#ss-proctor .ss-prow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}',
+          '#ss-proctor .ss-pbtn{min-height:50px;padding:0 22px;border:0;border-radius:12px;background:#FFE45C;color:#050505;font:800 16px "JetBrains Mono",monospace;cursor:pointer}',
+          '#ss-proctor .ss-pbtn.ghost{background:transparent;color:#fff;border:2px solid #333}'
+        ].join('\n');
+        document.head.appendChild(st);
+      }
+      var inInput = function (t) { return t && t.closest && t.closest('input, textarea, [contenteditable="true"]'); };
+      var protect = function () { return self.ssProtectActive(); };
+      ['copy', 'cut', 'paste'].forEach(function (type) {
+        document.addEventListener(type, function (e) { if (!protect()) return; e.preventDefault(); self.ssLog(type, null); }, true);
+      });
+      document.addEventListener('contextmenu', function (e) { if (!protect()) return; e.preventDefault(); self.ssLog('contextmenu', null); }, true);
+      document.addEventListener('selectstart', function (e) { if (!protect() || inInput(e.target)) return; e.preventDefault(); }, true);
+      document.addEventListener('dragstart', function (e) { if (!protect()) return; e.preventDefault(); self.ssLog('drag_blocked', null); }, true);
+      document.addEventListener('keydown', function (e) {
+        if (!protect()) return;
+        var k = String(e.key || '').toLowerCase(), mod = e.ctrlKey || e.metaKey;
+        var bad = (mod && ['c', 'x', 'v', 'a', 'p', 's', 'u'].indexOf(k) >= 0) ||
+          k === 'f12' || (mod && e.shiftKey && ['i', 'j', 'c', 'k'].indexOf(k) >= 0) || k === 'printscreen';
+        if (!bad) return;
+        e.preventDefault(); e.stopPropagation();
+        self.ssLog(k === 'p' && mod ? 'print' : 'key_blocked', (mod ? (e.metaKey ? 'Cmd+' : 'Ctrl+') : '') + (e.shiftKey && mod ? 'Shift+' : '') + e.key);
+      }, true);
+      document.addEventListener('keyup', function (e) { if (protect() && String(e.key).toLowerCase() === 'printscreen') { self.ssLog('key_blocked', 'PrintScreen'); try { navigator.clipboard.writeText(''); } catch (x) {} } }, true);
+      window.addEventListener('beforeprint', function () { if (protect()) self.ssLog('print', null); });
+      document.addEventListener('visibilitychange', function () {
+        if (!P.on) return;
+        if (document.visibilityState === 'hidden') { self.ssViolation('tab_hidden', null); self.ssFlushEvents(true, true); }
+        else self.ssLog('tab_visible', null, true);
+      });
+      var blurT = null;
+      window.addEventListener('blur', function () {
+        if (!P.on) return;
+        clearTimeout(blurT);
+        // short blurs (the browser's own UI) are ignored; a second or more in another window counts
+        blurT = setTimeout(function () { if (P.on && document.visibilityState === 'visible' && !document.hasFocus()) self.ssViolation('window_blur', null); }, 1000);
+      });
+      window.addEventListener('focus', function () { clearTimeout(blurT); });
+      document.addEventListener('fullscreenchange', function () {
+        if (!P.on) { self.ssOverlay(); return; }
+        if (document.fullscreenElement) { self.ssLog('fs_enter', null); P.graceUntil = Date.now() + 1500; }
+        else if (self.ssFsNeeded() && self.ssProctorActive()) self.ssViolation('fs_exit', null);
+        self.ssOverlay();
+      });
+      window.addEventListener('offline', function () { self.ssLog('offline', null); });
+      window.addEventListener('online', function () { self.ssLog('online', null); self.ssFlushEvents(false, false); });
+      window.addEventListener('pagehide', function () { self.ssFlushEvents(true, false); });
+      // A second tab of this browser with the same running test
+      if (window.BroadcastChannel) {
+        try {
+          P.bc = new BroadcastChannel('ss-proctor:' + (this.ss.user.rollNo || this.ss.user.email || ''));
+          P.bc.onmessage = function (m) {
+            var d = m.data || {};
+            if (d.inst === P.inst) return;
+            if (d.t === 'hello' && P.on) { P.bc.postMessage({ t: 'busy', inst: P.inst }); }
+            if (d.t === 'busy' && P.on) { P.blocked = true; self.ssViolation('multi_instance', 'another tab of this browser'); self.ssOverlay(); }
+          };
+        } catch (e) {}
+      }
+      this._ssProcT = setInterval(function () { self.ssProctorTick(); }, 500);
+      this._ssProcFlush = setInterval(function () { self.ssFlushEvents(false, false); }, 5000);
     }
 
     // ---------- leaderboard
@@ -311,7 +547,10 @@
         v.t.probScore = R.probN ? R.probDone + ' / ' + R.probN : '–';
         v.t.used = this.mmss(R.usedMs || 0);
       } else if (v.t.done) { v.t.mcqScore = '…'; v.t.probScore = '…'; }
-      v.t.start = function () { self.ssStart(); };
+      v.t.start = function () {
+        if (self._p && self.ssProctorCfg().enabled) { self._p.rules = true; self.ssOverlay(); return; }
+        self.ssStart();
+      };
       if (v.tq.isCode && S.tStart !== null) {
         var idx = S.tCur, key = 't' + idx;
         v.te.runTests = function () { self.ssCheck(idx, key); };
@@ -401,6 +640,14 @@
       var first = String(U.name || '').trim().split(/\s+/)[0];
       if (v.today && first) v.today.hello = 'Hi ' + first + ' · ' + v.today.hello;
 
+      if (this.ssProctorActive()) {
+        var stay = function () { self.ssToast('Finish and submit the Sprint first. Leaving the test is not allowed while it runs.', true); };
+        Object.keys(v.nav).forEach(function (k) {
+          if (k === 'test') return;
+          if (typeof v.nav[k] === 'function') v.nav[k] = stay; else if (v.nav[k] && v.nav[k].go) v.nav[k] = Object.assign({}, v.nav[k], { go: stay });
+        });
+      }
+
       v.lb = this.ssBoardVals();
       v.ss = {
         when: when,
@@ -412,6 +659,7 @@
           isAdmin: U.kind === 'admin'
         },
         logout: function () {
+          if (self.ssProctorActive() && !confirm('The Sprint is still running. If you log out, the timer keeps running. Log out anyway?')) return;
           self.ssSaveProgress(true); self.ssSaveDraft(true);
           if (U.kind === 'admin') { location.href = '/admin'; return; }
           api('POST', '/api/auth/logout').then(function () { location.href = '/login'; }, function () { location.href = '/login'; });
@@ -422,7 +670,7 @@
         submit: { pending: !!S.ssSubmitting || (!!v.t.done && !R && !S.ssSubmitErr), failed: !!S.ssSubmitErr && !R, error: S.ssSubmitErr || '', retry: function () { self._ssRetryAt = 0; self.gradeTest(); } },
         result: {
           on: !!R, score: R ? fmtScore(R.score) + ' / ' + fmtScore(R.maxTotal) : '',
-          note: R ? (R.textPending ? 'Written problems are marked by the panel. Your total and rank update when marks are added.' : R.autoSubmitted ? 'Auto-submitted when time ran out.' : 'All parts marked.') : ''
+          note: R ? (R.endedByViolations ? 'Submitted automatically: too many proctoring violations.' : R.textPending ? 'Written problems are marked by the panel. Your total and rank update when marks are added.' : R.autoSubmitted ? 'Auto-submitted when time ran out.' : 'All parts marked.') : ''
         }
       };
       return v;

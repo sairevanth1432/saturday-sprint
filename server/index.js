@@ -11,7 +11,7 @@ import { ready, one, all, run, tx, audit, getSetting, setSetting, clearSettingCa
 import * as kv from './kv.js';
 import {
   AuthError, loadStudent, loadAdmin, adminSessionRow, startOtp, verifyOtp, endSession, revokeSessions, cleanupExpired,
-  approveRequest, rejectRequest, changeAccountPhone,
+  approveRequest, rejectRequest, changeAccountPhone, passwordLogin, setStudentPassword, resetStudentPassword,
   adminPasswordLogin, adminTotpLogin, finishTotpSetup, listSessions, forgetSessions
 } from './auth.js';
 import { normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
@@ -22,6 +22,8 @@ import {
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
+import { practiceAnalytics, practiceQuestion } from './practice.js';
+import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 const app = express();
@@ -89,8 +91,18 @@ api.get('/health', async (req, res) => {
 api.post('/auth/:purpose/start', async (req, res) => res.json(await startOtp(req, req.params.purpose, req.body && req.body.rollNo, req.body && req.body.phone)));
 api.post('/auth/:purpose/verify', async (req, res) => {
   const b = req.body || {};
-  const r = await verifyOtp(req, res, req.params.purpose, b.rollNo, b.otp, b.phone);
-  res.json(r.status === 'pending' ? { ok: true, status: 'pending' } : { ok: true, status: 'active', rollNo: r.user.roll_no });
+  const r = await verifyOtp(req, res, req.params.purpose, b.rollNo, b.otp, b.phone, b.password);
+  res.json(r.status === 'pending' ? { ok: true, status: 'pending' } : { ok: true, status: 'active', rollNo: r.user.roll_no, hasPassword: !!r.hasPassword });
+});
+// NIAT ID + password (no OTP needed after the password is set).
+api.post('/auth/password-login', async (req, res) => {
+  const u = await passwordLogin(req, res, req.body && req.body.rollNo, req.body && req.body.password);
+  res.json({ ok: true, rollNo: u.roll_no });
+});
+// Set / change the logged-in student's password (current password, or within 15 min of an OTP login).
+api.post('/auth/password', async (req, res) => {
+  await setStudentPassword(req, req.body && req.body.password, req.body && req.body.current);
+  res.json({ ok: true });
 });
 api.post('/auth/logout', async (req, res) => { await endSession(req, res, 'student'); res.json({ ok: true }); });
 
@@ -102,25 +114,27 @@ async function who(req, res, next) {
 
 api.get('/me', who, (req, res) => {
   const w = req.who;
-  res.json(w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, phone: maskPhone(w.phone) }
+  res.json(w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, phone: maskPhone(w.phone), hasPassword: !!w.hasPassword }
     : { kind: 'admin', name: w.name, email: w.email, role: w.role });
 });
 
 api.get('/bootstrap', who, async (req, res) => {
   noStore(res);
   const w = req.who, sprint = await getSprint();
-  const [a, prog, fb, bytes] = await Promise.all([
+  const [a, prog, fb, bytes, proctor] = await Promise.all([
     getAttempt(w, sprint),
     w.kind === 'student' ? one('SELECT data FROM progress WHERE roll_no = ?', w.roll_no) : null,
     w.kind === 'student' ? one("SELECT 1 AS x FROM feedback WHERE roll_no = ? AND kind = 'sprint-test' LIMIT 1", w.roll_no) : null,
-    unitContentMap()
+    unitContentMap(),
+    proctorSettings()
   ]);
   res.json({
     serverNow: Date.now(),
     user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
-      preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: questionTypes() },
+      preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: questionTypes(), proctor },
+    violations: a && a.status === 'running' ? a.violations || 0 : 0,
     attempt: await attemptView(a, { withQuestions: true }),
     testFeedbackDone: !!fb,
     progress: prog ? parseJSON(prog.data, {}) : {},
@@ -138,6 +152,14 @@ api.post('/sprint/check', who, async (req, res) => {
   const key = 'check:' + (req.who.kind === 'admin' ? 'A' + req.who.id : req.who.roll_no);
   if (!(await kv.rateLimit(key, 12, 60000)).ok) throw new SprintError('RATE_LIMITED', 'Too many checks. Wait a few seconds.', 429);
   res.json({ results: await checkCode(req.who, Number(req.body.index), req.body.code) });
+});
+// Proctoring activity from the test page (batched). Over the violation limit the attempt is submitted here.
+api.post('/sprint/events', who, async (req, res) => {
+  const key = 'events:' + (req.who.kind === 'admin' ? 'A' + req.who.id : req.who.roll_no);
+  if (!(await kv.rateLimit(key, 60, 60000)).ok) return res.status(429).json({ error: 'RATE_LIMITED', message: 'Too many reports.' });
+  const r = await recordEvents(req.who, req.body);
+  if (r.attempt) clearBoardCacheSoon();
+  res.json({ ...r, attempt: r.attempt ? await attemptView(r.attempt) : undefined, serverNow: Date.now() });
 });
 api.post('/sprint/submit', who, async (req, res) => {
   const a = await submitAttempt(req.who, req.body);
@@ -339,7 +361,7 @@ adm.get('/students', async (req, res) => {
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
   const [cnt, rows] = await Promise.all([
     one('SELECT COUNT(*) AS n ' + sql, ...p),
-    all(`SELECT m.*, u.id AS user_id, u.status AS user_status, u.created_at AS registered_at, u.last_login_at,
+    all(`SELECT m.*, u.id AS user_id, u.status AS user_status, u.created_at AS registered_at, u.last_login_at, (u.password_hash IS NOT NULL) AS has_password,
         a.id AS attempt_id, a.status AS attempt_status, a.total, a.max_total, a.used_ms, pr.data AS progress ${sql}
         ORDER BY m.roll_no LIMIT ? OFFSET ?`, ...p, limit, offset)
   ]);
@@ -359,6 +381,7 @@ adm.get('/students/:roll', async (req, res) => {
     all('SELECT purpose, created_at, expires_at, consumed_at, attempts FROM otp_codes WHERE roll_no = ? ORDER BY id DESC LIMIT 10', roll)
   ]);
   const requests = await all('SELECT id, phone, status, note, created_at, decided_at, decided_by FROM registration_requests WHERE roll_no = ? ORDER BY created_at DESC LIMIT 20', roll);
+  if (u) { u.has_password = !!u.password_hash; delete u.password_hash; }
   res.json({ master: m, user: u, attempts, progress: pr ? { ...progressSummary(pr.data), updated_at: pr.updated_at, data: parseJSON(pr.data, {}) } : null, feedback, sessions, otps, requests });
 });
 
@@ -443,6 +466,14 @@ adm.patch('/users/:roll/phone', async (req, res) => {
   res.json({ ok: true });
 });
 
+adm.post('/users/:roll/password-reset', async (req, res) => {
+  const roll = normRoll(req.params.roll);
+  await resetStudentPassword(roll);
+  forgetSessions();
+  await audit(req, 'user.password_reset', roll);
+  res.json({ ok: true });
+});
+
 adm.post('/users/:roll/logout', async (req, res) => {
   const u = await one('SELECT * FROM users WHERE roll_no = ?', normRoll(req.params.roll));
   if (u) await revokeSessions('student', u.id);
@@ -455,12 +486,23 @@ adm.delete('/users/:roll', requireSuper, async (req, res) => {
   const u = await one('SELECT * FROM users WHERE roll_no = ?', roll);
   if (!u) return res.status(404).json({ error: 'NOT_FOUND', message: 'This student has not registered.' });
   await tx(async () => { await revokeSessions('student', u.id); await run('DELETE FROM users WHERE id = ?', u.id); });
-  await audit(req, 'user.registration_reset', roll, { user: u });
+  const { password_hash, ...logged } = u;
+  await audit(req, 'user.registration_reset', roll, { user: logged });
   res.json({ ok: true });
 });
 
+// ---------- practice analytics (attempts per practice question, correct %, option spread, coding solved)
+adm.get('/practice', async (req, res) => {
+  res.json(await practiceAnalytics({ fresh: req.query.fresh === '1' }));
+});
+adm.get('/practice/:gi', async (req, res) => {
+  const d = await practiceQuestion(Number(req.params.gi));
+  if (!d) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such practice question.' });
+  res.json(d);
+});
+
 const ATTEMPT_LIST = `SELECT a.id, a.roll_no, m.name, m.batch, a.status, a.started_at, a.deadline_at, a.submitted_at, a.auto_submitted,
-  a.mcq_score, a.code_score, a.text_score, a.text_reviewed, a.total, a.max_total, a.used_ms
+  a.mcq_score, a.code_score, a.text_score, a.text_reviewed, a.total, a.max_total, a.used_ms, a.violations, a.proctor
   FROM attempts a LEFT JOIN students_master m ON m.roll_no = a.roll_no`;
 
 adm.get('/attempts', async (req, res) => {
@@ -469,12 +511,13 @@ adm.get('/attempts', async (req, res) => {
   const where = ['a.sprint_id = ?', "a.roll_no NOT LIKE 'ADMIN-%'"], p = [sprintId];
   if (req.query.status) { where.push('a.status = ?'); p.push(String(req.query.status)); }
   if (req.query.review === 'pending') where.push("a.status = 'submitted' AND a.text_reviewed = 0");
+  if (req.query.flagged === '1') where.push('a.violations > 0');
   if (req.query.q) { where.push('(a.roll_no ILIKE ? OR m.name ILIKE ?)'); p.push('%' + req.query.q + '%', '%' + req.query.q + '%'); }
   const [sprints, rows] = await Promise.all([
     all("SELECT sprint_id, COUNT(*) AS n FROM attempts WHERE roll_no NOT LIKE 'ADMIN-%' GROUP BY sprint_id ORDER BY MAX(started_at) DESC"),
     all(`${ATTEMPT_LIST} WHERE ${where.join(' AND ')} ORDER BY a.total DESC NULLS LAST, a.used_ms ASC LIMIT 2000`, ...p)
   ]);
-  res.json({ sprints, rows });
+  res.json({ sprints, rows: rows.map((r) => ({ ...r, proctor: proctorView(r) })) });
 });
 
 adm.get('/attempts/:id', async (req, res) => {
@@ -483,7 +526,8 @@ adm.get('/attempts/:id', async (req, res) => {
   const m = await one('SELECT name, batch, phone FROM students_master WHERE roll_no = ?', a.roll_no);
   const answers = a.status === 'running' ? await readDraft(a) : parseJSON(a.answers, {});
   res.json({
-    attempt: { ...a, draft: undefined, answers, detail: parseJSON(a.detail, {}) },
+    attempt: { ...a, draft: undefined, proctor: undefined, answers, detail: parseJSON(a.detail, {}) },
+    proctor: { ...proctorView(a), events: await attemptEvents(a.id), labels: VIOLATIONS },
     student: m, questions: getQuestions(), marks: MARKS, result: a.status === 'submitted' ? resultView(a) : null
   });
 });
@@ -498,6 +542,7 @@ adm.patch('/attempts/:id/marks', async (req, res) => {
 adm.delete('/attempts/:id', requireSuper, async (req, res) => {
   const a = await one('SELECT * FROM attempts WHERE id = ?', Number(req.params.id));
   if (!a) return res.status(404).json({ error: 'NOT_FOUND', message: 'Attempt not found.' });
+  await run('DELETE FROM attempt_events WHERE attempt_id = ?', a.id);
   await run('DELETE FROM attempts WHERE id = ?', a.id);
   await clearBoardCache();
   await audit(req, 'attempt.reset', a.roll_no, { snapshot: { ...a, draft: parseJSON(a.draft), answers: parseJSON(a.answers), detail: parseJSON(a.detail) } });
@@ -643,9 +688,9 @@ adm.get('/export/:what', async (req, res) => {
   if (req.params.what === 'results.csv') {
     const rankOf = new Map((await leaderboardRows(sprint.id)).map((r) => [r.roll_no, r.rank]));
     const rows = (await all(`${ATTEMPT_LIST} WHERE a.sprint_id = ? AND a.roll_no NOT LIKE 'ADMIN-%' ORDER BY a.total DESC NULLS LAST, a.used_ms ASC`, sprint.id))
-      .map((r) => ({ ...r, rank: rankOf.get(r.roll_no) || '', time_used: mmss(r.used_ms), started: iso(r.started_at), submitted: iso(r.submitted_at), auto: r.auto_submitted ? 'yes' : '', reviewed: r.text_reviewed ? 'yes' : 'no' }));
+      .map((r) => ({ ...r, rank: rankOf.get(r.roll_no) || '', time_used: mmss(r.used_ms), started: iso(r.started_at), submitted: iso(r.submitted_at), auto: r.auto_submitted ? 'yes' : '', reviewed: r.text_reviewed ? 'yes' : 'no', ended_by_violations: proctorView(r).endedBy === 'violations' ? 'yes' : '' }));
     name = `results-${sprint.id}.csv`;
-    body = toCSV(['rank', 'roll_no', 'name', 'batch', 'status', 'total', 'max_total', 'mcq_score', 'code_score', 'text_score', 'reviewed', 'time_used', 'started', 'submitted', 'auto'], rows);
+    body = toCSV(['rank', 'roll_no', 'name', 'batch', 'status', 'total', 'max_total', 'mcq_score', 'code_score', 'text_score', 'reviewed', 'time_used', 'started', 'submitted', 'auto', 'violations', 'ended_by_violations'], rows);
   } else if (req.params.what === 'students.csv') {
     const rows = (await all(`SELECT m.*, u.status AS account, u.created_at AS reg_at, u.last_login_at, pr.data FROM students_master m
       LEFT JOIN users u ON u.roll_no = m.roll_no LEFT JOIN progress pr ON pr.roll_no = m.roll_no ORDER BY m.roll_no`))
@@ -663,7 +708,7 @@ adm.get('/export/:what', async (req, res) => {
 });
 
 // ---------- settings (super admin)
-adm.get('/settings', async (req, res) => res.json({ sprint: await getSprint(), marks: MARKS, questions: getQuestions().length,
+adm.get('/settings', async (req, res) => res.json({ sprint: await getSprint(), marks: MARKS, questions: getQuestions().length, proctor: await proctorSettings(),
   registrationAutoApprove: !!(await getSetting('registration_auto_approve', false)) }));
 adm.patch('/settings', requireSuper, async (req, res) => {
   const b = req.body || {}, before = await getSprint(), changes = {};
@@ -685,6 +730,12 @@ adm.patch('/settings', requireSuper, async (req, res) => {
   }
   if (b.leaderboard_visible !== undefined) changes.leaderboard_visible = !!b.leaderboard_visible;
   if (b.registration_auto_approve !== undefined) changes.registration_auto_approve = !!b.registration_auto_approve;
+  for (const k of ['proctor_enabled', 'proctor_fullscreen', 'proctor_block_copy']) if (b[k] !== undefined) changes[k] = !!b[k];
+  if (b.proctor_max_violations !== undefined) {
+    const n = Number(b.proctor_max_violations);
+    if (!Number.isInteger(n) || n < 0 || n > 50) throw new AuthError('BAD_SETTING', 'Violation limit: 0 (never auto-submit) to 50.', 400);
+    changes.proctor_max_violations = n;
+  }
   const open = Date.parse(changes.sprint_open || before.open), close = Date.parse(changes.sprint_close || before.close);
   if (!(close > open)) throw new AuthError('BAD_SETTING', 'Close time must be after open time.', 400);
   for (const [k, v] of Object.entries(changes)) await setSetting(k, v);

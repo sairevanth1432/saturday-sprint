@@ -12,6 +12,9 @@ if (config.isProd || config.isVercel || (config.databaseUrl && !process.argv.inc
   process.exit(1);
 }
 
+// Approved test students log in with this password (or with a code via "Log in with a code").
+const STUDENT_PASSWORD = 'Sprint2026';
+
 const ADMINS = [
   { email: 'admin@test.local', name: 'Test Super Admin', role: 'super_admin', password: 'SprintAdmin#2026' },
   { email: 'staff@test.local', name: 'Test Admin', role: 'admin', password: 'SprintStaff#2026' }
@@ -44,7 +47,7 @@ for (const s of STUDENTS) {
   await run('DELETE FROM users WHERE roll_no = ?', s.roll);
   await run('DELETE FROM registration_requests WHERE roll_no = ?', s.roll);
   if (s.state === 'approved') {
-    await run('INSERT INTO users (roll_no, phone, status, created_at) VALUES (?, ?, ?, ?)', s.roll, s.phone, 'active', now);
+    await run('INSERT INTO users (roll_no, phone, status, created_at, password_hash, password_set_at) VALUES (?, ?, ?, ?, ?, ?)', s.roll, s.phone, 'active', now, hashPassword(STUDENT_PASSWORD), now);
     await run("INSERT INTO registration_requests (roll_no, phone, status, created_at, decided_at, decided_by) VALUES (?, ?, 'approved', ?, ?, 'seed-test')", s.roll, s.phone, now, now);
   } else if (s.state === 'pending') {
     await run("INSERT INTO registration_requests (roll_no, phone, status, created_at) VALUES (?, ?, 'pending', ?)", s.roll, s.phone, now);
@@ -66,7 +69,7 @@ console.log('\nTest accounts ready (local database only). Start the site with: n
 console.log('ADMIN  (http://localhost:3000/admin)');
 line('Email', 'Password', 'Role');
 for (const a of ADMINS) line(a.email, a.password, a.role === 'super_admin' ? 'super admin (everything)' : 'admin (no imports/settings/admins)');
-console.log('\nSTUDENTS  (http://localhost:3000/login; the 6-digit code is shown on screen locally)');
+console.log('\nSTUDENTS  (http://localhost:3000/login; approved accounts use the password ' + STUDENT_PASSWORD + '; codes are shown on screen locally)');
 line('NIAT ID', 'Phone', 'State');
 for (const s of STUDENTS) line(s.roll, s.phone.replace('+91', ''), {
   approved: 'approved → Log in', pending: 'waiting → approve it in Admin → Approvals', new: 'not registered → use Register'

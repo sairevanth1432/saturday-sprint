@@ -9,9 +9,9 @@ Create or reset them any time with `npm run seed-test` (local database only; it 
 |---|---|---|
 | Super admin, http://localhost:3000/admin | `admin@test.local` | `SprintAdmin#2026` |
 | Admin with fewer rights (no imports, settings or admin management) | `staff@test.local` | `SprintStaff#2026` |
-| Student, already approved | `TEST0001`, `TEST0002`, `TEST0003` | code shown on screen |
+| Student, already approved | `TEST0001`, `TEST0002`, `TEST0003` | password `Sprint2026` (or *Log in with a code*: code shown on screen) |
 | Student, waiting for approval | `TEST0004` | approve in Admin → Approvals |
-| Student, not registered yet | `TEST0005` + any 10-digit mobile number | code shown on screen |
+| Student, not registered yet | `TEST0005` + any 10-digit mobile number + a password you choose | code shown on screen |
 
 - The seed also opens a separate test Sprint called `local-test` for 24 hours, so you can take the test. `npm run seed-test -- --no-sprint` leaves the Sprint settings alone.
 - Locally, `server/.env` turns off the authenticator step for admins. To test it, set `ADMIN_REQUIRE_TOTP=true` and restart.
@@ -19,7 +19,7 @@ Create or reset them any time with `npm run seed-test` (local database only; it 
 ### Production (your live domain)
 Real SMS is sent there, so test students need phones your testers hold:
 ```bash
-docker compose exec app node scripts/test-accounts.js add --phones 98XXXXXXXX,97XXXXXXXX
+docker compose exec app node scripts/test-accounts.js add --phones 98XXXXXXXX,97XXXXXXXX --password Sprint2026
 docker compose exec app node scripts/test-accounts.js list
 docker compose exec app node scripts/test-accounts.js remove      # before the real Sprint
 ```
@@ -55,9 +55,12 @@ Mark each ✅ / ❌ per browser. *Expected* is what should happen.
 |---|---|---|
 | A1 | Open `/` while logged out | Redirected to the login page |
 | A2 | Log in with `N26P02A9999` (not in the list) | "This NIAT ID is not in the student list…" |
-| A3 | Register `TEST0005` + a 10-digit number → enter the code | "Waiting for approval" screen |
+| A3 | Register `TEST0005` + a 10-digit number + a password (twice) → enter the code | "Waiting for approval" screen |
 | A4 | Log in as `TEST0005` before approval | "Waiting for approval" |
-| A5 | Admin → Approvals → approve `TEST0005` → log in again | Code → portal opens |
+| A5 | Admin → Approvals → approve `TEST0005` → log in with NIAT ID + password | Portal opens, no code needed |
+| A5b | Wrong password | "Wrong NIAT ID or password." with a *Forgot password?* link; 8 wrong tries lock the account for 15 min |
+| A5c | *Forgot password?* → code → choose a new password | Portal opens; the old password stops working; other devices are signed out |
+| A5d | Admin → Students → `TEST0002` → *Reset password* → student logs in with a code | Asked to set a new password |
 | A6 | Enter a wrong code 5 times | "Too many wrong codes. Request a new one." |
 | A7 | Press *Resend* straight away | Countdown; resend only after it ends |
 | A8 | Register a second NIAT ID with a phone already used by `TEST0001` | "This phone number is already linked…" |
@@ -84,6 +87,13 @@ Mark each ✅ / ❌ per browser. *Expected* is what should happen.
 | C5 | Submit | Feedback form first, then score, rank and leaderboard |
 | C6 | Start again as the same student | "You have already submitted this Sprint." |
 | C7 | Let a test run out of time (Admin → Sprint settings → set close time 2 min ahead) | Auto-submitted within ~20 s of the end |
+| C8 | Start → rules screen → *Start the test* | Browser goes full screen; NIAT ID watermark over the questions |
+| C9 | During the test: select text, Ctrl+C, right-click, Ctrl+P | Nothing is copied or printed; logged in the attempt timeline |
+| C10 | Switch tab (Ctrl+Tab) / Alt+Tab to another app / press Esc to leave full screen | "Warning 1 of 3" over the questions; *Continue* returns to full screen |
+| C11 | Third violation | Submitted automatically; result says "too many proctoring violations" |
+| C12 | Open the running test in a second tab | Second tab is blocked; counted as a violation |
+| C13 | Click *Learn* or *Practice* while the test runs | "Finish and submit the Sprint first" |
+| C14 | Admin → Results → *Proctoring flags* → open the attempt | Violation counts and a timeline of every event |
 
 ### D. Leaderboard
 | # | Steps | Expected |

@@ -58,6 +58,8 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
 .pending{display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:16px;border:2px solid var(--accent);background:rgba(255,228,92,.06)}
 .pending .big{font-family:"VT323",monospace;font-size:22px;color:var(--accent)}
 .pending p{margin:0;font-size:15px;line-height:1.55;color:#EDEDED}
+input[type="password"],input.pw{font-family:"JetBrains Mono",monospace;font-size:18px;letter-spacing:0}
+.pwrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .foot{font-size:13px;color:var(--muted);line-height:1.5}
 [hidden]{display:none !important}
 @media (max-width:860px){.wrap{grid-template-columns:1fr;gap:28px}.brand{font-size:44px}.lede,.steps{display:none}}
@@ -69,11 +71,11 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
   <section>
     <p class="tag">~/login · student portal</p>
     <h2 class="brand">Saturday<br><span>Sprint</span></h2>
-    <p class="lede">Register once with your <b>NIAT ID</b> and your own mobile number. After an admin approves it, you log in with your NIAT ID and a code sent to that number.</p>
+    <p class="lede">Register once with your <b>NIAT ID</b> and your own mobile number. After an admin approves it, you log in with your NIAT ID and your password.</p>
     <ol class="steps">
-      <li><b>1</b>Register: NIAT ID + your mobile number</li>
+      <li><b>1</b>Register: NIAT ID, your mobile number and a password</li>
       <li><b>2</b>Confirm the 6-digit code sent to your phone</li>
-      <li><b>3</b>Wait for admin approval, then log in</li>
+      <li><b>3</b>Wait for admin approval, then log in with your password</li>
     </ol>
   </section>
 
@@ -92,14 +94,44 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
       <form id="f-start" novalidate style="display:flex;flex-direction:column;gap:16px">
         <div>
           <label for="roll">NIAT ID</label>
-          <input id="roll" name="roll" autocomplete="username" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="e.g. N26P02A0001" required>
+          <input id="roll" name="username" autocomplete="username" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="e.g. N26P02A0001" required>
         </div>
         <div id="phone-field" hidden>
           <label for="phone">Your mobile number</label>
           <div class="phone"><span>+91</span><input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" placeholder="98765 43210"></div>
           <span class="hint">Use a number you will keep. Login codes are always sent to this number.</span>
         </div>
-        <button class="btn" id="b-send" type="submit">Send code</button>
+        <div id="pw-field">
+          <div class="pwrow"><label for="pw">Password</label><button class="link" id="b-showpw" type="button">Show</button></div>
+          <input id="pw" class="pw" name="password" type="password" autocomplete="current-password" maxlength="128">
+          <span class="hint" id="pw-hint" hidden>At least 8 characters, with letters and a number.</span>
+        </div>
+        <div id="pw2-field" hidden>
+          <label for="pw2">Confirm password</label>
+          <input id="pw2" class="pw" name="password2" type="password" autocomplete="new-password" maxlength="128">
+        </div>
+        <button class="btn" id="b-send" type="submit">Log in</button>
+        <div class="row" id="code-links">
+          <button class="link" id="b-forgot" type="button">Forgot password?</button>
+          <button class="link" id="b-code" type="button">First time? Log in with a code</button>
+        </div>
+        <div class="row" id="pw-links" hidden>
+          <button class="link" id="b-usepw" type="button">Log in with your password instead</button>
+        </div>
+      </form>
+
+      <form id="f-setpw" novalidate hidden style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <label for="npw">New password</label>
+          <input id="npw" class="pw" type="password" autocomplete="new-password" maxlength="128">
+          <span class="hint">At least 8 characters, with letters and a number. Use it to log in next time; no code needed.</span>
+        </div>
+        <div>
+          <label for="npw2">Confirm new password</label>
+          <input id="npw2" class="pw" type="password" autocomplete="new-password" maxlength="128">
+        </div>
+        <button class="btn" id="b-setpw" type="submit">Save password and open the portal</button>
+        <button class="link" id="b-skip" type="button" hidden>Skip: keep my current password</button>
       </form>
 
       <form id="f-otp" novalidate hidden style="display:flex;flex-direction:column;gap:16px">
@@ -135,12 +167,16 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
 
 <script>
 (function () {
-  var mode = 'login', roll = '', phone = '', resendTimer = null, busy = false;
+  // Modes: login = NIAT ID + password; code = NIAT ID + SMS code (first login / forgot password); register.
+  var mode = 'login', roll = '', phone = '', password = '', resendTimer = null, busy = false, forgot = false;
   var $ = function (id) { return document.getElementById(id); };
   var COPY = {
-    login: { title: 'Welcome back', sub: 'Enter your NIAT ID. We send a login code to your registered mobile number.', send: 'Send code', verify: 'Verify and log in' },
-    register: { title: 'Register', sub: 'Enter your NIAT ID and your own mobile number. We confirm the number with a code, then an admin approves your registration.', send: 'Send code to my phone', verify: 'Verify and send request' }
+    login: { title: 'Welcome back', sub: 'Log in with your NIAT ID and password.', send: 'Log in', verify: '' },
+    code: { title: 'Log in with a code', sub: 'Enter your NIAT ID. We send a login code to your registered mobile number, then you set a password.', send: 'Send code', verify: 'Verify' },
+    register: { title: 'Register', sub: 'Enter your NIAT ID, your own mobile number and a password. We confirm the number with a code, then an admin approves your registration.', send: 'Send code to my phone', verify: 'Verify and send request' }
   };
+  var PW_RULE = 'Use at least 8 characters for your password, with letters and at least one number.';
+  function pwProblem(pw) { return pw.length < 8 || pw.length > 128 || !/[a-z]/i.test(pw) || !/\d/.test(pw) ? PW_RULE : ''; }
 
   function show(el, on) { el.hidden = !on; }
   function message(text, kind, action) {
@@ -157,27 +193,44 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
   }
   function setMode(next, keep) {
     mode = next;
-    $('tab-login').setAttribute('aria-selected', String(mode === 'login'));
+    if (mode !== 'code') forgot = false;
+    $('tab-login').setAttribute('aria-selected', String(mode !== 'register'));
     $('tab-register').setAttribute('aria-selected', String(mode === 'register'));
-    $('title').textContent = COPY[mode].title;
-    $('subtitle').textContent = COPY[mode].sub;
+    $('title').textContent = forgot ? 'Forgot password' : COPY[mode].title;
+    $('subtitle').textContent = forgot ? 'Enter your NIAT ID. We send a code to your registered mobile number; then you set a new password.' : COPY[mode].sub;
     $('b-send').textContent = COPY[mode].send;
     $('b-verify').textContent = COPY[mode].verify;
     show($('phone-field'), mode === 'register');
+    show($('pw-field'), mode !== 'code');
+    show($('pw2-field'), mode === 'register');
+    show($('pw-hint'), mode === 'register');
+    show($('code-links'), mode === 'login');
+    show($('pw-links'), mode === 'code');
+    $('pw').setAttribute('autocomplete', mode === 'register' ? 'new-password' : 'current-password');
+    $('pw').value = ''; $('pw2').value = '';
     startStep(keep);
-    try { history.replaceState(null, '', mode === 'register' ? '#register' : '#login'); } catch (e) {}
+    try { history.replaceState(null, '', '#' + mode); } catch (e) {}
   }
   function startStep(keep) {
     clearInterval(resendTimer);
-    show($('head'), true); show($('f-start'), true); show($('f-otp'), false); show($('pending'), false); show($('dev'), false);
+    show($('head'), true); show($('f-start'), true); show($('f-otp'), false); show($('f-setpw'), false); show($('pending'), false); show($('dev'), false);
     message('');
     if (keep) $('roll').value = roll;
-    $('roll').focus();
+    ($('roll').value && mode !== 'code' ? $('pw') : $('roll')).focus();
   }
   function pendingStep(text) {
     clearInterval(resendTimer);
-    show($('f-start'), false); show($('f-otp'), false); show($('dev'), false); show($('pending'), true);
+    show($('f-start'), false); show($('f-otp'), false); show($('f-setpw'), false); show($('dev'), false); show($('pending'), true);
     if (text) $('pending-text').textContent = text;
+    message('');
+  }
+  function setPasswordStep(hasPassword) {
+    clearInterval(resendTimer);
+    show($('f-start'), false); show($('f-otp'), false); show($('dev'), false); show($('f-setpw'), true);
+    $('title').textContent = hasPassword ? 'Set a new password' : 'Set your password';
+    $('subtitle').textContent = 'You are logged in. Choose a password so next time you log in with your NIAT ID and password, without a code.';
+    show($('b-skip'), !!hasPassword && !forgot);
+    $('npw').value = ''; $('npw2').value = ''; $('npw').focus();
     message('');
   }
   function cooldown(seconds) {
@@ -194,11 +247,14 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw Object.assign(new Error(d.message || 'Something went wrong.'), d); return d; }); },
         function () { throw new Error('No connection. Check your internet and try again.'); });
   }
+  function toCode(isForgot) { forgot = !!isForgot; roll = $('roll').value.trim().toUpperCase().replace(/\s+/g, ''); setMode('code', true); }
   function handleError(e) {
-    if (e.error === 'ALREADY_REGISTERED') return message(e.message, 'err', { label: 'Log in instead', run: function () { setMode('login', true); send(); } });
+    if (e.error === 'ALREADY_REGISTERED') return message(e.message, 'err', { label: 'Log in instead', run: function () { setMode('login', true); } });
     if (e.error === 'NOT_REGISTERED') return message(e.message, 'err', { label: 'Register now', run: function () { setMode('register', true); } });
     if (e.error === 'PENDING_APPROVAL') return pendingStep(e.message);
     if (e.error === 'REJECTED') return message(e.message, 'err', { label: 'Register again', run: function () { setMode('register', true); } });
+    if (e.error === 'NO_PASSWORD') { toCode(false); return message(e.message, 'err', { label: 'Send me a code', run: send }); }
+    if (e.error === 'BAD_LOGIN' || e.error === 'LOCKED') return message(e.message, 'err', { label: 'Forgot password?', run: function () { toCode(true); } });
     if (e.error === 'OTP_COOLDOWN' && e.maskedPhone) { otpStep(e.maskedPhone); cooldown(e.retryAfter || 30); return message(e.message, 'err'); }
     message(e.message || 'Something went wrong.');
   }
@@ -209,18 +265,34 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
     $('sent-roll').textContent = 'NIAT ID: ' + roll;
     $('otp').value = ''; $('otp').focus();
   }
+  function done(text) { message(text, 'ok'); location.replace('/'); }
+  function passwordLogin() {
+    var pw = $('pw').value;
+    if (!pw) { message('Enter your password.'); $('pw').focus(); return; }
+    busy = true; $('b-send').disabled = true; message('');
+    call('/api/auth/password-login', { rollNo: roll, password: pw }).then(function () { done('Logged in. Opening the portal…'); },
+      function (e) { handleError(e); $('pw').select(); }).then(function () { busy = false; $('b-send').disabled = false; });
+  }
   function send() {
     if (busy) return;
     roll = $('roll').value.trim().toUpperCase().replace(/\s+/g, '');
     if (!roll) { message('Enter your NIAT ID.'); $('roll').focus(); return; }
+    if (mode === 'login') return passwordLogin();
     var body = { rollNo: roll };
     if (mode === 'register') {
       phone = $('phone').value.replace(/\D/g, '');
       if (!/^[6-9]\d{9}$/.test(phone)) { message('Enter your 10-digit mobile number.'); $('phone').focus(); return; }
+      if (!$('f-otp').hidden) { /* resend: keep the password already entered */ }
+      else {
+        password = $('pw').value;
+        var prob = pwProblem(password);
+        if (prob) { message(prob); $('pw').focus(); return; }
+        if ($('pw2').value !== password) { message('The two passwords do not match.'); $('pw2').focus(); return; }
+      }
       body.phone = phone;
     }
     busy = true; $('b-send').disabled = true; $('b-resend').disabled = true; message('');
-    call('/api/auth/' + mode + '/start', body).then(function (d) {
+    call('/api/auth/' + (mode === 'register' ? 'register' : 'login') + '/start', body).then(function (d) {
       otpStep(d.maskedPhone);
       cooldown(d.resendIn || 30);
       if (d.devOtp) { $('dev').textContent = 'Test mode: your code is ' + d.devOtp + ' (normally it arrives by SMS).'; show($('dev'), true); }
@@ -232,31 +304,52 @@ input.otp{letter-spacing:12px;text-align:center;font-size:34px}
     if (code.length !== 6) { message('Enter the 6-digit code.'); $('otp').focus(); return; }
     busy = true; $('b-verify').disabled = true; message('');
     var body = { rollNo: roll, otp: code };
-    if (mode === 'register') body.phone = phone;
-    call('/api/auth/' + mode + '/verify', body).then(function (d) {
+    if (mode === 'register') { body.phone = phone; body.password = password; }
+    call('/api/auth/' + (mode === 'register' ? 'register' : 'login') + '/verify', body).then(function (d) {
       busy = false; $('b-verify').disabled = false;
-      if (d.status === 'pending') return pendingStep('Your number is confirmed and your request is sent. An admin will approve it; then log in with your NIAT ID ' + roll + '.');
-      message(mode === 'register' ? 'Account created. Opening the portal…' : 'Logged in. Opening the portal…', 'ok');
-      location.replace('/');
+      if (d.status === 'pending') return pendingStep('Your number is confirmed and your request is sent. An admin will approve it; then log in with your NIAT ID ' + roll + ' and the password you chose.');
+      if (mode === 'register') return done('Account created. Opening the portal…');
+      if (!d.hasPassword || forgot) return setPasswordStep(d.hasPassword);
+      done('Logged in. Opening the portal…');
     }, function (e) {
       busy = false; $('b-verify').disabled = false;
       handleError(e); $('otp').select();
     });
+  }
+  function savePassword() {
+    if (busy) return;
+    var pw = $('npw').value, prob = pwProblem(pw);
+    if (prob) { message(prob); $('npw').focus(); return; }
+    if ($('npw2').value !== pw) { message('The two passwords do not match.'); $('npw2').focus(); return; }
+    busy = true; $('b-setpw').disabled = true; message('');
+    call('/api/auth/password', { password: pw }).then(function () { done('Password saved. Opening the portal…'); },
+      function (e) { message(e.message || 'Something went wrong.'); }).then(function () { busy = false; $('b-setpw').disabled = false; });
   }
 
   $('tab-login').onclick = function () { setMode('login', true); };
   $('tab-register').onclick = function () { setMode('register', true); };
   $('f-start').onsubmit = function (e) { e.preventDefault(); send(); };
   $('f-otp').onsubmit = function (e) { e.preventDefault(); verify(); };
+  $('f-setpw').onsubmit = function (e) { e.preventDefault(); savePassword(); };
   $('b-back').onclick = function () { startStep(true); };
   $('b-resend').onclick = function () { send(); };
   $('b-to-login').onclick = function () { setMode('login', true); };
+  $('b-forgot').onclick = function () { toCode(true); };
+  $('b-code').onclick = function () { toCode(false); };
+  $('b-usepw').onclick = function () { setMode('login', true); };
+  $('b-skip').onclick = function () { location.replace('/'); };
+  $('b-showpw').onclick = function () {
+    var on = $('pw').type === 'password';
+    $('pw').type = $('pw2').type = on ? 'text' : 'password';
+    this.textContent = on ? 'Hide' : 'Show';
+  };
   $('phone').addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 10); });
   $('otp').addEventListener('input', function () {
     this.value = this.value.replace(/\D/g, '').slice(0, 6);
     if (this.value.length === 6) verify();
   });
-  setMode(location.hash === '#register' ? 'register' : 'login');
+  var h = location.hash.slice(1);
+  setMode(h === 'register' || h === 'code' ? h : 'login');
 })();
 </script>
 </body>

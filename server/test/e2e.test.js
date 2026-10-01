@@ -67,7 +67,7 @@ const waitFor = async (fn, ms = 8000) => {
 async function signup(c, roll, phone) {
   const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone });
   assert.equal(s.status, 200, JSON.stringify(s.body));
-  const v = await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone });
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone, password: 'Sprint2026' });
   assert.equal(v.status, 200, JSON.stringify(v.body));
   assert.equal(v.body.status, 'pending');
   const { approveRequest } = await import('../auth.js');
@@ -122,10 +122,10 @@ test('register with OWN phone → pending until admin approves; impostor request
   assert.equal(s.status, 200);
   assert.equal(s.body.maskedPhone, '+91 90•••••001', 'the code goes to the number the student typed, not the sheet');
   const wrong = String((Number(s.body.devOtp) + 1) % 1000000).padStart(6, '0');
-  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: wrong, phone: '9000000001' })).body.error, 'OTP_WRONG');
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: wrong, phone: '9000000001', password: 'Sprint2026' })).body.error, 'OTP_WRONG');
   // a code for one phone cannot be used with another phone
-  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000099' })).body.error, 'OTP_EXPIRED');
-  const v = await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000001' });
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000099', password: 'Sprint2026' })).body.error, 'OTP_EXPIRED');
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000001', password: 'Sprint2026' });
   assert.equal(v.status, 200);
   assert.equal(v.body.status, 'pending');
   assert.equal((await c('GET', '/api/me')).status, 401, 'no session before approval');
@@ -134,7 +134,7 @@ test('register with OWN phone → pending until admin approves; impostor request
   // someone else tries to claim the same NIAT ID with their phone
   const x = client();
   const xs = await x('POST', '/api/auth/register/start', { rollNo: ROLL, phone: '9000000666' });
-  await x('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: xs.body.devOtp, phone: '9000000666' });
+  await x('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: xs.body.devOtp, phone: '9000000666', password: 'Sprint2026' });
   const reqs = await db.all("SELECT id, phone FROM registration_requests WHERE roll_no = ? AND status = 'pending' ORDER BY id", ROLL);
   assert.equal(reqs.length, 2);
 
@@ -293,7 +293,7 @@ test('updating the master file: removed students are deactivated; the account ph
 });
 
 test('admin approvals screen: list, reject with reason, bulk approve, change login phone', async () => {
-  const mk = async (roll, phone) => { const c = client(); const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone }); await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone }); return c; };
+  const mk = async (roll, phone) => { const c = client(); const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone }); await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone, password: 'Sprint2026' }); return c; };
   await db.run("INSERT INTO students_master (roll_no, name, phone, active, source, updated_at) VALUES ('N26P02A0901', 'Ravi', '+919000000901', 1, 'admin', 1), ('N26P02A0902', 'Sita', '', 1, 'admin', 1)");
   await mk('N26P02A0901', '9000000901');
   const sita = await mk('N26P02A0902', '9000000902');
@@ -431,4 +431,126 @@ test('units: 6 units, each ONE lesson with Watch → Play → Read; files are se
   const media = await ADM('GET', '/api/admin/media');
   const row = media.body.lessons.find((l) => l.id === 'tp-nested');
   assert.equal(row.steps.watch.active, 'pack', 'admins see the built-in video and can replace it');
+});
+
+test('student password: register with a password → log in with NIAT ID + password; code login sets one; admin reset', async () => {
+  const now = Date.now();
+  for (const r of ['PWTEST01', 'PWTEST02']) {
+    await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, '', 'A', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", r, 'Pw ' + r, now);
+  }
+  // 1) register with a password (weak passwords are refused at verify)
+  const c = client();
+  const s = await c('POST', '/api/auth/register/start', { rollNo: 'PWTEST01', phone: '9111100001' });
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: 'PWTEST01', otp: s.body.devOtp, phone: '9111100001', password: 'short' })).body.error, 'WEAK_PASSWORD');
+  const s2 = await c('POST', '/api/auth/register/start', { rollNo: 'PWTEST01', phone: '9111100001' });
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: 'PWTEST01', otp: s2.body.devOtp, phone: '9111100001', password: 'Sprint2026' });
+  assert.equal(v.body.status, 'pending', JSON.stringify(v.body));
+  assert.equal((await client()('POST', '/api/auth/password-login', { rollNo: 'PWTEST01', password: 'Sprint2026' })).body.error, 'PENDING_APPROVAL');
+  const { approveRequest } = await import('../auth.js');
+  await approveRequest((await db.one("SELECT id FROM registration_requests WHERE roll_no = 'PWTEST01' AND status = 'pending'")).id, 'test');
+  const p = client();
+  assert.equal((await p('POST', '/api/auth/password-login', { rollNo: 'pwtest01', password: 'Wrong2026' })).body.error, 'BAD_LOGIN');
+  assert.equal((await p('POST', '/api/auth/password-login', { rollNo: 'NOSUCH99', password: 'Wrong2026' })).body.error, 'BAD_LOGIN', 'same answer for unknown IDs');
+  const ok = await p('POST', '/api/auth/password-login', { rollNo: 'pwtest01', password: 'Sprint2026' });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal((await p('GET', '/api/me')).body.hasPassword, true);
+  // changing it from a normal session needs the current password
+  assert.equal((await p('POST', '/api/auth/password', { password: 'Newpass2026' })).body.error, 'BAD_LOGIN');
+  assert.equal((await p('POST', '/api/auth/password', { password: 'Newpass2026', current: 'Sprint2026' })).status, 200);
+  assert.equal((await client()('POST', '/api/auth/password-login', { rollNo: 'PWTEST01', password: 'Newpass2026' })).status, 200);
+
+  // 2) admin reset: the student is signed out, told to use a code, then sets a new password right after the code login
+  const q = client();
+  const s3 = await q('POST', '/api/auth/register/start', { rollNo: 'PWTEST02', phone: '9111100002' });
+  await q('POST', '/api/auth/register/verify', { rollNo: 'PWTEST02', otp: s3.body.devOtp, phone: '9111100002', password: 'Before2026' });
+  await approveRequest((await db.one("SELECT id FROM registration_requests WHERE roll_no = 'PWTEST02' AND status = 'pending'")).id, 'test');
+  assert.equal((await q('POST', '/api/auth/password-login', { rollNo: 'PWTEST02', password: 'Before2026' })).status, 200);
+  const det = await ADM('GET', '/api/admin/students/PWTEST02');
+  assert.equal(det.body.user.has_password, true);
+  assert.ok(!('password_hash' in det.body.user), 'the admin API never returns password hashes');
+  assert.equal((await ADM('POST', '/api/admin/users/PWTEST02/password-reset')).status, 200);
+  assert.equal((await q('GET', '/api/me')).status, 401, 'reset signs the student out');
+  const list = await ADM('GET', '/api/admin/students?q=PWTEST');
+  assert.deepEqual(list.body.rows.map((r) => !!r.has_password), [true, false]);
+  assert.equal((await q('POST', '/api/auth/password-login', { rollNo: 'PWTEST02', password: 'Before2026' })).body.error, 'NO_PASSWORD');
+  const l = await q('POST', '/api/auth/login/start', { rollNo: 'PWTEST02' });
+  const lv = await q('POST', '/api/auth/login/verify', { rollNo: 'PWTEST02', otp: l.body.devOtp });
+  assert.equal(lv.body.hasPassword, false);
+  assert.equal((await q('POST', '/api/auth/password', { password: 'Firstpw2026' })).status, 200, 'no current password needed right after a code login');
+  assert.equal((await client()('POST', '/api/auth/password-login', { rollNo: 'PWTEST02', password: 'Firstpw2026' })).status, 200);
+
+});
+
+test('proctoring: events are logged, violations counted, a second tab is flagged, the limit auto-submits from the answers', async () => {
+  const now = Date.now();
+  for (const r of ['PRTEST01', 'PRTEST02']) {
+    await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, '', 'A', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", r, 'Pr ' + r, now);
+  }
+  const P = client();
+  await signup(P, 'PRTEST01', '9222200001');
+  const boot = await P('GET', '/api/bootstrap');
+  assert.deepEqual(boot.body.sprint.proctor, { enabled: true, fullscreen: true, maxViolations: 3, blockCopy: true });
+  assert.equal((await P('POST', '/api/sprint/events', { instance: 'tab1', events: [{ type: 'start' }] })).body.error, 'NOT_STARTED');
+  assert.equal((await P('POST', '/api/sprint/start')).status, 200);
+  let r = await P('POST', '/api/sprint/events', { instance: 'tab1', events: [{ type: 'start', detail: 'screen 1920×1080' }, { type: 'copy' }, { type: 'bogus' }, { type: 'tab_hidden' }] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.violations, 1);
+  assert.equal(r.body.status, 'running');
+  // heartbeats only: nothing stored
+  const before = (await db.one("SELECT COUNT(*) AS n FROM attempt_events WHERE roll_no = 'PRTEST01'")).n;
+  await P('POST', '/api/sprint/events', { instance: 'tab1', events: [{ type: 'hb' }] });
+  assert.equal((await db.one("SELECT COUNT(*) AS n FROM attempt_events WHERE roll_no = 'PRTEST01'")).n, before);
+  // a second page sending activity while the first is alive → multi_instance violation
+  r = await P('POST', '/api/sprint/events', { instance: 'tab2', events: [{ type: 'resume' }] });
+  assert.equal(r.body.violations, 2);
+  // third violation reaches the limit (3): submitted with the answers sent in the same report
+  const answers = { mcq: { 0: Q[0].c, 1: Q[1].c } };
+  r = await P('POST', '/api/sprint/events', { instance: 'tab1', events: [{ type: 'fs_exit' }], answers });
+  assert.equal(r.body.status, 'submitted', JSON.stringify(r.body));
+  assert.equal(r.body.attempt.result.score, 2);
+  assert.equal(r.body.attempt.result.endedByViolations, true);
+  const id = (await db.one("SELECT id FROM attempts WHERE roll_no = 'PRTEST01'")).id;
+  const det = await ADM('GET', '/api/admin/attempts/' + id);
+  assert.equal(det.body.proctor.violations, 3);
+  assert.equal(det.body.proctor.multi, true);
+  assert.equal(det.body.proctor.endedBy, 'violations');
+  assert.deepEqual(det.body.proctor.events.map((e) => e.type), ['start', 'copy', 'tab_hidden', 'resume', 'multi_instance', 'fs_exit', 'submit']);
+  const list = await ADM('GET', '/api/admin/attempts?flagged=1');
+  assert.ok(list.body.rows.some((x) => x.roll_no === 'PRTEST01' && x.proctor.violations === 3));
+  // after submitting, reports are accepted but change nothing
+  assert.equal((await P('POST', '/api/sprint/events', { instance: 'tab1', events: [{ type: 'tab_hidden' }] })).body.status, 'submitted');
+
+  // limit 0 = never auto-submit; proctoring settings are validated
+  assert.equal((await ADM('PATCH', '/api/admin/settings', { proctor_max_violations: -1 })).status, 400);
+  assert.equal((await ADM('PATCH', '/api/admin/settings', { proctor_max_violations: 0, proctor_fullscreen: false })).status, 200);
+  const Q2 = client();
+  await signup(Q2, 'PRTEST02', '9222200002');
+  assert.equal((await Q2('GET', '/api/bootstrap')).body.sprint.proctor.fullscreen, false);
+  await Q2('POST', '/api/sprint/start');
+  for (let i = 0; i < 5; i++) r = await Q2('POST', '/api/sprint/events', { instance: 'x', events: [{ type: 'window_blur' }] });
+  assert.equal(r.body.status, 'running');
+  assert.equal(r.body.violations, 5);
+  await ADM('PATCH', '/api/admin/settings', { proctor_max_violations: 3, proctor_fullscreen: true });
+});
+
+test('practice analytics: attempts, correct answers and option spread per question; coding solves', async () => {
+  const cat = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'practice.json'), 'utf8'));
+  assert.ok(cat.quiz.length > 50 && cat.code.length > 10, 'practice catalogue extracted at build time');
+  const q0 = cat.quiz.find((q) => !Array.isArray(q.c)), wrong = (q0.c + 1) % q0.o.length;
+  const S1 = client(), S2 = client();
+  await login(S1, 'PRTEST01'); await login(S2, 'PRTEST02');
+  assert.equal((await S1('PUT', '/api/progress', { data: { pPick: { [q0.gi]: q0.c }, solved: { [cat.code[0].id]: true } } })).status, 200);
+  assert.equal((await S2('PUT', '/api/progress', { data: { pPick: { [q0.gi]: wrong } } })).status, 200);
+  const d = await ADM('GET', '/api/admin/practice?fresh=1');
+  assert.equal(d.status, 200, JSON.stringify(d.body));
+  const q = d.body.quiz.find((x) => x.gi === q0.gi);
+  assert.equal(q.attempted, 2);
+  assert.equal(q.correct, 1);
+  assert.equal(q.picks[q0.c], 1); assert.equal(q.picks[wrong], 1);
+  assert.equal(d.body.code.find((c) => c.id === cat.code[0].id).solved, 1);
+  assert.ok(d.body.active >= 2);
+  assert.ok(d.body.topics.some((t) => t.sess === q0.sess && t.attempts >= 2));
+  const one = await ADM('GET', '/api/admin/practice/' + q0.gi);
+  assert.deepEqual(one.body.students.filter((s) => /^PRTEST/.test(s.roll_no)).map((s) => [s.roll_no, s.correct]), [['PRTEST01', true], ['PRTEST02', false]]);
+  assert.equal((await client()('GET', '/api/admin/practice')).status, 401);
 });

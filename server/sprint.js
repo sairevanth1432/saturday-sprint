@@ -80,7 +80,8 @@ export function resultView(a) {
     mcqRight: d.mcqRight ?? 0, mcqN: d.mcqN ?? 0, probDone: d.probDone ?? 0, probN: d.probN ?? 0,
     codeRes: d.codeRes || {}, score: a.total, maxTotal: a.max_total, mcqScore: a.mcq_score, codeScore: a.code_score,
     textScore: a.text_score, textPending: d.textN > 0 && !a.text_reviewed,
-    usedMs: a.used_ms, submittedAt: a.submitted_at, autoSubmitted: !!a.auto_submitted
+    usedMs: a.used_ms, submittedAt: a.submitted_at, autoSubmitted: !!a.auto_submitted,
+    endedByViolations: (parseJSON(a.proctor, null) || {}).endedBy === 'violations'
   };
 }
 
@@ -92,7 +93,7 @@ export async function startAttempt(who) {
   const sprint = await getSprint(), now = Date.now();
   const existing = await getAttempt(who, sprint);
   if (who.kind === 'admin') {
-    if (existing && existing.status === 'submitted') await run('DELETE FROM attempts WHERE id = ?', existing.id);
+    if (existing && existing.status === 'submitted') { await run('DELETE FROM attempt_events WHERE attempt_id = ?', existing.id); await run('DELETE FROM attempts WHERE id = ?', existing.id); }
     else if (existing) return existing;
   } else {
     if (existing && existing.status === 'running') return existing;
@@ -181,6 +182,7 @@ async function grade(answers, prevDetail) {
   };
 }
 
+export const finalizeAttempt = (a, answers, auto) => finalize(a, answers, auto);
 async function finalize(a, answers, auto) {
   // Only one instance grades a given attempt.
   if (!(await kv.setNX('grading:' + a.id, '1', 60))) throw new SprintError('BUSY', 'Already grading. Try again in a moment.', 409);

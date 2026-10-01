@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { one, all, run, tx, getSetting } from './db.js';
 import { rateLimit } from './kv.js';
 import { deliverOtp } from './otp.js';
-import { randomToken, sha256, hmac, safeEqual, normRoll, validRoll, normPhone, maskPhone, verifyPassword, verifyTotp } from './security.js';
+import { randomToken, sha256, hmac, safeEqual, normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, verifyTotp } from './security.js';
 
 export const STUDENT_COOKIE = 'ss_session';
 export const ADMIN_COOKIE = 'ss_admin';
@@ -87,7 +87,7 @@ export async function loadStudent(req) {
   if (s) {
     const u = await one(`SELECT u.*, m.name, m.batch, m.email, m.active AS master_active FROM users u
                          JOIN students_master m ON m.roll_no = u.roll_no WHERE u.id = ?`, s.subject_id);
-    if (u && u.status === 'active' && u.master_active) v = { kind: 'student', id: u.id, roll_no: u.roll_no, name: u.name, batch: u.batch, phone: u.phone };
+    if (u && u.status === 'active' && u.master_active) v = { kind: 'student', id: u.id, roll_no: u.roll_no, name: u.name, batch: u.batch, phone: u.phone, hasPassword: !!u.password_hash };
   }
   cacheSet(k, v);
   return v;
@@ -191,8 +191,15 @@ export async function startOtp(req, purpose, rawRoll, rawPhone) {
 }
 
 // Returns { status: 'active', user } (signed in) or { status: 'pending' } (registration waiting for an admin).
-export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone) {
+export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone, rawPassword) {
   if (!PURPOSES.has(purpose)) throw new AuthError('BAD_REQUEST', 'Unknown request.');
+  // Registration also sets the password the student will log in with after approval.
+  let pwHash = null;
+  if (purpose === 'register') {
+    const prob = studentPasswordProblem(rawPassword);
+    if (prob) throw new AuthError('WEAK_PASSWORD', prob, 400);
+    pwHash = hashPassword(String(rawPassword));
+  }
   const roll = checkRoll(rawRoll);
   const code = String(rawCode || '').replace(/\D/g, '');
   await limitOrThrow('verify-ip:' + req.ip, 1200, 3600000, 'Too many attempts from this network. Try again later.');
@@ -228,8 +235,10 @@ export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone) {
       // One open request per NIAT ID + phone; re-registering refreshes it.
       let reqRow = await one("SELECT * FROM registration_requests WHERE roll_no = ? AND phone = ? AND status = 'pending'", roll, phone);
       if (!reqRow) {
-        reqRow = await one('INSERT INTO registration_requests (roll_no, phone, status, ip, ua, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING *',
-          roll, phone, 'pending', req.ip || null, String(req.headers['user-agent'] || '').slice(0, 200), now);
+        reqRow = await one('INSERT INTO registration_requests (roll_no, phone, status, ip, ua, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *',
+          roll, phone, 'pending', req.ip || null, String(req.headers['user-agent'] || '').slice(0, 200), now, pwHash);
+      } else {
+        reqRow = await one('UPDATE registration_requests SET password_hash = ? WHERE id = ? RETURNING *', pwHash, reqRow.id);
       }
       if (!autoApprove) return { status: 'pending' };
       const user = await approveInTx(reqRow.id, 'auto-approve');
@@ -243,8 +252,73 @@ export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone) {
     if (e && e.code === '23505') throw new AuthError('ALREADY_REGISTERED', 'An account already exists for this NIAT ID. Log in instead.', 409);
     throw e;
   });
-  if (result.status === 'active') await createSession(req, res, 'student', result.user.id);
+  // Sessions opened with an OTP may set a new password for 15 minutes (first login without a password, or "forgot password").
+  if (result.status === 'active') await createSession(req, res, 'student', result.user.id, { stage: 'otp' });
+  if (result.user) result.hasPassword = !!result.user.password_hash;
   return result;
+}
+
+// ---------- student passwords
+export function studentPasswordProblem(pw) {
+  pw = String(pw || '');
+  if (pw.length < 8) return 'Use at least 8 characters for your password.';
+  if (pw.length > 128) return 'That password is too long.';
+  if (!/[a-z]/i.test(pw) || !/\d/.test(pw)) return 'Use letters and at least one number in your password.';
+  return null;
+}
+const STUDENT_MAX_FAILS = 8, STUDENT_LOCK_MS = 15 * 60000;
+
+// NIAT ID + password → session. Same message for "no such account" and "wrong password".
+export async function passwordLogin(req, res, rawRoll, password) {
+  const roll = checkRoll(rawRoll);
+  await limitOrThrow('pw-ip:' + req.ip, 600, 15 * 60000, 'Too many login attempts from this network. Try again in a few minutes.');
+  await limitOrThrow('pw-roll:' + roll, 20, 15 * 60000, 'Too many attempts for this NIAT ID. Try again in 15 minutes, or use "Forgot password".');
+  const u = await one('SELECT u.*, m.active AS master_active FROM users u JOIN students_master m ON m.roll_no = u.roll_no WHERE u.roll_no = ?', roll);
+  const now = Date.now();
+  if (u && u.locked_until > now) throw new AuthError('LOCKED', 'Too many wrong passwords. Try again in 15 minutes, or use "Forgot password".', 429);
+  if (u && !u.password_hash) throw new AuthError('NO_PASSWORD', 'You have not set a password yet. Use "Log in with a code" once and set one.', 409);
+  // Always run the hash so timing does not reveal whether the NIAT ID has an account.
+  const ok = verifyPassword(String(password || ''), u ? u.password_hash : DUMMY_HASH);
+  if (!u || !ok) {
+    if (u) {
+      const fails = u.failed_logins + 1, lock = fails >= STUDENT_MAX_FAILS;
+      await run('UPDATE users SET failed_logins = ?, locked_until = ? WHERE id = ?', lock ? 0 : fails, lock ? now + STUDENT_LOCK_MS : 0, u.id);
+    }
+    if (!u) {
+      const r = await latestRequest(roll);
+      if (r && r.status === 'pending') throw new AuthError('PENDING_APPROVAL', 'Your registration is waiting for admin approval. You can log in once it is approved.', 403);
+    }
+    throw new AuthError('BAD_LOGIN', 'Wrong NIAT ID or password.', 401);
+  }
+  if (u.status !== 'active' || !u.master_active) throw new AuthError('ACCOUNT_DISABLED', 'This account is disabled. Contact your program admin.', 403);
+  await run('UPDATE users SET failed_logins = 0, locked_until = 0, last_login_at = ? WHERE id = ?', now, u.id);
+  await createSession(req, res, 'student', u.id);
+  return u;
+}
+
+// Set or change the password of the logged-in student. Allowed with the current password, or within
+// 15 minutes of an OTP login (first password / forgot password).
+export async function setStudentPassword(req, password, current) {
+  const s = await readSession(req, 'student');
+  if (!s) throw new AuthError('AUTH', 'Please log in.', 401);
+  const u = await one('SELECT * FROM users WHERE id = ?', s.subject_id);
+  if (!u || u.status !== 'active') throw new AuthError('AUTH', 'Please log in.', 401);
+  const viaOtp = s.stage === 'otp' && Date.now() - s.created_at < 15 * 60000;
+  if (u.password_hash && !viaOtp && !verifyPassword(String(current || ''), u.password_hash)) throw new AuthError('BAD_LOGIN', 'Your current password is wrong.', 400);
+  const prob = studentPasswordProblem(password);
+  if (prob) throw new AuthError('WEAK_PASSWORD', prob, 400);
+  await run('UPDATE users SET password_hash = ?, password_set_at = ?, failed_logins = 0, locked_until = 0 WHERE id = ?', hashPassword(String(password)), Date.now(), u.id);
+  // Sign out the student's other devices.
+  await run("DELETE FROM sessions WHERE kind = 'student' AND subject_id = ? AND token_hash <> ?", u.id, s.token_hash);
+  sessionCache.clear();
+}
+
+// Admin: clear a student's password (they set a new one after an OTP login).
+export async function resetStudentPassword(roll) {
+  const u = await one('SELECT id FROM users WHERE roll_no = ?', roll);
+  if (!u) throw new AuthError('NOT_FOUND', 'This student has no account.', 404);
+  await run('UPDATE users SET password_hash = NULL, password_set_at = NULL, failed_logins = 0, locked_until = 0 WHERE id = ?', u.id);
+  await revokeSessions('student', u.id);
 }
 
 // ---------- admin decisions on registration requests
@@ -258,7 +332,8 @@ async function approveInTx(requestId, decidedBy) {
   const other = await phoneTakenBy(r.phone, r.roll_no);
   if (other) throw new AuthError('PHONE_IN_USE', 'This phone is already used by the account of ' + other + '.', 409);
   const now = Date.now();
-  const user = await one('INSERT INTO users (roll_no, phone, status, created_at) VALUES (?, ?, ?, ?) RETURNING *', r.roll_no, r.phone, 'active', now);
+  const user = await one('INSERT INTO users (roll_no, phone, status, created_at, password_hash, password_set_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING *',
+    r.roll_no, r.phone, 'active', now, r.password_hash || null, r.password_hash ? now : null);
   await run("UPDATE registration_requests SET status = 'approved', decided_at = ?, decided_by = ? WHERE id = ?", now, decidedBy, r.id);
   // Any other open requests for the same NIAT ID (e.g. someone else trying to claim it) are closed.
   await run("UPDATE registration_requests SET status = 'superseded', decided_at = ?, decided_by = ? WHERE roll_no = ? AND status = 'pending'", now, decidedBy, r.roll_no);

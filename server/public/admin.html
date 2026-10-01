@@ -239,7 +239,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ------------------------------------------------------------------ layout
   var NAV = [
-    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['leaderboard', 'Leaderboard'],
+    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['leaderboard', 'Leaderboard'], ['practice', 'Practice analytics'],
     ['media', 'Learning bytes'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
@@ -343,7 +343,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       tableHolder.replaceChildren(h('div', { class: 'muted' }, 'Loading…'));
       api('GET', '/api/admin/students?limit=100&offset=' + st.offset + '&filter=' + st.filter + '&q=' + encodeURIComponent(st.q)).then(function (d) {
         var rows = d.rows.map(function (r) {
-          var acct = !r.active ? pill('inactive', '') : !r.user_id ? pill('not registered', 'info') : r.user_status === 'disabled' ? pill('disabled', 'bad') : pill('registered', 'ok');
+          var acct = !r.active ? pill('inactive', '') : !r.user_id ? pill('not registered', 'info') : r.user_status === 'disabled' ? pill('disabled', 'bad') : r.has_password ? pill('registered', 'ok') : pill('registered · no password', 'warn');
           var test = r.attempt_status === 'submitted' ? h('span', { class: 'mono' }, sc(r.total) + '/' + sc(r.max_total)) : r.attempt_status === 'running' ? pill('in progress', 'warn') : h('span', { class: 'muted' }, '–');
           return h('tr', { class: 'click', onclick: function () { openStudent(r.roll_no, load); } },
             h('td', { class: 'mono' }, r.roll_no), h('td', null, r.name || '–'), h('td', { class: 'mono' }, r.phone), h('td', null, r.batch || '–'),
@@ -412,11 +412,12 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           header('~/admin/students/' + m.roll_no, m.name || m.roll_no, m.roll_no + (m.batch ? ' · ' + m.batch : '') + ' · ' + m.phone),
           h('div', { class: 'card' }, h('h2', null, 'Account'),
             u ? h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
-              h('div', { class: 'row' }, u.status === 'active' ? pill('active', 'ok') : pill('disabled', 'bad'), h('span', { class: 'soft' }, 'Registered ' + dt(u.created_at) + ' · last login ' + dt(u.last_login_at) + ' · ' + s.sessions.length + ' active session(s)')),
+              h('div', { class: 'row' }, u.status === 'active' ? pill('active', 'ok') : pill('disabled', 'bad'), u.has_password ? pill('password set', 'ok') : pill('no password yet', 'warn'), h('span', { class: 'soft' }, 'Registered ' + dt(u.created_at) + ' · last login ' + dt(u.last_login_at) + ' · ' + s.sessions.length + ' active session(s)')),
               h('div', { class: 'soft' }, 'Verified phone: ', h('span', { class: 'mono' }, u.phone), u.phone !== m.phone ? h('span', { class: 'pill warn', style: 'margin-left:8px' }, 'master phone changed since') : null),
               h('div', { class: 'row' },
                 u.status === 'active' ? act('Disable account', 'bad', function () { return api('POST', '/api/admin/users/' + encodeURIComponent(m.roll_no) + '/status', { status: 'disabled' }); }, 'Disable this account? The student is signed out and hidden from the leaderboard.')
                   : act('Enable account', '', function () { return api('POST', '/api/admin/users/' + encodeURIComponent(m.roll_no) + '/status', { status: 'active' }); }),
+                u.has_password ? act('Reset password', '', function () { return api('POST', '/api/admin/users/' + encodeURIComponent(m.roll_no) + '/password-reset'); }, 'Clear the password of this student? They are signed out and next log in with a code sent to their phone, then choose a new password.') : null,
                 act('Sign out everywhere', '', function () { return api('POST', '/api/admin/users/' + encodeURIComponent(m.roll_no) + '/logout'); }),
                 h('button', { class: 'btn', onclick: function () {
                   var v = prompt('New login phone number for ' + m.roll_no + ' (10 digits). The student is signed out and gets codes on the new number.', '');
@@ -454,7 +455,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     if (CACHE.resultsFilter) { st.status = CACHE.resultsFilter; CACHE.resultsFilter = null; }
     var holder = h('div');
     var load = function () {
-      var qs = '?sprint=' + encodeURIComponent(st.sprint) + (st.status === 'pending' ? '&review=pending' : st.status ? '&status=' + st.status : '') + '&q=' + encodeURIComponent(st.q);
+      var qs = '?sprint=' + encodeURIComponent(st.sprint) + (st.status === 'pending' ? '&review=pending' : st.status === 'flagged' ? '&flagged=1' : st.status ? '&status=' + st.status : '') + '&q=' + encodeURIComponent(st.q);
       api('GET', '/api/admin/attempts' + qs).then(function (d) {
         if (!st.sprint && d.sprints.length) st.sprint = '';
         holder.replaceChildren(
@@ -462,26 +463,64 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('select', { onchange: function (e) { st.sprint = e.target.value; load(); } }, h('option', { value: '' }, 'Current Sprint'),
               d.sprints.map(function (s) { return h('option', { value: s.sprint_id, selected: st.sprint === s.sprint_id ? true : null }, s.sprint_id + ' (' + s.n + ')'); })),
             h('select', { onchange: function (e) { st.status = e.target.value; load(); } },
-              [['', 'All attempts'], ['submitted', 'Submitted'], ['running', 'In progress'], ['pending', 'Needs marking']].map(function (o) { return h('option', { value: o[0], selected: st.status === o[0] ? true : null }, o[1]); })),
+              [['', 'All attempts'], ['submitted', 'Submitted'], ['running', 'In progress'], ['pending', 'Needs marking'], ['flagged', 'Proctoring flags']].map(function (o) { return h('option', { value: o[0], selected: st.status === o[0] ? true : null }, o[1]); })),
             h('input', { type: 'search', placeholder: 'NIAT ID or name', value: st.q, oninput: debounce(function (e) { st.q = e.target.value; load(); }, 300) }),
             h('span', { class: 'grow' }), h('span', { class: 'muted' }, d.rows.length + ' attempt(s)')),
           h('div', { class: 'tablewrap' }, h('table', null,
-            h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Status', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 3 && i <= 7 ? 'num' : null }, t); }))),
+            h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Status', 'Flags', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t); }))),
             h('tbody', null, d.rows.length ? d.rows.map(function (a) {
               return h('tr', { class: 'click', onclick: function () { openAttempt(a.id, load); } },
                 h('td', { class: 'mono' }, a.roll_no), h('td', null, a.name || '–', a.batch ? h('div', { class: 'muted' }, a.batch) : null),
-                h('td', null, a.status === 'running' ? pill('in progress', 'warn') : pill(a.auto_submitted ? 'auto-submitted' : 'submitted', 'ok')),
+                h('td', null, a.status === 'running' ? pill('in progress', 'warn') : pill(a.proctor && a.proctor.endedBy === 'violations' ? 'ended: violations' : a.auto_submitted ? 'auto-submitted' : 'submitted', a.proctor && a.proctor.endedBy === 'violations' ? 'bad' : 'ok')),
+                h('td', null, proctorFlags(a.proctor)),
                 h('td', { class: 'num mono' }, sc(a.mcq_score)), h('td', { class: 'num mono' }, sc(a.code_score)),
                 h('td', { class: 'num' }, a.status !== 'submitted' ? '–' : a.text_reviewed ? h('span', { class: 'mono' }, sc(a.text_score)) : pill('to mark', 'warn')),
                 h('td', { class: 'num mono', style: 'color:var(--accent)' }, a.status === 'submitted' ? sc(a.total) + '/' + sc(a.max_total) : '–'),
                 h('td', { class: 'num mono' }, mmss(a.used_ms)), h('td', { class: 'muted' }, dt(a.submitted_at || a.started_at)));
-            }) : h('tr', null, h('td', { colspan: 9, class: 'muted' }, 'No attempts.'))))));
+            }) : h('tr', null, h('td', { colspan: 10, class: 'muted' }, 'No attempts.'))))));
       }, fail);
     };
     load();
     return h('div', null, header('~/admin/results', 'Results', 'Every Sprint attempt, graded on the server. Click a row to see answers and mark written problems.',
       [h('button', { class: 'btn', onclick: function () { download('/api/admin/export/results.csv'); } }, 'Export results CSV')]), holder);
   };
+
+  // ---------- proctoring (flags in the results list, activity timeline in the attempt)
+  var EVENT_NAMES = { start: 'Started the test', resume: 'Reopened the test page', tab_hidden: 'Left the test tab', tab_visible: 'Came back to the test tab',
+    window_blur: 'Switched to another window/app', fs_exit: 'Left full screen', fs_enter: 'Entered full screen', fs_denied: 'Full screen refused by the browser',
+    fs_unsupported: 'Full screen not supported on this device', multi_instance: 'Test open in another tab/device', copy: 'Tried to copy', cut: 'Tried to cut',
+    paste: 'Tried to paste', contextmenu: 'Right-click blocked', print: 'Tried to print', key_blocked: 'Blocked shortcut', select_blocked: 'Text selection blocked',
+    drag_blocked: 'Drag blocked', offline: 'Went offline', online: 'Back online', resize: 'Window resized', devtools: 'Developer tools suspected',
+    warning_ack: 'Acknowledged a warning', submit: 'Submitted' };
+  var VIOL = { tab_hidden: 1, window_blur: 1, fs_exit: 1, multi_instance: 1 };
+  function proctorFlags(pv) {
+    if (!pv) return h('span', { class: 'muted' }, '–');
+    var c = pv.counts || {}, bits = [];
+    if (pv.violations) bits.push(pill(pv.violations + ' violation' + (pv.violations === 1 ? '' : 's'), pv.violations >= 3 ? 'bad' : 'warn'));
+    if (pv.multi) bits.push(pill('multi-tab', 'bad'));
+    var blocked = (c.copy || 0) + (c.cut || 0) + (c.paste || 0) + (c.contextmenu || 0) + (c.print || 0) + (c.key_blocked || 0);
+    if (blocked) bits.push(pill(blocked + ' blocked', 'info'));
+    return bits.length ? h('div', { class: 'row', style: 'gap:4px' }, bits) : h('span', { class: 'muted' }, 'clean');
+  }
+  function proctorCard(P, a) {
+    if (!P) return null;
+    var t0 = a.started_at, ev = P.events || [];
+    var c = P.counts || {};
+    var counts = Object.keys(c).filter(function (k) { return VIOL[k] || /copy|cut|paste|contextmenu|print|key_blocked/.test(k); })
+      .map(function (k) { return pill((EVENT_NAMES[k] || k) + ': ' + c[k], VIOL[k] ? 'warn' : 'info'); });
+    return h('div', { class: 'card' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0' }, 'Proctoring'),
+        h('div', { class: 'row' }, pill(P.violations + ' violation(s)', P.violations ? (P.violations >= 3 ? 'bad' : 'warn') : 'ok'),
+          P.multi ? pill('opened in ' + P.instances + ' tabs/devices', 'bad') : null, P.endedBy === 'violations' ? pill('auto-submitted for violations', 'bad') : null)),
+      counts.length ? h('div', { class: 'row', style: 'margin:10px 0;gap:6px' }, counts) : h('p', { class: 'soft', style: 'margin:10px 0' }, 'No violations or blocked actions recorded.'),
+      ev.length ? h('details', null, h('summary', { style: 'cursor:pointer;font-weight:800' }, 'Activity timeline (' + ev.length + ' events)'),
+        h('div', { class: 'tablewrap', style: 'max-height:360px;overflow:auto;margin-top:8px' }, h('table', null, h('tbody', null, ev.map(function (e) {
+          var off = Math.max(0, e.at - t0);
+          return h('tr', null, h('td', { class: 'mono muted' }, '+' + mmss(off)), h('td', { class: 'mono muted' }, new Date(e.at).toLocaleTimeString()),
+            h('td', null, VIOL[e.type] ? h('b', { style: 'color:var(--bad)' }, EVENT_NAMES[e.type] || e.type) : (EVENT_NAMES[e.type] || e.type)),
+            h('td', { class: 'muted', style: 'max-width:280px;overflow-wrap:anywhere' }, e.detail || ''), h('td', { class: 'mono muted' }, (e.instance || '').slice(0, 6)));
+        }))))) : null);
+  }
 
   function openAttempt(id, after) {
     var d = drawer();
@@ -516,12 +555,13 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         var r = x.result;
         d.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
           header('~/admin/results/' + a.id, (x.student && x.student.name) || a.roll_no, a.roll_no + ' · ' + a.sprint_id + ' · started ' + dt(a.started_at),
-            [a.status === 'submitted' ? pill(a.auto_submitted ? 'auto-submitted' : 'submitted', 'ok') : pill('in progress', 'warn')]),
+            [a.status === 'submitted' ? (x.proctor && x.proctor.endedBy === 'violations' ? pill('ended: proctoring violations', 'bad') : pill(a.auto_submitted ? 'auto-submitted' : 'submitted', 'ok')) : pill('in progress', 'warn')]),
           r ? h('div', { class: 'grid g4' },
             h('div', { class: 'card stat' }, h('div', { class: 'k' }, 'Total'), h('div', { class: 'v', style: 'color:var(--accent)' }, sc(r.score) + '/' + sc(r.maxTotal))),
             h('div', { class: 'card stat' }, h('div', { class: 'k' }, 'MCQ'), h('div', { class: 'v' }, r.mcqRight + '/' + r.mcqN)),
             h('div', { class: 'card stat' }, h('div', { class: 'k' }, 'Coding + written'), h('div', { class: 'v' }, sc(r.codeScore) + ' + ' + (r.textPending ? '?' : sc(r.textScore)))),
             h('div', { class: 'card stat' }, h('div', { class: 'k' }, 'Time used'), h('div', { class: 'v' }, mmss(r.usedMs)))) : h('div', { class: 'note warn' }, 'This attempt is still in progress (deadline ' + dt(a.deadline_at) + '). Showing the latest autosave.'),
+          proctorCard(x.proctor, a),
           qs,
           h('div', { class: 'row', style: 'position:sticky;bottom:0;background:var(--bg);padding:12px 0;border-top:1px solid var(--line)' },
             a.status === 'submitted' && Object.keys(markInputs).length ? h('button', { class: 'btn pri', onclick: function () {
@@ -553,6 +593,122 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           }) : h('tr', null, h('td', { colspan: 10, class: 'muted' }, 'No submissions yet.'))))));
     });
   };
+
+  // ---------- practice analytics
+  CACHE.practice = { course: 'all', sess: 'all', sort: 'order', q: '' };
+  VIEWS.practice = function () {
+    var st = CACHE.practice;
+    return api('GET', '/api/admin/practice' + (st.fresh ? '?fresh=1' : '')).then(function (d) {
+      st.fresh = false;
+      var COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+      var pct = function (n, of) { return of ? Math.round(n / of * 100) + '%' : '–'; };
+      var stat = function (k, v, sub) { return h('div', { class: 'card stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), sub ? h('div', { class: 's' }, sub) : null); };
+      var answers = d.quiz.reduce(function (n, q) { return n + q.attempted; }, 0), right = d.quiz.reduce(function (n, q) { return n + q.correct; }, 0);
+      var touched = d.quiz.filter(function (q) { return q.attempted; }).length;
+      var solves = d.code.reduce(function (n, c) { return n + c.solved; }, 0);
+      var holder = h('div');
+      var sessSel = h('select', { onchange: function () { st.sess = this.value; draw(); } });
+      var courseSel = h('select', { onchange: function () { st.course = this.value; st.sess = 'all'; fillSess(); draw(); } },
+        [['all', 'All courses']].concat(Object.keys(COURSES).map(function (k) { return [k, COURSES[k]]; })).map(function (o) { return h('option', { value: o[0], selected: st.course === o[0] ? true : null }, o[1]); }));
+      var sortSel = h('select', { onchange: function () { st.sort = this.value; draw(); } },
+        [['order', 'Portal order'], ['most', 'Most attempted'], ['least', 'Least attempted'], ['hard', 'Lowest correct %'], ['easy', 'Highest correct %']]
+          .map(function (o) { return h('option', { value: o[0], selected: st.sort === o[0] ? true : null }, o[1]); }));
+      var search = h('input', { type: 'search', placeholder: 'Search question text', value: st.q, oninput: function () { st.q = this.value; draw(); } });
+      function fillSess() {
+        var names = [];
+        d.topics.forEach(function (t) { if ((st.course === 'all' || t.course === st.course) && names.indexOf(t.sess) < 0) names.push(t.sess); });
+        if (names.indexOf(st.sess) < 0) st.sess = 'all';
+        sessSel.replaceChildren.apply(sessSel, [h('option', { value: 'all' }, 'All topics')].concat(names.map(function (n) { return h('option', { value: n, selected: st.sess === n ? true : null }, n); })));
+      }
+      function spread(q) {
+        var total = q.picks.reduce(function (a, b) { return a + b; }, 0);
+        return h('div', { style: 'display:flex;flex-direction:column;gap:3px;min-width:180px' }, q.o.map(function (o, i) {
+          var isC = Array.isArray(q.c) ? q.c.indexOf(i) >= 0 : q.c === i, w = total ? Math.round(q.picks[i] / total * 100) : 0;
+          return h('div', { style: 'display:flex;align-items:center;gap:6px;font-size:12px', title: o },
+            h('span', { class: 'mono', style: 'width:14px;color:' + (isC ? 'var(--good)' : 'var(--soft)') }, 'ABCDEFGH'[i]),
+            h('span', { style: 'flex:1;height:8px;border-radius:4px;background:var(--well);overflow:hidden' },
+              h('span', { style: 'display:block;height:100%;width:' + w + '%;background:' + (isC ? 'var(--good)' : 'var(--line2)') })),
+            h('span', { class: 'mono muted', style: 'width:34px;text-align:right' }, q.picks[i]));
+        }));
+      }
+      function draw() {
+        var qs = d.quiz.filter(function (q) {
+          return (st.course === 'all' || q.course === st.course) && (st.sess === 'all' || q.sess === st.sess) && (!st.q || q.q.toLowerCase().indexOf(st.q.toLowerCase()) >= 0);
+        });
+        var rate = function (q) { return q.attempted ? q.correct / q.attempted : -1; };
+        if (st.sort === 'most') qs.sort(function (a, b) { return b.attempted - a.attempted; });
+        if (st.sort === 'least') qs.sort(function (a, b) { return a.attempted - b.attempted; });
+        if (st.sort === 'hard') qs.sort(function (a, b) { return (a.attempted ? rate(a) : 2) - (b.attempted ? rate(b) : 2); });
+        if (st.sort === 'easy') qs.sort(function (a, b) { return rate(b) - rate(a); });
+        var cs = d.code.filter(function (c) { return (st.course === 'all' || st.course === 'pf') && (st.sess === 'all' || c.topic === st.sess); });
+        var ts = d.topics.filter(function (t) { return st.course === 'all' || t.course === st.course; });
+        holder.replaceChildren(
+          h('div', { class: 'card', style: 'margin-bottom:14px' }, h('h2', null, 'By topic'), h('div', { class: 'tablewrap' }, h('table', null,
+            h('thead', null, h('tr', null, ['Course', 'Topic', 'Quiz questions', 'Answers', 'Correct', 'Coding problems', 'Coding solves'].map(function (t, i) { return h('th', { class: i >= 2 ? 'num' : null }, t); }))),
+            h('tbody', null, ts.map(function (t) {
+              return h('tr', { class: 'click', onclick: function () { st.course = t.course; courseSel.value = t.course; fillSess(); st.sess = t.sess; sessSel.value = t.sess; draw(); } },
+                h('td', null, COURSES[t.course] || t.course), h('td', null, t.sess), h('td', { class: 'num mono' }, t.quiz), h('td', { class: 'num mono' }, t.attempts),
+                h('td', { class: 'num mono' }, pct(t.correct, t.attempts)), h('td', { class: 'num mono' }, t.code || '–'), h('td', { class: 'num mono' }, t.code ? t.solved : '–'));
+            }))))),
+          h('div', { class: 'card', style: 'margin-bottom:14px' }, h('h2', null, 'Quiz questions (' + qs.length + ')'),
+            h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Attempted = students who answered it (their first answer counts). Click a question for the options and who picked what.'),
+            h('div', { class: 'tablewrap' }, h('table', null,
+              h('thead', null, h('tr', null, ['#', 'Topic', 'Question', 'Attempted', 'Correct', 'Correct %', 'Answer spread'].map(function (t, i) { return h('th', { class: i >= 3 && i <= 5 ? 'num' : null }, t); }))),
+              h('tbody', null, qs.length ? qs.map(function (q, i) {
+                var r = q.attempted ? q.correct / q.attempted : null;
+                return h('tr', { class: 'click', onclick: function () { openPracticeQuestion(q); } },
+                  h('td', { class: 'mono muted' }, i + 1), h('td', { class: 'soft', style: 'max-width:160px' }, q.sess),
+                  h('td', { style: 'max-width:420px' }, q.q.length > 140 ? q.q.slice(0, 140) + '…' : q.q, q.multi ? h('span', { class: 'pill info', style: 'margin-left:6px' }, 'multi') : null),
+                  h('td', { class: 'num mono' }, q.attempted), h('td', { class: 'num mono' }, q.correct),
+                  h('td', { class: 'num mono', style: r == null ? null : 'color:' + (r < 0.4 ? 'var(--bad)' : r < 0.7 ? 'var(--accent)' : 'var(--good)') }, pct(q.correct, q.attempted)),
+                  h('td', null, spread(q)));
+              }) : h('tr', null, h('td', { colspan: 7, class: 'muted' }, 'No questions match.')))))),
+          cs.length ? h('div', { class: 'card' }, h('h2', null, 'Coding problems (' + cs.length + ')'),
+            h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Solved = students whose code passed all the tests on Submit.'),
+            h('div', { class: 'tablewrap' }, h('table', null,
+              h('thead', null, h('tr', null, ['Topic', 'Problem', 'Solved by', '% of active students'].map(function (t, i) { return h('th', { class: i >= 2 ? 'num' : null }, t); }))),
+              h('tbody', null, cs.slice().sort(function (a, b) { return st.sort === 'least' || st.sort === 'hard' ? a.solved - b.solved : st.sort === 'order' ? 0 : b.solved - a.solved; }).map(function (c) {
+                return h('tr', null, h('td', { class: 'soft' }, c.topic), h('td', null, c.title), h('td', { class: 'num mono' }, c.solved), h('td', { class: 'num mono' }, pct(c.solved, d.active)));
+              }))))) : null);
+      }
+      fillSess(); draw();
+      return h('div', null,
+        header('~/admin/practice', 'Practice analytics', 'From the progress students’ portals save. Updated ' + dt(d.at) + ' (cached for a minute).',
+          [h('button', { class: 'btn', onclick: function () { st.fresh = true; refresh(); } }, 'Refresh now')]),
+        h('div', { class: 'grid g4', style: 'margin-bottom:14px' },
+          stat('Students practising', d.active, 'of ' + d.students + ' with saved progress'),
+          stat('Quiz answers', answers, touched + ' of ' + d.quiz.length + ' questions attempted'),
+          stat('Correct overall', pct(right, answers), right + ' correct answers'),
+          stat('Coding solves', solves, d.code.length + ' coding problems')),
+        h('div', { class: 'toolbar' }, courseSel, sessSel, sortSel, search),
+        holder);
+    });
+  };
+  function openPracticeQuestion(q) {
+    var d = drawer();
+    api('GET', '/api/admin/practice/' + q.gi).then(function (r) {
+      var Q = r.question, total = r.students.length;
+      var counts = Q.o.map(function () { return 0; });
+      r.students.forEach(function (s) { (Array.isArray(s.pick) ? s.pick : [s.pick]).forEach(function (i) { if (counts[i] !== undefined) counts[i]++; }); });
+      var right = r.students.filter(function (s) { return s.correct; }).length;
+      var letter = function (k) { return (Array.isArray(k) ? k : [k]).map(function (i) { return 'ABCDEFGH'[i] || '?'; }).join(', '); };
+      d.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+        header('~/admin/practice/' + Q.gi, 'Practice question', Q.sess + ' · ' + total + ' attempted · ' + (total ? Math.round(right / total * 100) : 0) + '% correct'),
+        h('div', { class: 'card' }, h('p', { style: 'margin:0 0 10px;white-space:pre-wrap;line-height:1.5' }, Q.q),
+          Q.code ? h('pre', { class: 'mono', style: 'white-space:pre-wrap;background:var(--well);padding:10px;border-radius:10px;margin:0 0 10px' }, Q.code) : null,
+          h('table', null, h('tbody', null, Q.o.map(function (o, i) {
+            var isC = Array.isArray(Q.c) ? Q.c.indexOf(i) >= 0 : Q.c === i;
+            return h('tr', null, h('td', { class: 'mono', style: 'color:' + (isC ? 'var(--good)' : 'var(--soft)') }, 'ABCDEFGH'[i]), h('td', null, o, isC ? h('span', { class: 'pill ok', style: 'margin-left:6px' }, 'answer') : null),
+              h('td', { class: 'num mono' }, counts[i]), h('td', { class: 'num mono muted' }, total ? Math.round(counts[i] / total * 100) + '%' : '–'));
+          })))),
+        h('div', { class: 'card' }, h('h2', null, 'Students (' + total + ')'), total ? h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Batch', 'Picked', ''].map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, r.students.map(function (s) {
+            return h('tr', { class: 'click', onclick: function () { d.close(); openStudent(s.roll_no); } }, h('td', { class: 'mono' }, s.roll_no), h('td', null, s.name || '–'), h('td', null, s.batch || '–'),
+              h('td', { class: 'mono' }, letter(s.pick)), h('td', null, s.correct ? pill('correct', 'ok') : pill('wrong', 'bad')));
+          })))) : h('div', { class: 'muted' }, 'Nobody has answered this question yet.'))));
+    }, function (e) { fail(e); d.close(); });
+  }
 
   // ---------- master data
   VIEWS.master = function () {
@@ -922,7 +1078,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         sprint_close: h('input', { type: 'datetime-local', value: localInput(s.close), disabled: ro || null }),
         sprint_duration_min: h('input', { type: 'number', min: 1, max: 600, value: s.durationMin, disabled: ro || null }),
         leaderboard_visible: h('input', { type: 'checkbox', checked: s.leaderboardVisible, disabled: ro || null }),
-        registration_auto_approve: h('input', { type: 'checkbox', checked: d.registrationAutoApprove, disabled: ro || null })
+        registration_auto_approve: h('input', { type: 'checkbox', checked: d.registrationAutoApprove, disabled: ro || null }),
+        proctor_enabled: h('input', { type: 'checkbox', checked: d.proctor.enabled, disabled: ro || null }),
+        proctor_fullscreen: h('input', { type: 'checkbox', checked: d.proctor.fullscreen, disabled: ro || null }),
+        proctor_block_copy: h('input', { type: 'checkbox', checked: d.proctor.blockCopy, disabled: ro || null }),
+        proctor_max_violations: h('input', { type: 'number', min: 0, max: 50, value: d.proctor.maxViolations, disabled: ro || null })
       };
       var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px;max-width:860px' },
@@ -931,7 +1091,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         h('form', { class: 'card', style: 'display:flex;flex-direction:column;gap:14px', onsubmit: function (e) {
           e.preventDefault();
           var body = { sprint_title: f.sprint_title.value, sprint_id: f.sprint_id.value, sprint_open: new Date(f.sprint_open.value).toISOString(), sprint_close: new Date(f.sprint_close.value).toISOString(),
-            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, registration_auto_approve: f.registration_auto_approve.checked };
+            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, registration_auto_approve: f.registration_auto_approve.checked,
+            proctor_enabled: f.proctor_enabled.checked, proctor_fullscreen: f.proctor_fullscreen.checked, proctor_block_copy: f.proctor_block_copy.checked, proctor_max_violations: Number(f.proctor_max_violations.value) };
           if (body.registration_auto_approve && !d.registrationAutoApprove && !confirm('Auto-approve lets anyone who knows a NIAT ID register it with any phone, without review. Use only for load tests or a trusted cohort. Turn it on?')) return;
           if (body.sprint_id !== s.id && !confirm('Changing the Sprint ID starts a fresh Sprint: a new set of attempts and a new leaderboard. Previous results are kept under "' + s.id + '". Continue?')) return;
           api('PATCH', '/api/admin/settings', body).then(function () { toast('Settings saved.'); refresh(); }, fail);
@@ -944,6 +1105,13 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'field' }, h('label', null, 'Duration per student (minutes)'), f.sprint_duration_min),
             h('label', { class: 'row', style: 'margin-top:22px' }, f.leaderboard_visible, 'Leaderboard visible to students'),
             h('label', { class: 'row', style: 'margin-top:4px' }, f.registration_auto_approve, h('span', null, 'Auto-approve registrations ', h('span', { class: 'muted' }, '(skips the approval step; load tests only)')))),
+          h('h2', { style: 'margin:8px 0 0' }, 'Proctoring'),
+          h('div', { class: 'grid g2' },
+            h('label', { class: 'row' }, f.proctor_enabled, h('span', null, 'Proctor the Sprint ', h('span', { class: 'muted' }, '(tab-switch detection, activity log, warnings)'))),
+            h('label', { class: 'row' }, f.proctor_fullscreen, h('span', null, 'Require full screen ', h('span', { class: 'muted' }, '(computers; phones cannot)'))),
+            h('label', { class: 'row' }, f.proctor_block_copy, h('span', null, 'Block copy, right-click, select and print')),
+            h('div', { class: 'field' }, h('label', null, 'Auto-submit after this many violations (0 = never)'), f.proctor_max_violations)),
+          h('div', { class: 'note' }, 'Violations: leaving the test tab, switching to another window or app, leaving full screen, opening the test in a second tab or device. Each one shows the student a warning with the count. Every attempt has a timeline under Results.'),
           h('div', { class: 'note' }, 'A student who starts late still has to finish by the closing time. Unsubmitted attempts are auto-submitted from their last autosave when time runs out. ' +
             'Questions come from the portal HTML: after changing them, run "npm run build:portal" on the server. There are currently ' + d.questions + ' questions. Marks: MCQ ' + d.marks.mcq + ', coding ' + d.marks.code + ' (partial by tests passed), written ' + d.marks.text + ' (panel).'),
           ro ? null : h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'submit' }, 'Save settings'))));
