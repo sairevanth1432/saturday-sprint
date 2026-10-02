@@ -23,7 +23,7 @@ import {
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
-import { recordActivity, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
+import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 
@@ -234,6 +234,9 @@ api.put('/progress', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.json({ ok: true, skipped: true });
   const data = JSON.stringify((req.body && req.body.data) || {});
   if (data.length > 500000) return res.status(413).json({ error: 'TOO_LARGE', message: 'Progress too large.' });
+  // Record steps that just got their ✓ (for time-to-completion). Reads the old progress only; the progress below is stored exactly as sent.
+  const before = await one('SELECT data FROM progress WHERE roll_no = ?', req.who.roll_no);
+  await recordStepEvents(req.who.roll_no, before ? before.data : null, (req.body && req.body.data) || {}).catch((e) => console.error('[progress] step events', e.message));
   await run('INSERT INTO progress (roll_no, data, updated_at) VALUES (?, ?, ?) ON CONFLICT (roll_no) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at',
     req.who.roll_no, data, Date.now());
   res.json({ ok: true });
@@ -573,6 +576,7 @@ adm.post('/sprints/:sid/questions/copy', requireSuper, async (req, res) => {
 
 // ---------- student analytics (super admin): time, clicks, units, logins per student
 const daysOf = (req) => Math.min(365, Math.max(1, Number(req.query.days) || 30));
+adm.get('/analytics/business', requireSuper, async (req, res) => res.json(await businessMetrics({ sprintId: req.query.sprint ? String(req.query.sprint) : '', fresh: req.query.fresh === '1' })));
 adm.get('/analytics/overview', requireSuper, async (req, res) => res.json(await analyticsOverview({ days: daysOf(req) })));
 adm.get('/analytics/students', requireSuper, async (req, res) => res.json(await studentRows({ q: String(req.query.q || '').trim(), days: daysOf(req),
   sort: String(req.query.sort || 'time'), limit: Number(req.query.limit) || 500, offset: Number(req.query.offset) || 0 })));
@@ -809,7 +813,7 @@ adm.get('/export/:what', async (req, res) => {
 
 // ---------- settings (super admin)
 adm.get('/settings', async (req, res) => res.json({ sprint: await getSprint(), marks: MARKS, questions: (await getQuestions()).length, proctor: await proctorSettings(), reviewMode: await reviewMode((await getSprint()).id),
-  registrationAutoApprove: !!(await getSetting('registration_auto_approve', false)), loginMode: await loginMode() }));
+  registrationAutoApprove: !!(await getSetting('registration_auto_approve', false)), loginMode: await loginMode(), passMark: Number(await getSetting('pass_mark_pct', 40)) }));
 adm.patch('/settings', requireSuper, async (req, res) => {
   const b = req.body || {}, before = await getSprint(), changes = {};
   if (b.sprint_id !== undefined) {
@@ -830,6 +834,11 @@ adm.patch('/settings', requireSuper, async (req, res) => {
   }
   if (b.leaderboard_visible !== undefined) changes.leaderboard_visible = !!b.leaderboard_visible;
   if (b.registration_auto_approve !== undefined) changes.registration_auto_approve = !!b.registration_auto_approve;
+  if (b.pass_mark_pct !== undefined) {
+    const n = Number(b.pass_mark_pct);
+    if (!Number.isFinite(n) || n < 1 || n > 100) throw new AuthError('BAD_SETTING', 'Pass mark: 1 to 100 (% of total marks).', 400);
+    changes.pass_mark_pct = Math.round(n * 10) / 10;
+  }
   if (b.student_login_mode !== undefined) changes.student_login_mode = b.student_login_mode === 'secure' ? 'secure' : 'simple';
   for (const k of ['proctor_enabled', 'proctor_fullscreen', 'proctor_block_copy']) if (b[k] !== undefined) changes[k] = !!b[k];
   if (b.proctor_max_violations !== undefined) {

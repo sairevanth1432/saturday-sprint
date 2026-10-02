@@ -4,7 +4,8 @@
     "Paths are relative to the \"Saturday Sprint\" folder; npm run build copies the files into the site (public/packs/). No cloud storage.",
     "Admins can replace or add any step later in Admin → Learning bytes (Watch: .mp4, Play and Read: .html). Read can be left out here.",
     "mode \"replace\": these units replace the original units of each course listed. \"append\": added after them.",
-    "course: pf (Programming Foundations) or genai (Intro to GenAI). Unit ids must be unique and must not change once students have progress."
+    "course: pf (Programming Foundations) or genai (Intro to GenAI). Unit ids must be unique and must not change once students have progress.",
+    "practiceTopic (optional): the Practice topic (session name) that belongs to this unit, for Student analytics. Without it, a topic with the same name as the unit title is used."
   ],
   "mode": "replace",
   "units": [
@@ -70,7 +71,8 @@
       "play": {
         "file": "NIAT-topic-pack/games/llm-garage.html",
         "goal": "Play the levels: the car analogy, what it takes to build an LLM, sort the models."
-      }
+      },
+      "practiceTopic": "Gen AI Foundations & Capabilities"
     },
     {
       "id": "tp-social-workflow",
@@ -86,7 +88,8 @@
       "play": {
         "file": "NIAT-topic-pack/games/workflow-factory.html",
         "goal": "Play the levels: define a workflow, article to post, fixed or free?"
-      }
+      },
+      "practiceTopic": "No-Code AI Automation"
     },
     {
       "id": "tp-news-summarizer",
@@ -102,7 +105,8 @@
       "play": {
         "file": "NIAT-topic-pack/games/news-bot-builder.html",
         "goal": "Play the levels: rebuild the workflow, add a third source, APIs at the restaurant."
-      }
+      },
+      "practiceTopic": "AI Workflows for Enhanced Productivity"
     }
   ]
 }

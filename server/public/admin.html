@@ -737,23 +737,56 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       h('div', { class: 'row muted', style: 'justify-content:space-between;font-size:12px;margin-top:4px' }, h('span', null, list[0].day), h('span', null, 'peak ' + fmt(max)), h('span', null, list[list.length - 1].day)));
   }
 
-  CACHE.analytics = { days: 30, q: '', sort: 'time' };
+  CACHE.analytics = { days: 30, q: '', sort: 'time', sprint: '' };
   VIEWS.analytics = function () {
     var st = CACHE.analytics;
-    return api('GET', '/api/admin/analytics/overview?days=' + st.days).then(function (o) {
-      var stat = function (k, v, sub) { return h('div', { class: 'card stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), sub ? h('div', { class: 's' }, sub) : null); };
-      var T = o.totals;
+    var fresh = st.fresh ? '&fresh=1' : ''; st.fresh = false;
+    return Promise.all([
+      api('GET', '/api/admin/analytics/business?sprint=' + encodeURIComponent(st.sprint || '') + fresh),
+      api('GET', '/api/admin/analytics/overview?days=' + st.days)
+    ]).then(function (res) {
+      var B = res[0], o = res[1];
+      var fmtV = function (m) {
+        if (m.value == null) return '–';
+        if (m.unit === 'pct') return m.value + '%';
+        if (m.unit === 'ms') return dur(m.value);
+        if (m.unit === 'ratio') return String(m.value);
+        return Number(m.value).toLocaleString('en-IN');
+      };
+      // ---- funnel cards: value, definition, basis; or the reason it is not available
+      var metric = function (m) {
+        return h('div', { style: 'padding:12px 0;border-top:1px solid var(--line)' },
+          h('div', { class: 'row', style: 'justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:nowrap' },
+            h('span', { style: 'font-weight:800;font-size:14px' }, m.label),
+            h('span', { class: 'mono', style: 'font-family:VT323,monospace;font-size:30px;line-height:1;color:' + (m.value == null ? 'var(--muted)' : 'var(--accent)') }, fmtV(m))),
+          m.value == null ? h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, 'Not available yet: ' + m.reason)
+            : h('div', { class: 'soft', style: 'font-size:12px;margin-top:4px;line-height:1.45' }, m.def, m.basis ? h('div', { class: 'muted' }, m.basis) : null));
+      };
+      var sprintSel = h('select', { title: 'Sprint for the Assessment metrics', onchange: function () { st.sprint = this.value; refresh(); } },
+        [[B.sprint.current ? B.sprint.id : '', B.sprint.current ? B.sprint.id + ' (current)' : 'Current Sprint']].concat(B.sprint.list.filter(function (s) { return !(B.sprint.current && s.id === B.sprint.id); }).map(function (s) { return [s.id, s.id + ' · ' + s.attempts + ' attempts']; }))
+          .map(function (x) { return h('option', { value: x[0], selected: (st.sprint || '') === x[0] || (!B.sprint.current && x[0] === B.sprint.id) ? true : null }, x[1]); }));
+      var funnel = h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px' }, B.funnel.map(function (f) {
+        return h('div', { class: 'card', style: 'padding:16px 18px' },
+          h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0' }, f.title), f.key === 'assessment' ? sprintSel : null),
+          f.metrics.map(metric));
+      }));
+      // ---- units: one row per unit, click for the detail
+      var pc = function (x) { return x == null ? '–' : x + '%'; };
+      var unitRows = B.units.map(function (u) {
+        return h('tr', { class: 'click', onclick: function () { openUnit(u, B); } },
+          h('td', null, u.title, h('div', { class: 'muted' }, u.courseTitle)),
+          h('td', { class: 'num mono' }, u.started, h('div', { class: 'muted' }, pc(u.startedPct) + ' of activated')),
+          h('td', { class: 'num mono' }, u.done.watch + ' · ' + u.done.play + ' · ' + u.done.read),
+          h('td', { class: 'num mono', style: 'color:var(--good)' }, u.completed, h('div', { class: 'muted' }, pc(u.completionRate))),
+          h('td', { class: 'num mono' }, dur(u.time.watch.avgMs) + ' · ' + dur(u.time.play.avgMs) + ' · ' + dur(u.time.read.avgMs)),
+          h('td', { class: 'num mono' }, pc(u.video.avgPct), h('div', { class: 'muted' }, u.video.students + ' students')),
+          h('td', { class: 'num mono' }, u.practice ? pc(u.practice.accuracy) : '–', h('div', { class: 'muted' }, u.practice ? u.practice.students + ' students' : 'no topic linked')),
+          h('td', { class: 'num mono' }, u.assessment.questions ? pc(u.assessment.correctPct) : '–', h('div', { class: 'muted' }, u.assessment.questions ? u.assessment.questions + ' questions' : 'no questions tagged')),
+          h('td', { class: 'num mono' }, u.ttc.n ? dur(u.ttc.medianMs) : '–', h('div', { class: 'muted' }, 'n = ' + u.ttc.n)));
+      });
+      // ---- students (unchanged: per-student activity)
       var period = h('select', { onchange: function () { st.days = Number(this.value); refresh(); } },
         [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], [365, 'Last 12 months']].map(function (x) { return h('option', { value: x[0], selected: st.days === x[0] ? true : null }, x[1]); }));
-      var unitRows = o.units.map(function (u) {
-        var w = u.steps.watch || {}, pl = u.steps.play || {}, rd = u.steps.read || {};
-        return h('tr', null,
-          h('td', null, u.title, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)),
-          h('td', { class: 'num mono' }, u.students + ' / ' + o.cohort), h('td', { class: 'num mono' }, u.opens), h('td', { class: 'num mono' }, dur(u.ms)),
-          h('td', { class: 'num mono' }, dur(w.ms)), h('td', { class: 'num mono' }, dur(w.videoMs)), h('td', { class: 'num mono' }, w.videoPct == null ? '–' : w.videoPct + '%'),
-          h('td', { class: 'num mono' }, dur(pl.ms)), h('td', { class: 'num mono' }, dur(rd.ms)),
-          h('td', { class: 'num mono' }, u.done.watch + ' · ' + u.done.play + ' · ' + u.done.read), h('td', { class: 'num mono', style: 'color:var(--good)' }, u.done.all3));
-      });
       var studentsHolder = h('div', { class: 'muted' }, 'Loading students…');
       var search = h('input', { type: 'search', placeholder: 'NIAT ID, name or batch', value: st.q, oninput: debounce(function (e) { st.q = e.target.value; loadStudents(); }, 300) });
       var sortSel = h('select', { onchange: function () { st.sort = this.value; loadStudents(); } },
@@ -776,27 +809,57 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         }, fail);
       }
       loadStudents();
+      var since = B.since.activity ? 'Activity data since ' + B.since.activity + ' (IST).' : 'No activity recorded yet.';
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
-        header('~/admin/analytics', 'Student analytics', 'Active time in the portal (page open and in use), clicks into units and steps, videos watched and logins. ' + o.from + ' to ' + o.today + ' (IST).',
-          [period, h('button', { class: 'btn', onclick: refresh }, 'Refresh'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/activity.csv?days=' + st.days); } }, 'Export CSV')]),
-        h('div', { class: 'grid g4' },
-          stat('Active students', T.students + ' / ' + o.cohort, (o.cohort ? Math.round(T.students / o.cohort * 100) : 0) + '% of the list · ' + T.activeToday + ' today'),
-          stat('Time in the portal', dur(T.ms), 'all students together'),
-          stat('Average per active student', dur(T.students ? T.ms / T.students : 0), 'over the period'),
-          stat('Logins', T.logins, 'by ' + T.loginStudents + ' students')),
+        header('~/admin/analytics', 'Student analytics', 'Real students only (TEST accounts are never counted). Every number is computed from recorded data; anything that cannot be measured yet says why. ' + since,
+          [h('button', { class: 'btn', onclick: function () { st.fresh = true; refresh(); } }, 'Refresh now'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/activity.csv?days=' + st.days); } }, 'Export CSV')]),
+        h('h2', { style: 'margin:4px 0 0' }, 'Business metrics'), funnel,
+        h('div', { class: 'card' }, h('h2', null, 'Units'),
+          h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Click a unit for its funnel, Sprint questions and practice. Finished = the ✓ a student gets on moving past a step. Time = average active time per student with time recorded on that step. Accuracy = first answers that were right. Time to complete = median from opening the unit to finishing its last step.'),
+          h('div', { class: 'tablewrap' }, h('table', null,
+            h('thead', null, h('tr', null, ['Unit', 'Started', 'Finished W · P · R', 'Completed', 'Time W · P · R', 'Video watched', 'Practice accuracy', 'Sprint correct', 'Time to complete'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
+            h('tbody', null, unitRows))),
+          B.untagged.length ? h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Sprint questions without a unit: ' + B.untagged.map(function (x) { return x.courseTitle + ' ' + x.questions + ' questions, ' + pc(x.correctPct) + ' correct'; }).join(' · ') + '. Give them a unit in Sprint questions to see them per unit.') : null),
+        h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0' }, 'Activity detail'), period),
         h('div', { class: 'grid g2' },
           h('div', { class: 'card' }, h('h2', null, 'Active students per day'), dayChart(o.daily, Math.min(o.days, 90), 'students', function (v) { return v + ' students'; })),
           h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(o.areas.map(function (a) { return { label: AREA_NAMES[a.area] || a.area, value: a.ms, text: dur(a.ms) }; })),
             h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Clicks: ' + o.areas.map(function (a) { return (AREA_NAMES[a.area] || a.area) + ' ' + a.opens; }).join(' · ')))),
-        h('div', { class: 'card' }, h('h2', null, 'Learning units'),
-          h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Clicks = times a unit step was opened. Video watched = how far into the video students got, on average. Finished = students who ticked off Watch · Play · Read.'),
-          h('div', { class: 'tablewrap' }, h('table', null,
-            h('thead', null, h('tr', null, ['Unit', 'Students', 'Clicks', 'Time', 'Watch', 'Video played', 'Video watched', 'Play', 'Read', 'Finished W · P · R', 'All 3 done'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
-            h('tbody', null, unitRows)))),
         h('div', { class: 'card' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:10px' }, h('h2', { style: 'margin:0' }, 'Students'), h('div', { class: 'row' }, search, sortSel)),
           h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Click a student for units, days, videos, practice topics and every login.'), studentsHolder));
     });
   };
+
+  function openUnit(u, B) {
+    var d = drawer(), pc = function (x) { return x == null ? '–' : x + '%'; };
+    var reg = B.funnel[0].metrics.find(function (m) { return m.label === 'Activated users'; });
+    var step = function (label, n, of) { return { label: label, value: n, text: n + (of ? ' (' + Math.round(n / of * 100) + '%)' : '') }; };
+    d.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+      header('~/admin/analytics/units/' + u.id, u.title, u.courseTitle),
+      h('div', { class: 'card' }, h('h2', null, 'Funnel'),
+        bars([step('Activated students', reg.value || 0), step('Started the unit', u.started, reg.value), step('Finished Watch', u.done.watch, u.started), step('Finished Play', u.done.play, u.started), step('Finished Read', u.done.read, u.started), step('Completed all 3', u.completed, u.started)], { labelW: '170px' }),
+        h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Percentages after the first two rows are of the students who started the unit.')),
+      h('div', { class: 'grid g2' },
+        h('div', { class: 'card' }, h('h2', null, 'Time per step'), h('table', null, h('tbody', null, ['watch', 'play', 'read'].map(function (s) {
+          return h('tr', null, h('td', null, s[0].toUpperCase() + s.slice(1)), h('td', { class: 'num mono' }, dur(u.time[s].avgMs)), h('td', { class: 'num muted' }, u.time[s].students + ' students with time'));
+        })))),
+        h('div', { class: 'card' }, h('h2', null, 'Video'), u.video.students ? h('table', null, h('tbody', null,
+          h('tr', null, h('td', null, 'Average reached'), h('td', { class: 'num mono' }, pc(u.video.avgPct))),
+          h('tr', null, h('td', null, 'Average played'), h('td', { class: 'num mono' }, dur(u.video.avgMs))),
+          h('tr', null, h('td', null, 'Students'), h('td', { class: 'num mono' }, u.video.students)))) : h('p', { class: 'muted' }, 'No video watching recorded yet.'))),
+      h('div', { class: 'card' }, h('h2', null, 'Practice'), u.practice ? h('table', null, h('tbody', null,
+        h('tr', null, h('td', null, 'Topic'), h('td', null, u.practice.topic)),
+        h('tr', null, h('td', null, 'Questions in the topic'), h('td', { class: 'num mono' }, u.practice.questions)),
+        h('tr', null, h('td', null, 'Students who practised it'), h('td', { class: 'num mono' }, u.practice.students)),
+        h('tr', null, h('td', null, 'Average share answered'), h('td', { class: 'num mono' }, pc(u.practice.avgAnsweredPct))),
+        h('tr', null, h('td', null, 'Accuracy (first answers)'), h('td', { class: 'num mono' }, pc(u.practice.accuracy) + ' of ' + u.practice.answers + ' answers')))) : h('p', { class: 'muted' }, 'No practice topic is linked to this unit (content/units.json → practiceTopic).')),
+      h('div', { class: 'card' }, h('h2', null, 'Sprint questions · ' + B.sprint.id), u.assessment.questions ? h('table', null,
+        h('thead', null, h('tr', null, ['#', 'Question', 'Answered', 'Correct'].map(function (t, i) { return h('th', { class: i >= 2 ? 'num' : null }, t); }))),
+        h('tbody', null, u.assessment.items.map(function (q) {
+          return h('tr', null, h('td', { class: 'mono' }, 'Q' + q.n), h('td', null, q.q.length > 120 ? q.q.slice(0, 120) + '…' : q.q), h('td', { class: 'num mono' }, q.answered + ' / ' + u.assessment.submitted), h('td', { class: 'num mono' }, pc(q.correctPct)));
+        }))) : h('p', { class: 'muted' }, 'No questions in this Sprint are tagged to this unit.')),
+      h('div', { class: 'card' }, h('h2', null, 'Time to complete'), u.ttc.n ? h('p', null, 'Median ', h('b', null, dur(u.ttc.medianMs)), ' from opening the unit to finishing its last step (' + u.ttc.n + ' students).') : h('p', { class: 'muted' }, 'Not available yet: measured for students who open and finish the unit after this release.'))));
+  }
 
   function openStudentAnalytics(roll) {
     var d = drawer(), days = CACHE.analytics.days;
@@ -1326,6 +1389,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         sprint_close: h('input', { type: 'datetime-local', value: localInput(s.close), disabled: ro || null }),
         sprint_duration_min: h('input', { type: 'number', min: 1, max: 600, value: s.durationMin, disabled: ro || null }),
         leaderboard_visible: h('input', { type: 'checkbox', checked: s.leaderboardVisible, disabled: ro || null }),
+        pass_mark_pct: h('input', { type: 'number', min: 1, max: 100, step: 1, value: d.passMark, disabled: ro || null }),
         review_mode: h('select', { disabled: ro || null }, [['after_close', 'After the Sprint closes'], ['after_submit', 'Right after each student submits'], ['hidden', 'Hidden (no review)']].map(function (o) { return h('option', { value: o[0], selected: d.reviewMode === o[0] ? true : null }, o[1]); })),
         registration_auto_approve: h('input', { type: 'checkbox', checked: d.registrationAutoApprove, disabled: ro || null }),
         student_login_mode: h('select', { disabled: ro || null }, [['simple', 'Simple: NIAT ID + name (initial roll-out)'], ['secure', 'Secure: phone code, password and approval']].map(function (o) { return h('option', { value: o[0], selected: d.loginMode === o[0] ? true : null }, o[1]); })),
@@ -1341,7 +1405,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         h('form', { class: 'card', style: 'display:flex;flex-direction:column;gap:14px', onsubmit: function (e) {
           e.preventDefault();
           var body = { sprint_title: f.sprint_title.value, sprint_id: f.sprint_id.value, sprint_open: new Date(f.sprint_open.value).toISOString(), sprint_close: new Date(f.sprint_close.value).toISOString(),
-            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, review_mode: f.review_mode.value, registration_auto_approve: f.registration_auto_approve.checked, student_login_mode: f.student_login_mode.value,
+            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, review_mode: f.review_mode.value, pass_mark_pct: Number(f.pass_mark_pct.value), registration_auto_approve: f.registration_auto_approve.checked, student_login_mode: f.student_login_mode.value,
             proctor_enabled: f.proctor_enabled.checked, proctor_fullscreen: f.proctor_fullscreen.checked, proctor_block_copy: f.proctor_block_copy.checked, proctor_max_violations: Number(f.proctor_max_violations.value) };
           if (body.registration_auto_approve && !d.registrationAutoApprove && !confirm('Auto-approve lets anyone who knows a NIAT ID register it with any phone, without review. Use only for load tests or a trusted cohort. Turn it on?')) return;
           if (body.student_login_mode === 'simple' && d.loginMode !== 'simple' && !confirm('Simple log-in has no password: anyone who knows the NIAT ID and name of a student can log in as them. Use it only for the initial roll-out. Switch?')) return;
@@ -1355,6 +1419,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'field' }, h('label', null, 'Closes (' + tz + ')'), f.sprint_close),
             h('div', { class: 'field' }, h('label', null, 'Duration per student (minutes)'), f.sprint_duration_min),
             h('div', { class: 'field' }, h('label', null, 'Students see the answers review'), f.review_mode),
+            h('div', { class: 'field' }, h('label', null, 'Pass mark (% of total marks, for Pass rate)'), f.pass_mark_pct),
             h('label', { class: 'row', style: 'margin-top:22px' }, f.leaderboard_visible, 'Leaderboard visible to students'),
             h('label', { class: 'row', style: 'margin-top:4px' }, f.registration_auto_approve, h('span', null, 'Auto-approve registrations ', h('span', { class: 'muted' }, '(skips the approval step; load tests only)')))),
           h('h2', { style: 'margin:8px 0 0' }, 'Student log-in'),

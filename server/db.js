@@ -209,6 +209,13 @@ CREATE TABLE IF NOT EXISTS sprint_questions (
   q TEXT NOT NULL, code TEXT NOT NULL DEFAULT '', options TEXT NOT NULL, correct INTEGER NOT NULL,
   created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, updated_by TEXT);
 CREATE INDEX IF NOT EXISTS sprint_questions_sprint ON sprint_questions(sprint_id, position);
+-- Visits (sessions): one row per page visit, from the portal's activity reports. Tracked from deploy onward.
+CREATE TABLE IF NOT EXISTS activity_sessions (session_id TEXT PRIMARY KEY, roll_no TEXT NOT NULL, started_at BIGINT NOT NULL, last_at BIGINT NOT NULL, active_ms BIGINT NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS activity_sessions_roll ON activity_sessions(roll_no, started_at);
+CREATE INDEX IF NOT EXISTS activity_sessions_started ON activity_sessions(started_at);
+-- First time a student started a unit and finished each of its steps (kind: start | watch | play | read).
+-- Only real events from deploy onward; earlier progress has no timestamps and is never back-filled.
+CREATE TABLE IF NOT EXISTS unit_events (roll_no TEXT NOT NULL, unit_id TEXT NOT NULL, kind TEXT NOT NULL, at BIGINT NOT NULL, PRIMARY KEY (roll_no, unit_id, kind));
 CREATE TABLE IF NOT EXISTS attempt_events (
   id          BIGSERIAL PRIMARY KEY,
   attempt_id  BIGINT NOT NULL,

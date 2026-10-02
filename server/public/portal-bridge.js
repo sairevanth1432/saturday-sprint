@@ -233,7 +233,13 @@
       if (S.tab === 'test' || S.tab === 'board') return S.tab + '||';
       return 'home||';
     }
-    ssActRow(key) { var A = this._act; return A.rows[key] || (A.rows[key] = { ms: 0, opens: 0, videoMs: 0, videoPct: 0 }); }
+    ssActRow(key) { var A = this._act; return A.rows[key] || (A.rows[key] = { ms: 0, opens: 0, videoMs: 0, videoPct: 0, firstAt: Date.now() + clock.offset }); }
+    // A visit (session) starts when the portal opens, and again after 30 minutes without activity.
+    ssActSession(fresh) {
+      var A = this._act, now = Date.now();
+      if (fresh || !A.session || now - A.lastCounted > 30 * 60000) A.session = { id: Math.random().toString(36).slice(2, 10) + '-' + now.toString(36), startedAt: now + clock.offset };
+      return A.session;
+    }
     ssActTick() {
       var A = this._act, now = Date.now();
       if (!A) return;
@@ -242,7 +248,7 @@
       var vis = document.visibilityState === 'visible';
       var inFrame = document.activeElement && document.activeElement.tagName === 'IFRAME' && document.hasFocus();
       var playing = A.playing > 0;
-      if (vis && (now - A.lastInput < 60000 || inFrame || playing)) this.ssActRow(key).ms += Math.min(5000, now - A.lastTick);
+      if (vis && (now - A.lastInput < 60000 || inFrame || playing)) { this.ssActSession(); this.ssActRow(key).ms += Math.min(5000, now - A.lastTick); A.lastCounted = now; }
       A.lastTick = now;
     }
     ssActFlush(beacon) {
@@ -250,11 +256,11 @@
       if (!A) return;
       var items = Object.keys(A.rows).map(function (k) {
         var r = A.rows[k], parts = k.split('|');
-        return { area: parts[0], item: parts[1], step: parts[2], ms: r.ms, opens: r.opens, videoMs: Math.round(r.videoMs), videoPct: Math.round(r.videoPct) };
+        return { area: parts[0], item: parts[1], step: parts[2], ms: r.ms, opens: r.opens, videoMs: Math.round(r.videoMs), videoPct: Math.round(r.videoPct), firstAt: r.firstAt };
       }).filter(function (r) { return r.ms >= 1000 || r.opens || r.videoMs >= 1000; });
       if (!items.length) return;
       A.rows = {};
-      api('POST', '/api/activity', { items: items }, { keepalive: !!beacon }).catch(function () {
+      api('POST', '/api/activity', { session: this.ssActSession(), items: items }, { keepalive: !!beacon }).catch(function () {
         items.forEach(function (r) { var x = A.rows[r.area + '|' + r.item + '|' + r.step] = A.rows[r.area + '|' + r.item + '|' + r.step] || { ms: 0, opens: 0, videoMs: 0, videoPct: 0 };
           x.ms += r.ms; x.opens += r.opens; x.videoMs += r.videoMs; x.videoPct = Math.max(x.videoPct, r.videoPct); });
       });
@@ -277,7 +283,8 @@
     }
     ssActMount() {
       if (this.ss.user.kind !== 'student') return;
-      var self = this, A = this._act = { rows: {}, key: null, lastInput: Date.now(), lastTick: Date.now(), playing: 0 };
+      var self = this, A = this._act = { rows: {}, key: null, lastInput: Date.now(), lastTick: Date.now(), lastCounted: Date.now(), playing: 0, session: null };
+      this.ssActSession(true);
       var poke = function () { A.lastInput = Date.now(); };
       ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (t) { window.addEventListener(t, poke, { passive: true, capture: true }); });
       var lastMove = 0;

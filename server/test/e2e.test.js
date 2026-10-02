@@ -737,3 +737,107 @@ test('super admin tests any Sprint at any time: preview another set, take it out
   assert.equal((await ADM('GET', '/api/bootstrap')).body.sprint.id, live.id);
   await ADM('PATCH', '/api/admin/settings', { sprint_open: before.open, sprint_close: before.close });
 });
+
+test('business metrics: every value matches a hand-computed dataset; TEST accounts never count; nothing is made up', async () => {
+  const { istDay } = await import('../analytics.js');
+  const DAYMS = 86400000, now = Date.now(), today = istDay(now);
+  const day = (n) => istDay(now - n * DAYMS);
+  // Isolate the dataset: other students from earlier tests are set inactive for this test (test database only).
+  const others = (await db.all("SELECT roll_no FROM students_master WHERE active = 1 AND roll_no NOT LIKE 'BM%'")).map((r) => r.roll_no);
+  await db.run("UPDATE students_master SET active = 0 WHERE roll_no NOT LIKE 'BM%'");
+  try {
+    for (const [r, name, batch] of [['BM01', 'Bm One', 'R'], ['BM02', 'Bm Two', 'R'], ['BM03', 'Bm Three', 'R'], ['BM04', 'Bm Four', 'R'], ['BMT1', 'Bm Test', 'TEST']]) {
+      await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, '', ?, '', 1, 'admin', ?)", r, name, batch, now);
+    }
+    for (const r of ['BM01', 'BM02', 'BM03', 'BMT1']) await db.run("INSERT INTO users (roll_no, phone, status, created_at) VALUES (?, '', 'active', ?)", r, now);
+    const act = (r, d, area, item, step, ms, opens, vms = 0, vpct = 0) => db.run('INSERT INTO activity (roll_no, day, area, item, step, ms, opens, video_ms, video_pct, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', r, d, area, item, step, ms, opens, vms, vpct, now);
+    await act('BM01', day(8), 'home', '', '', 30000, 1);
+    await act('BM01', day(7), 'learn', 'tp-nested', 'watch', 600000, 2, 300000, 90);
+    await act('BM01', today, 'learn', 'tp-nested', 'play', 300000, 1);
+    await act('BM01', today, 'practice', 'Nested Conditional Statements', '', 120000, 1);
+    await act('BM02', day(1), 'learn', 'tp-forloop', 'watch', 60000, 1);
+    await act('BMT1', today, 'learn', 'tp-nested', 'watch', 999999, 9);
+    const cat = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'practice.json'), 'utf8'));
+    const nq = cat.quiz.filter((q) => q.sess === 'Nested Conditional Statements' && !Array.isArray(q.c));
+    const prog = (r, data) => db.run('INSERT INTO progress (roll_no, data, updated_at) VALUES (?, ?, ?)', r, JSON.stringify(data), now);
+    await prog('BM01', { stepDone: { 'pf-0-0:watch': true, 'pf-0-0:play': true, 'pf-0-0:read': true, 'pf-1-0:watch': true },
+      pPick: { [nq[0].gi]: nq[0].c, [nq[1].gi]: (nq[1].c + 1) % nq[1].o.length }, solved: { [cat.code[0].id]: true } });
+    await prog('BMT1', { stepDone: { 'pf-0-0:watch': true, 'pf-0-0:play': true, 'pf-0-0:read': true } });
+    // a Sprint with 2 questions tagged to the Nested unit (correct answer: option A)
+    for (const t of ['N1', 'N2']) await ADM('POST', '/api/admin/sprints/bm-sprint/questions', { q: 'Nested ' + t, options: ['a', 'b'], correct: 0, course: 'pf', unit: 'tp-nested' });
+    const att = (r, status, total, answers) => db.run(`INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, updated_at, total, max_total, answers, text_reviewed, submitted_at)
+      VALUES ('bm-sprint', ?, ?, ?, ?, ?, ?, 10, ?, 1, ?)`, r, status, now - 3600000, now, now, total, JSON.stringify({ mcq: answers }), status === 'submitted' ? now : null);
+    await att('BM01', 'submitted', 5, { 0: 0, 1: 1 });
+    await att('BM02', 'submitted', 3, { 0: 0, 1: 0 });
+    await att('BM03', 'running', null, {});
+    await att('BMT1', 'submitted', 10, { 0: 0, 1: 0 });
+
+    const r = await ADM('GET', '/api/admin/analytics/business?sprint=bm-sprint&fresh=1');
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const get = (stage, label) => r.body.funnel.find((f) => f.key === stage).metrics.find((m) => m.label === label);
+    const v = (stage, label) => get(stage, label).value;
+    // Reach
+    assert.equal(v('reach', 'Students in the list'), 4, 'TEST excluded');
+    assert.equal(v('reach', 'Registered users'), 3);
+    assert.equal(v('reach', 'Activated users'), 2);
+    // Activity (data spans 9 days: day -8 .. today)
+    assert.equal(v('activity', 'DAU'), 1);
+    assert.equal(v('activity', 'WAU'), 2);
+    assert.equal(v('activity', 'MAU'), 2);
+    assert.equal(v('activity', 'DAU/MAU'), 22.2, 'average DAU 4/9 divided by MAU 2');
+    assert.equal(v('activity', 'Sessions/user'), null);
+    assert.match(get('activity', 'Sessions/user').reason, /none yet/);
+    // Learning
+    assert.equal(v('learning', 'Learning hours/user'), 540000, 'study time 1,080,000 ms over 2 students');
+    assert.equal(v('learning', 'Content starts'), 3);
+    assert.equal(v('learning', 'Content completion rate'), 44.4, '4 of 9 steps');
+    assert.equal(v('learning', 'Lesson completion rate'), 33.3, '1 of 3 started units');
+    // Practice
+    assert.equal(v('practice', 'Questions attempted'), 2);
+    assert.equal(v('practice', 'Practice attempts/user'), 3);
+    assert.equal(v('practice', 'Practice completion rate'), Math.round(2 / cat.quiz.length * 1000) / 10);
+    assert.equal(v('practice', 'Re-attempt rate'), null);
+    assert.match(get('practice', 'Re-attempt rate').reason, /first answer/);
+    // Assessment (pass mark 40%)
+    assert.equal(v('assessment', 'Assessment attempts'), 3);
+    assert.equal(v('assessment', 'Submission rate'), 66.7);
+    assert.equal(v('assessment', 'Avg. score'), 40);
+    assert.equal(v('assessment', 'Pass rate'), 50);
+    // Retention
+    assert.equal(v('retention', 'D1 retention'), 50, 'BM01 came back the next day, BM02 did not');
+    assert.equal(v('retention', 'D7 retention'), 0);
+    assert.equal(v('retention', 'D30 retention'), null);
+    assert.equal(v('retention', 'Weekly retention'), null, 'needs 14 days of data');
+    assert.equal(v('retention', 'Inactive 7+ days'), 0);
+    // Completion
+    assert.equal(v('completion', 'Course completion: Programming Foundations'), 0);
+    assert.equal(v('completion', 'Module completion'), 8.3, 'one of 6 units for BM01, none for BM02');
+    assert.equal(v('completion', 'Time to completion (unit)'), null);
+    // Unit table
+    const u = r.body.units.find((x) => x.id === 'tp-nested');
+    assert.deepEqual([u.started, u.done.watch, u.done.play, u.done.read, u.completed, u.completionRate], [1, 1, 1, 1, 1, 100]);
+    assert.deepEqual([u.time.watch.avgMs, u.time.play.avgMs, u.video.avgPct, u.video.avgMs], [600000, 300000, 90, 300000]);
+    assert.deepEqual([u.practice.topic, u.practice.students, u.practice.accuracy], ['Nested Conditional Statements', 1, 50]);
+    assert.deepEqual([u.assessment.questions, u.assessment.submitted, u.assessment.correctPct], [2, 2, 75]);
+    assert.equal(r.body.units.find((x) => x.id === 'tp-forloop').started, 2);
+    assert.equal(r.body.units.find((x) => x.id === 'tp-genai-foundations').practice.topic, 'Gen AI Foundations & Capabilities');
+
+    // New tracking: a visit + unit start event, and step events from a progress save (progress stored exactly as sent)
+    const c = client();
+    assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'BM02', name: 'Bm Two' })).status, 200);
+    await c('POST', '/api/activity', { session: { id: 'visit-abc123', startedAt: now - 60000 }, items: [{ area: 'learn', item: 'tp-strings', step: 'watch', ms: 30000, opens: 1, firstAt: now - 50000 }] });
+    const sent = { stepDone: { 'pf-2-0:watch': true }, pPick: {} };
+    await c('PUT', '/api/progress', { data: sent });
+    assert.equal((await db.one("SELECT data FROM progress WHERE roll_no = 'BM02'")).data, JSON.stringify(sent));
+    const ev = await db.all("SELECT unit_id, kind FROM unit_events WHERE roll_no = 'BM02' ORDER BY kind");
+    assert.deepEqual(ev.map((e) => e.unit_id + ':' + e.kind), ['tp-strings:start', 'tp-strings:watch']);
+    const s = await db.one("SELECT roll_no, active_ms FROM activity_sessions WHERE session_id = 'BM02:visit-abc123'");
+    assert.deepEqual([s.roll_no, Number(s.active_ms)], ['BM02', 30000]);
+    const r2 = await ADM('GET', '/api/admin/analytics/business?sprint=bm-sprint&fresh=1');
+    const sess = r2.body.funnel.find((f) => f.key === 'activity').metrics;
+    assert.equal(sess.find((m) => m.label === 'Sessions/user').value, 1);
+    assert.equal(sess.find((m) => m.label === 'Avg. session duration').value, 30000);
+  } finally {
+    for (const r of others) await db.run('UPDATE students_master SET active = 1 WHERE roll_no = ?', r);
+  }
+});

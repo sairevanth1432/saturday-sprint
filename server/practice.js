@@ -22,7 +22,7 @@ const sameAnswer = (q, k) => k !== undefined && k !== null &&
 
 // Students who count: active master rows; test students are left out on the live site, admin previews always.
 const STUDENTS = `SELECT pr.roll_no, pr.data FROM progress pr JOIN students_master m ON m.roll_no = pr.roll_no
-  WHERE m.active = 1 AND pr.roll_no NOT LIKE 'ADMIN-%'` + (config.isLive ? ` AND m.batch <> 'TEST'` : '');
+  WHERE m.active = 1 AND pr.roll_no NOT LIKE 'ADMIN-%' AND m.batch <> 'TEST'`; // TEST accounts never count
 
 async function compute() {
   const cat = loadCatalogue();

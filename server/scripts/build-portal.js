@@ -200,7 +200,7 @@ ${cards}
     };
     const goal = (u.watch && u.watch.goal) || '';
     // kind 'video' + a watch source makes the portal show its media area; the bridge switches it per step.
-    out.push({ course: u.course, name: u.title, color: u.color || '#FFE45C', lessons: [{
+    out.push({ id: u.id, course: u.course, name: u.title, color: u.color || '#FFE45C', practiceTopic: u.practiceTopic || '', lessons: [{
       id: u.id, kind: 'video', title: u.title, goal, tabs,
       watch: tabs.watch ? { type: 'video', src: tabs.watch.src, title: u.title, orientation: tabs.watch.orientation } : { type: 'video', src: '', title: u.title }
     }] });
