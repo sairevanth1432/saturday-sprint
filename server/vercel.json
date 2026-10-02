@@ -32,6 +32,10 @@
     {
       "source": "/help",
       "destination": "/help.html"
+    },
+    {
+      "source": "/review",
+      "destination": "/review.html"
     }
   ],
   "crons": [

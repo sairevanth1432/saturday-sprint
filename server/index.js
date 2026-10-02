@@ -17,13 +17,14 @@ import {
 import { normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
 import { readStudents, rowsFrom, importStudents, syncStudentsFile, watchStudentsFile, studentsFilePath, studentCounts, logImport } from './students.js';
 import {
-  SprintError, getSprint, getQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
+  SprintError, getSprint, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
   submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, clearBoardCache, readDraft, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
 import { recordActivity, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
+import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -71,6 +72,7 @@ app.get('/', async (req, res) => {
 app.get('/login', async (req, res) => ((await loadStudent(req)) ? res.redirect('/') : sendPage('login.html')(req, res)));
 app.get('/admin', sendPage('admin.html'));
 app.get('/help', sendPage('help.html'));
+app.get('/review', sendPage('review.html'));
 app.get('/portal.html', (req, res) => res.redirect('/'));
 app.get('/favicon.ico', (req, res) => res.status(204).end()); // no icon yet; avoids a 404 in every browser console
 // Admin-uploaded HTML (Play/Read steps) runs in a sandbox: it can run its own scripts but gets an opaque origin,
@@ -128,7 +130,7 @@ api.get('/me', who, (req, res) => {
 // Public facts for the Help page and the landing page (no login): Sprint window, format, rules and the units it is based on.
 api.get('/info', async (req, res) => {
   const [sprint, proctor, mode] = await Promise.all([getSprint(), proctorSettings(), loginMode()]);
-  const qs = getQuestions(), byCourse = {};
+  const qs = await getQuestions(sprint.id), byCourse = {};
   qs.forEach((q) => { byCourse[q.course] = (byCourse[q.course] || 0) + 1; });
   res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
   res.json({
@@ -157,7 +159,7 @@ api.get('/bootstrap', who, async (req, res) => {
     user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
-      preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: questionTypes(), proctor },
+      preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id) },
     violations: a && a.status === 'running' ? a.violations || 0 : 0,
     attempt: await attemptView(a, { withQuestions: true }),
     testFeedbackDone: !!fb,
@@ -189,6 +191,11 @@ api.post('/sprint/events', who, async (req, res) => {
 api.post('/activity', who, async (req, res) => {
   if (req.who.kind === 'student' && !(await kv.rateLimit('act:' + req.who.roll_no, 20, 60000)).ok) return res.status(429).json({ error: 'RATE_LIMITED', message: 'Too many reports.' });
   res.json(await recordActivity(req.who, req.body));
+});
+// Answers review after the test (when Sprint settings allow it for that Sprint)
+api.get('/sprint/review', who, async (req, res) => {
+  noStore(res);
+  res.json(await reviewFor(req.who, req.query.sprint ? String(req.query.sprint) : null));
 });
 api.post('/sprint/submit', who, async (req, res) => {
   const a = await submitAttempt(req.who, req.body);
@@ -356,7 +363,7 @@ adm.get('/overview', async (req, res) => {
   ]);
   const pendingApprovals = (await one("SELECT COUNT(*) AS n FROM registration_requests WHERE status = 'pending'")).n;
   res.json({
-    serverNow: Date.now(), sprint, counts, attempts: att, maxTotal: maxTotal(), pendingApprovals,
+    serverNow: Date.now(), sprint, counts, attempts: att, maxTotal: await maxTotal(sprint.id), pendingApprovals,
     lastImport: lastImport && { ...lastImport, errors: parseJSON(lastImport.errors, {}) },
     studentsFile: config.isVercel ? null : studentsFilePath(), studentsFileExists: !config.isVercel && fs.existsSync(studentsFilePath()),
     recentUsers, top: top.map((r) => ({ rank: r.rank, roll_no: r.roll_no, name: r.name, total: r.total, max_total: r.max_total, used_ms: r.used_ms })),
@@ -520,6 +527,35 @@ adm.delete('/users/:roll', requireSuper, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Sprint questions (one set per Sprint ID). Everyone can read; super admins edit.
+adm.get('/sprints', async (req, res) => res.json({ sprints: await listSprints() }));
+adm.get('/sprints/:sid/questions', async (req, res) => res.json(await listQuestions(req.params.sid)));
+adm.post('/sprints/:sid/questions', requireSuper, async (req, res) => {
+  const q = await addQuestion(req.params.sid, req.body, req.admin.email);
+  await audit(req, 'question.added', req.params.sid, { id: q.id, q: q.q.slice(0, 200) });
+  res.json({ ok: true, question: q });
+});
+adm.put('/sprints/:sid/questions/:qid', requireSuper, async (req, res) => {
+  const q = await updateQuestion(req.params.sid, req.params.qid, req.body, req.admin.email);
+  await audit(req, 'question.updated', req.params.sid, { id: q.id, q: q.q.slice(0, 200) });
+  res.json({ ok: true, question: q });
+});
+adm.delete('/sprints/:sid/questions/:qid', requireSuper, async (req, res) => {
+  const q = await deleteQuestion(req.params.sid, req.params.qid);
+  await audit(req, 'question.deleted', req.params.sid, { question: q });
+  res.json({ ok: true });
+});
+adm.post('/sprints/:sid/questions/reorder', requireSuper, async (req, res) => {
+  await reorderQuestions(req.params.sid, req.body && req.body.ids);
+  await audit(req, 'question.reordered', req.params.sid);
+  res.json({ ok: true });
+});
+adm.post('/sprints/:sid/questions/copy', requireSuper, async (req, res) => {
+  const n = await copyQuestions(req.params.sid, String((req.body && req.body.from) || ''), req.admin.email);
+  await audit(req, 'question.copied', req.params.sid, { from: req.body && req.body.from, count: n });
+  res.json({ ok: true, count: n });
+});
+
 // ---------- student analytics (super admin): time, clicks, units, logins per student
 const daysOf = (req) => Math.min(365, Math.max(1, Number(req.query.days) || 30));
 adm.get('/analytics/overview', requireSuper, async (req, res) => res.json(await analyticsOverview({ days: daysOf(req) })));
@@ -568,7 +604,7 @@ adm.get('/attempts/:id', async (req, res) => {
   res.json({
     attempt: { ...a, draft: undefined, proctor: undefined, answers, detail: parseJSON(a.detail, {}) },
     proctor: { ...proctorView(a), events: await attemptEvents(a.id), labels: VIOLATIONS },
-    student: m, questions: getQuestions(), marks: MARKS, result: a.status === 'submitted' ? resultView(a) : null
+    student: m, questions: await getQuestions(a.sprint_id), marks: MARKS, result: a.status === 'submitted' ? resultView(a) : null
   });
 });
 
@@ -757,7 +793,7 @@ adm.get('/export/:what', async (req, res) => {
 });
 
 // ---------- settings (super admin)
-adm.get('/settings', async (req, res) => res.json({ sprint: await getSprint(), marks: MARKS, questions: getQuestions().length, proctor: await proctorSettings(),
+adm.get('/settings', async (req, res) => res.json({ sprint: await getSprint(), marks: MARKS, questions: (await getQuestions()).length, proctor: await proctorSettings(), reviewMode: await reviewMode((await getSprint()).id),
   registrationAutoApprove: !!(await getSetting('registration_auto_approve', false)), loginMode: await loginMode() }));
 adm.patch('/settings', requireSuper, async (req, res) => {
   const b = req.body || {}, before = await getSprint(), changes = {};
@@ -788,6 +824,7 @@ adm.patch('/settings', requireSuper, async (req, res) => {
   }
   const open = Date.parse(changes.sprint_open || before.open), close = Date.parse(changes.sprint_close || before.close);
   if (!(close > open)) throw new AuthError('BAD_SETTING', 'Close time must be after open time.', 400);
+  if (b.review_mode !== undefined) await setReviewMode(changes.sprint_id || before.id, String(b.review_mode));
   for (const [k, v] of Object.entries(changes)) await setSetting(k, v);
   clearSettingCache();
   await clearBoardCache();
@@ -881,7 +918,7 @@ export async function start() {
     if (!lead) return;
     console.log(`  Database: ${dbKind()}   Redis: ${kv.kvKind}   Video uploads: ${storageKind()}   Processes: ${cluster.isWorker ? config.webConcurrency : 1}`);
     if (!admins) console.log('  No admin yet. Create one:  npm run create-admin -- --email you@example.com --name "Your Name" --super');
-    try { getQuestions(); } catch (e) { console.warn('  ' + e.message); }
+    try { builtinQuestions(); } catch (e) { console.warn('  ' + e.message); }
     console.log('');
   });
   const stop = () => { stopGrader(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 3000).unref(); };

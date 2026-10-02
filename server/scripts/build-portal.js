@@ -382,6 +382,12 @@ const DONE_BOARD = `
 <div style="font-size: 13px; color: #8A8A8A">{{ lb.my.note }}</div>
 </div>
 </div>
+<sc-if value="{{ ss.review.on }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border: 2px solid #333333; border-radius: 16px; background: #0D0D0D">
+<span style="flex-grow: 1; min-width: 220px; font-size: 15px; line-height: 1.5; color: #EDEDED">{{ ss.review.text }}</span>
+<button class="b3" onClick="{{ ss.review.open }}" style="flex-shrink: 0; min-height: 46px; padding: 0 20px; border: 0; border-radius: 12px; background: #FFE45C; color: #050505; font-size: 15px; font-weight: 800">{{ ss.review.label }}</button>
+</div>
+</sc-if>
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
 <div style="font-size: 20px; font-weight: 800">Leaderboard</div>

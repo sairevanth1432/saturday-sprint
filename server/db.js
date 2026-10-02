@@ -202,6 +202,13 @@ CREATE TABLE IF NOT EXISTS activity (
   ms BIGINT NOT NULL DEFAULT 0, opens INTEGER NOT NULL DEFAULT 0, video_ms BIGINT NOT NULL DEFAULT 0, video_pct INTEGER NOT NULL DEFAULT 0,
   updated_at BIGINT NOT NULL, PRIMARY KEY (roll_no, day, area, item, step));
 CREATE INDEX IF NOT EXISTS activity_day ON activity(day);
+-- Sprint test questions, one set per Sprint ID (Admin → Sprint questions). A Sprint with no rows uses the
+-- built-in set from the portal HTML (generated/sprint-test.json).
+CREATE TABLE IF NOT EXISTS sprint_questions (
+  id BIGSERIAL PRIMARY KEY, sprint_id TEXT NOT NULL, position INTEGER NOT NULL, course TEXT NOT NULL, unit_id TEXT NOT NULL DEFAULT '',
+  q TEXT NOT NULL, code TEXT NOT NULL DEFAULT '', options TEXT NOT NULL, correct INTEGER NOT NULL,
+  created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, updated_by TEXT);
+CREATE INDEX IF NOT EXISTS sprint_questions_sprint ON sprint_questions(sprint_id, position);
 CREATE TABLE IF NOT EXISTS attempt_events (
   id          BIGSERIAL PRIMARY KEY,
   attempt_id  BIGINT NOT NULL,

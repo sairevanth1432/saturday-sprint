@@ -11,17 +11,39 @@ import { maskRoll } from './security.js';
 // Written problems ("reviewed by panel"): awarded by an admin, 0..MARKS.text each.
 export const MARKS = { mcq: 1, code: 1, text: 1 };
 
-let questions = null, questionsMtime = 0;
-export function getQuestions() {
+// The built-in set from the portal HTML (npm run build → generated/sprint-test.json).
+let builtin = null, builtinMtime = 0;
+export function builtinQuestions() {
   const f = config.sprintTestFile;
   if (!fs.existsSync(f)) throw new Error('Sprint questions not found. Run `npm run build:portal` (creates ' + f + ').');
   const m = fs.statSync(f).mtimeMs;
-  if (!questions || m !== questionsMtime) { questions = JSON.parse(fs.readFileSync(f, 'utf8')); questionsMtime = m; }
-  return questions;
+  if (!builtin || m !== builtinMtime) { builtin = JSON.parse(fs.readFileSync(f, 'utf8')); builtinMtime = m; }
+  return builtin;
 }
 
-export function publicQuestions() {
-  return getQuestions().map((q) => {
+// Questions of one Sprint: the set made in Admin → Sprint questions, or the built-in set when there is none.
+// Answers are stored by position, so a set is locked once a student has started that Sprint (questions.js).
+const qCache = new Map();
+const Q_CACHE_MS = 5000;
+export const rowToQuestion = (r) => {
+  const q = { id: Number(r.id), course: r.course, unit: r.unit_id || '', type: 'mcq', q: r.q, o: parseJSON(r.options, []), c: Number(r.correct) };
+  if (r.code) q.code = r.code;
+  return q;
+};
+export async function getQuestions(sprintId) {
+  if (!sprintId) sprintId = (await getSprint()).id;
+  const hit = qCache.get(sprintId);
+  if (hit && Date.now() - hit.at < Q_CACHE_MS) return hit.v;
+  const rows = await all('SELECT * FROM sprint_questions WHERE sprint_id = ? ORDER BY position, id', sprintId);
+  const v = rows.length ? rows.map(rowToQuestion) : builtinQuestions();
+  if (qCache.size > 200) qCache.clear();
+  qCache.set(sprintId, { at: Date.now(), v });
+  return v;
+}
+export function clearQuestionCache(sprintId) { if (sprintId) qCache.delete(sprintId); else qCache.clear(); }
+
+export async function publicQuestions(sprintId) {
+  return (await getQuestions(sprintId)).map((q) => {
     const p = { course: q.course, type: q.type, q: q.q };
     if (q.code) p.code = q.code;
     if (q.type === 'mcq') p.o = q.o;
@@ -29,8 +51,8 @@ export function publicQuestions() {
     return p;
   });
 }
-export const questionTypes = () => getQuestions().map((q) => ({ course: q.course, type: q.type }));
-export const maxTotal = () => getQuestions().reduce((s, q) => s + MARKS[q.type], 0);
+export const questionTypes = async (sprintId) => (await getQuestions(sprintId)).map((q) => ({ course: q.course, type: q.type }));
+export const maxTotal = async (sprintId) => (await getQuestions(sprintId)).reduce((s, q) => s + MARKS[q.type], 0);
 
 export async function getSprint() {
   const s = config.sprint;
@@ -66,7 +88,7 @@ export async function attemptView(a, { withQuestions = false } = {}) {
   const v = { status: a.status, startedAt: a.started_at, deadlineAt: a.deadline_at };
   if (a.status === 'running') {
     v.draft = await readDraft(a);
-    if (withQuestions) v.questions = publicQuestions();
+    if (withQuestions) v.questions = await publicQuestions(a.sprint_id);
   } else {
     v.submittedAt = a.submitted_at;
     v.result = resultView(a);
@@ -107,8 +129,8 @@ export async function startAttempt(who) {
   return getAttempt(who, sprint);
 }
 
-export function cleanAnswers(body) {
-  const qs = getQuestions(), out = { mcq: {}, text: {}, code: {} };
+export function cleanAnswers(body, qs) {
+  const out = { mcq: {}, text: {}, code: {} };
   const src = body || {};
   qs.forEach((q, i) => {
     if (q.type === 'mcq') {
@@ -130,20 +152,19 @@ export async function saveDraft(who, body) {
   if (!a || a.status !== 'running') throw new SprintError('NOT_RUNNING', 'No Sprint in progress.', 409);
   const sprint = await getSprint();
   if (Date.now() > a.deadline_at + sprint.graceMs) throw new SprintError('TIME_UP', 'Time is up.', 409);
-  await writeDraft(a, cleanAnswers(body));
+  await writeDraft(a, cleanAnswers(body, await getQuestions(a.sprint_id)));
 }
 
 export async function checkCode(who, index, code) {
   const a = await getAttempt(who);
   if (!a || a.status !== 'running') throw new SprintError('NOT_RUNNING', 'No Sprint in progress.', 409);
-  const q = getQuestions()[index];
+  const q = (await getQuestions(a.sprint_id))[index];
   if (!q || q.type !== 'code') throw new SprintError('BAD_QUESTION', 'Not a coding question.');
   const r = await runTests(String(code || '').slice(0, 20000), q.tests);
   return r.map((x) => ({ pass: x.pass }));
 }
 
-async function grade(answers, prevDetail) {
-  const qs = getQuestions();
+async function grade(answers, prevDetail, qs) {
   let mcqRight = 0, mcqN = 0, codeScore = 0, probDone = 0, probN = 0, textN = 0, maxT = 0, textScore = 0;
   const codeRes = {}, perQ = [];
   const textMarks = (prevDetail && prevDetail.textMarks) || {};
@@ -187,7 +208,7 @@ async function finalize(a, answers, auto) {
   // Only one instance grades a given attempt.
   if (!(await kv.setNX('grading:' + a.id, '1', 60))) throw new SprintError('BUSY', 'Already grading. Try again in a moment.', 409);
   try {
-    const g = await grade(answers, parseJSON(a.detail, {}));
+    const g = await grade(answers, parseJSON(a.detail, {}), await getQuestions(a.sprint_id));
     const now = Date.now(), submittedAt = auto ? Math.min(now, a.deadline_at) : now;
     const used = Math.max(0, Math.min(submittedAt, a.deadline_at) - a.started_at);
     await run(`UPDATE attempts SET status = 'submitted', submitted_at = ?, auto_submitted = ?, answers = ?, detail = ?, mcq_score = ?, code_score = ?,
@@ -206,7 +227,8 @@ export async function submitAttempt(who, body) {
   if (!a) throw new SprintError('NOT_STARTED', 'You have not started the Sprint.', 409);
   if (a.status === 'submitted') return a;
   const late = Date.now() > a.deadline_at + (await getSprint()).graceMs;
-  const answers = late ? cleanAnswers(await readDraft(a)) : cleanAnswers(body);
+  const qs = await getQuestions(a.sprint_id);
+  const answers = late ? cleanAnswers(await readDraft(a), qs) : cleanAnswers(body, qs);
   if (!late) writeDraft(a, answers).catch(() => {}); // keep the latest answers if grading is interrupted
   return finalize(a, answers, late);
 }
@@ -218,7 +240,7 @@ export async function finalizeExpired({ limit = 300, budgetMs = 45000 } = {}) {
   let done = 0;
   for (let i = 0; i < due.length && Date.now() - t0 < budgetMs; i += 8) {
     await Promise.all(due.slice(i, i + 8).map(async (a) => {
-      try { await finalize(a, cleanAnswers(await readDraft(a)), true); done++; } catch (e) { if (e.code !== 'BUSY') console.error('[sprint] auto-submit failed', a.id, e.message); }
+      try { await finalize(a, cleanAnswers(await readDraft(a), await getQuestions(a.sprint_id)), true); done++; } catch (e) { if (e.code !== 'BUSY') console.error('[sprint] auto-submit failed', a.id, e.message); }
     }));
   }
   if (done) await clearBoardCache();
@@ -228,7 +250,7 @@ export async function finalizeExpired({ limit = 300, budgetMs = 45000 } = {}) {
 export async function setTextMarks(attemptId, marks) {
   const a = await one('SELECT * FROM attempts WHERE id = ?', attemptId);
   if (!a || a.status !== 'submitted') throw new SprintError('NOT_FOUND', 'Submitted attempt not found.', 404);
-  const qs = getQuestions(), d = parseJSON(a.detail, {});
+  const qs = await getQuestions(a.sprint_id), d = parseJSON(a.detail, {});
   const tm = { ...(d.textMarks || {}) };
   for (const [k, v] of Object.entries(marks || {})) {
     const i = Number(k);

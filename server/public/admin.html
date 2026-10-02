@@ -239,7 +239,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ------------------------------------------------------------------ layout
   var NAV = [
-    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'],
+    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'],
     ['media', 'Learning bytes'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
@@ -537,7 +537,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             var pick = ans.mcq ? ans.mcq[i] : undefined;
             body.push(h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, q.o.map(function (o, k) {
               var cls = 'opt' + (k === q.c ? ' correct' : '') + (k === pick ? ' picked' : '') + (k === pick && k !== q.c ? ' wrong' : '');
-              return h('div', { class: cls }, h('span', { class: 'mono' }, 'ABCD'[k]), h('span', { style: 'flex-grow:1' }, o), k === q.c ? pill('correct', 'ok') : null, k === pick ? pill('picked', k === q.c ? 'ok' : 'bad') : null);
+              return h('div', { class: cls }, h('span', { class: 'mono' }, 'ABCDEF'[k]), h('span', { style: 'flex-grow:1' }, o), k === q.c ? pill('correct', 'ok') : null, k === pick ? pill('picked', k === q.c ? 'ok' : 'bad') : null);
             })), pick === undefined ? h('div', { class: 'muted' }, 'Not answered.') : null);
           } else if (q.type === 'code') {
             var code = ans.code ? ans.code[i] : '';
@@ -593,6 +593,109 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           }) : h('tr', null, h('td', { colspan: 10, class: 'muted' }, 'No submissions yet.'))))));
     });
   };
+
+  // ---------- Sprint questions (one set per Sprint ID; super admins edit, everyone else reads)
+  CACHE.questions = { sprint: '' };
+  VIEWS.questions = function () {
+    var st = CACHE.questions;
+    return api('GET', '/api/admin/sprints').then(function (sp) {
+      if (!st.sprint || !sp.sprints.some(function (s) { return s.id === st.sprint; })) st.sprint = (sp.sprints.find(function (s) { return s.current; }) || sp.sprints[0]).id;
+      return api('GET', '/api/admin/sprints/' + encodeURIComponent(st.sprint) + '/questions').then(function (d) {
+        var canEdit = isSuper() && !d.locked, custom = d.source === 'custom';
+        var base = '/api/admin/sprints/' + encodeURIComponent(d.sprintId) + '/questions';
+        var unitTitle = function (id) { var u = d.units.find(function (x) { return x.id === id; }); return u ? u.title : ''; };
+        var sel = h('select', { onchange: function () { st.sprint = this.value; refresh(); } }, sp.sprints.map(function (s) {
+          return h('option', { value: s.id, selected: s.id === st.sprint ? true : null }, s.id + (s.current ? ' (current)' : '') + (s.attempts ? ' · ' + s.attempts + ' attempts' : ''));
+        }));
+        var move = function (i, dir) {
+          var ids = d.questions.map(function (q) { return q.id; }), j = i + dir;
+          if (j < 0 || j >= ids.length) return;
+          var t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+          api('POST', base + '/reorder', { ids: ids }).then(refresh, fail);
+        };
+        var copyFrom = function () {
+          var others = sp.sprints.filter(function (s) { return s.id !== d.sprintId && s.questions; });
+          var dd = drawer();
+          dd.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+            header('~/admin/questions/copy', 'Copy questions into ' + d.sprintId, 'Start from an existing set, then edit, add or delete questions.'),
+            h('button', { class: 'btn pri', onclick: function () { api('POST', base + '/copy', { from: 'builtin' }).then(function (r) { toast(r.count + ' questions copied.'); dd.close(); refresh(); }, fail); } }, 'Copy the built-in questions (' + (custom ? '' : d.questions.length + ' ') + 'from the portal)'),
+            others.length ? h('div', { class: 'card' }, h('h2', null, 'Or copy from another Sprint'), others.map(function (s) {
+              return h('div', { class: 'row', style: 'justify-content:space-between;margin:6px 0' }, h('span', null, s.id + ' · ' + s.questions + ' questions'),
+                h('button', { class: 'btn sm', onclick: function () { api('POST', base + '/copy', { from: s.id }).then(function (r) { toast(r.count + ' questions copied.'); dd.close(); refresh(); }, fail); } }, 'Copy'));
+            })) : null));
+        };
+        var head = [];
+        if (d.locked) head.push(h('div', { class: 'note warn' }, d.attempts + ' student' + (d.attempts === 1 ? ' has' : 's have') + ' started this Sprint, so its questions are locked: answers are stored by question number. For a new set, set a new Sprint ID in Sprint settings.'));
+        else if (!custom) head.push(h('div', { class: 'note' }, 'This Sprint uses the built-in questions from the portal (shown below). ' + (isSuper() ? 'Copy them to edit them, or add your first question to start an empty set.' : 'A super admin can replace them.')));
+        if (!isSuper()) head.push(h('div', { class: 'note' }, 'Read-only. Only a super admin can change questions.'));
+        var list = d.questions.map(function (q, i) {
+          return h('div', { class: 'q' },
+            h('div', { class: 'row', style: 'justify-content:space-between' },
+              h('div', { class: 'row' }, h('b', null, 'Q' + (i + 1)), pill(d.courses[q.course] || q.course, ''), q.unit ? pill(unitTitle(q.unit) || q.unit, 'info') : pill('no unit', 'warn')),
+              canEdit && custom ? h('div', { class: 'row', style: 'gap:6px' },
+                h('button', { class: 'btn sm', title: 'Move up', disabled: i === 0 ? true : null, onclick: function () { move(i, -1); } }, '↑'),
+                h('button', { class: 'btn sm', title: 'Move down', disabled: i === d.questions.length - 1 ? true : null, onclick: function () { move(i, 1); } }, '↓'),
+                h('button', { class: 'btn sm', onclick: function () { questionForm(d, q, base); } }, 'Edit'),
+                h('button', { class: 'btn sm bad', onclick: function () { if (confirm('Delete Q' + (i + 1) + '?')) api('DELETE', base + '/' + q.id).then(function () { toast('Question deleted.'); refresh(); }, fail); } }, 'Delete')) : null),
+            h('div', { style: 'font-weight:700;line-height:1.45;white-space:pre-wrap' }, q.q),
+            q.code ? h('pre', { class: 'code' }, q.code) : null,
+            q.type === 'mcq' ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, q.o.map(function (o, k) {
+              return h('div', { class: 'opt' + (k === q.c ? ' correct' : '') }, h('span', { class: 'mono' }, 'ABCDEF'[k]), h('span', { style: 'flex-grow:1' }, o), k === q.c ? pill('correct', 'ok') : null);
+            })) : h('div', { class: 'muted' }, q.type + ' question (built-in)'));
+        });
+        return h('div', { style: 'display:flex;flex-direction:column;gap:14px;max-width:980px' },
+          header('~/admin/questions', 'Sprint questions', d.questions.length + ' questions · ' + d.maxTotal + ' marks · ' + (custom ? 'own set for this Sprint' : 'built-in set'),
+            [sel, canEdit && !custom ? h('button', { class: 'btn', onclick: copyFrom }, 'Copy questions…') : null,
+              canEdit ? h('button', { class: 'btn pri', onclick: function () {
+                if (!custom && !confirm('Start an empty set for ' + d.sprintId + '? The built-in questions will no longer be used for this Sprint. To keep and edit them, use "Copy questions…" instead.')) return;
+                questionForm(d, null, base);
+              } }, 'Add question') : null]),
+          head, list.length ? list : h('div', { class: 'muted' }, 'No questions yet.'));
+      });
+    });
+  };
+
+  function questionForm(d, q, base) {
+    var dd = drawer();
+    q = q || { course: 'pf', unit: '', q: '', code: '', o: ['', '', '', ''], c: 0 };
+    var opts = q.o.slice(), correct = q.c;
+    var f = {
+      q: h('textarea', { rows: 3, style: 'width:100%' }), code: h('textarea', { rows: 4, style: 'width:100%;font-family:JetBrains Mono,monospace', placeholder: 'Optional, e.g.\nfor i in range(3):\n    print(i)' }),
+      course: h('select', null, Object.keys(d.courses).map(function (c) { return h('option', { value: c, selected: c === q.course ? true : null }, d.courses[c]); })),
+      unit: h('select')
+    };
+    f.q.value = q.q; f.code.value = q.code || '';
+    var fillUnits = function () {
+      f.unit.replaceChildren.apply(f.unit, [h('option', { value: '' }, '— choose a unit —')].concat(d.units.filter(function (u) { return u.course === f.course.value; })
+        .map(function (u) { return h('option', { value: u.id, selected: u.id === q.unit ? true : null }, u.title); })));
+    };
+    f.course.addEventListener('change', function () { q.unit = ''; fillUnits(); });
+    fillUnits();
+    var optBox = h('div', { style: 'display:flex;flex-direction:column;gap:8px' });
+    var drawOpts = function () {
+      optBox.replaceChildren.apply(optBox, opts.map(function (o, i) {
+        var inp = h('input', { type: 'text', value: o, placeholder: 'Option ' + 'ABCDEF'[i], style: 'flex-grow:1', oninput: function () { opts[i] = this.value; } });
+        return h('div', { class: 'row', style: 'flex-wrap:nowrap' },
+          h('label', { class: 'row', style: 'gap:6px;white-space:nowrap', title: 'Correct answer' }, h('input', { type: 'radio', name: 'qcorrect', checked: i === correct, onchange: function () { correct = i; } }), h('b', { class: 'mono' }, 'ABCDEF'[i])),
+          inp, opts.length > 2 ? h('button', { class: 'btn sm', type: 'button', title: 'Remove option', onclick: function () { opts.splice(i, 1); if (correct >= opts.length) correct = opts.length - 1; else if (i < correct) correct--; drawOpts(); } }, '✕') : null);
+      }).concat(opts.length < 6 ? [h('button', { class: 'btn sm', type: 'button', style: 'align-self:flex-start', onclick: function () { opts.push(''); drawOpts(); } }, '+ Add option')] : []));
+    };
+    drawOpts();
+    var save = function (e) {
+      e.preventDefault();
+      var body = { q: f.q.value, code: f.code.value, options: opts, correct: correct, course: f.course.value, unit: f.unit.value };
+      if (!body.unit && !confirm('No unit chosen. The review groups this question under its course instead of a unit. Save anyway?')) return;
+      (q.id ? api('PUT', base + '/' + q.id, body) : api('POST', base, body)).then(function () { toast(q.id ? 'Question saved.' : 'Question added.'); dd.close(); refresh(); }, fail);
+    };
+    dd.set(h('form', { onsubmit: save, style: 'display:flex;flex-direction:column;gap:14px' },
+      header('~/admin/questions/' + (q.id || 'new'), q.id ? 'Edit question' : 'Add question', d.sprintId),
+      h('div', { class: 'grid g2' }, h('div', { class: 'field' }, h('label', null, 'Course'), f.course), h('div', { class: 'field' }, h('label', null, 'Learning unit'), f.unit)),
+      h('div', { class: 'field' }, h('label', null, 'Question'), f.q),
+      h('div', { class: 'field' }, h('label', null, 'Code snippet (optional)'), f.code),
+      h('div', { class: 'field' }, h('label', null, 'Options: tick the correct one'), optBox),
+      h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'submit' }, q.id ? 'Save question' : 'Add question'), h('button', { class: 'btn', type: 'button', onclick: dd.close }, 'Cancel'))));
+    setTimeout(function () { f.q.focus(); }, 50);
+  }
 
   // ---------- student analytics (super admin): time, clicks, units, videos, logins per student
   var AREA_NAMES = { home: 'Home', learn: 'Learn', practice: 'Practice', code: 'Write code', test: 'Sprint test', board: 'Leaderboard' };
@@ -1213,6 +1316,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         sprint_close: h('input', { type: 'datetime-local', value: localInput(s.close), disabled: ro || null }),
         sprint_duration_min: h('input', { type: 'number', min: 1, max: 600, value: s.durationMin, disabled: ro || null }),
         leaderboard_visible: h('input', { type: 'checkbox', checked: s.leaderboardVisible, disabled: ro || null }),
+        review_mode: h('select', { disabled: ro || null }, [['after_close', 'After the Sprint closes'], ['after_submit', 'Right after each student submits'], ['hidden', 'Hidden (no review)']].map(function (o) { return h('option', { value: o[0], selected: d.reviewMode === o[0] ? true : null }, o[1]); })),
         registration_auto_approve: h('input', { type: 'checkbox', checked: d.registrationAutoApprove, disabled: ro || null }),
         student_login_mode: h('select', { disabled: ro || null }, [['simple', 'Simple: NIAT ID + name (initial roll-out)'], ['secure', 'Secure: phone code, password and approval']].map(function (o) { return h('option', { value: o[0], selected: d.loginMode === o[0] ? true : null }, o[1]); })),
         proctor_enabled: h('input', { type: 'checkbox', checked: d.proctor.enabled, disabled: ro || null }),
@@ -1227,7 +1331,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         h('form', { class: 'card', style: 'display:flex;flex-direction:column;gap:14px', onsubmit: function (e) {
           e.preventDefault();
           var body = { sprint_title: f.sprint_title.value, sprint_id: f.sprint_id.value, sprint_open: new Date(f.sprint_open.value).toISOString(), sprint_close: new Date(f.sprint_close.value).toISOString(),
-            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, registration_auto_approve: f.registration_auto_approve.checked, student_login_mode: f.student_login_mode.value,
+            sprint_duration_min: Number(f.sprint_duration_min.value), leaderboard_visible: f.leaderboard_visible.checked, review_mode: f.review_mode.value, registration_auto_approve: f.registration_auto_approve.checked, student_login_mode: f.student_login_mode.value,
             proctor_enabled: f.proctor_enabled.checked, proctor_fullscreen: f.proctor_fullscreen.checked, proctor_block_copy: f.proctor_block_copy.checked, proctor_max_violations: Number(f.proctor_max_violations.value) };
           if (body.registration_auto_approve && !d.registrationAutoApprove && !confirm('Auto-approve lets anyone who knows a NIAT ID register it with any phone, without review. Use only for load tests or a trusted cohort. Turn it on?')) return;
           if (body.student_login_mode === 'simple' && d.loginMode !== 'simple' && !confirm('Simple log-in has no password: anyone who knows the NIAT ID and name of a student can log in as them. Use it only for the initial roll-out. Switch?')) return;
@@ -1240,6 +1344,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'field' }, h('label', null, 'Opens (' + tz + ')'), f.sprint_open),
             h('div', { class: 'field' }, h('label', null, 'Closes (' + tz + ')'), f.sprint_close),
             h('div', { class: 'field' }, h('label', null, 'Duration per student (minutes)'), f.sprint_duration_min),
+            h('div', { class: 'field' }, h('label', null, 'Students see the answers review'), f.review_mode),
             h('label', { class: 'row', style: 'margin-top:22px' }, f.leaderboard_visible, 'Leaderboard visible to students'),
             h('label', { class: 'row', style: 'margin-top:4px' }, f.registration_auto_approve, h('span', null, 'Auto-approve registrations ', h('span', { class: 'muted' }, '(skips the approval step; load tests only)')))),
           h('h2', { style: 'margin:8px 0 0' }, 'Student log-in'),

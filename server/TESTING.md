@@ -104,6 +104,17 @@ Mark each ✅ / ❌ per browser. *Expected* is what should happen.
 | C13 | Click *Learn* or *Practice* while the test runs | "Finish and submit the Sprint first" |
 | C14 | Admin → Results → *Proctoring flags* → open the attempt | Violation counts and a timeline of every event |
 
+### C2. Sprint questions and the answers review
+| # | Steps | Expected |
+|---|---|---|
+| Q1 | Admin → Sprint questions (current Sprint) | The built-in 18 questions, read-only, "uses the built-in questions" |
+| Q2 | Sprint settings → set a new Sprint ID → Sprint questions → *Copy questions…* → built-in | 18 questions copied; Edit, Delete, ↑ ↓ appear |
+| Q3 | *Add question*: course, unit, text, code, 4–6 options, tick the correct one | Appears at the end; the test shows it with letters A–F |
+| Q4 | A student starts the test → try to edit a question | "…students have already started this Sprint…" (locked) |
+| Q5 | Sprint settings → *Students see the answers review* = After the Sprint closes → submit as a student | Result card: "review opens when the Sprint closes"; /review says the same |
+| Q6 | Set it to *Right after each student submits* → open /review | Every question with your answer (red if wrong) and the correct one (green), score per unit, "revise this" under 60% |
+| Q7 | Set it to *Hidden* | No review button; /review says it is not available |
+
 ### D. Leaderboard
 | # | Steps | Expected |
 |---|---|---|

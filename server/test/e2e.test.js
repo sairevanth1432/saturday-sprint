@@ -629,3 +629,78 @@ test('student analytics: active time, unit clicks, video watched, logins per stu
   assert.match(csv.text, /SIMPLE01/);
   assert.equal((await c('GET', '/api/admin/analytics/overview')).status, 401);
 });
+
+test('Sprint questions: per-Sprint sets managed by admins, locked once students start; grading and the review use them', async () => {
+  const cur = (await ADM('GET', '/api/admin/settings')).body.sprint;
+  const b0 = await ADM('GET', '/api/admin/sprints/' + cur.id + '/questions');
+  assert.equal(b0.body.source, 'builtin');
+  assert.equal(b0.body.questions.length, Q.length);
+  // build a set for a new Sprint
+  const S = 'qtest-1', base = '/api/admin/sprints/' + S + '/questions';
+  assert.equal((await ADM('POST', base + '/copy', { from: 'builtin' })).body.count, Q.length);
+  assert.equal((await ADM('POST', base + '/copy', { from: 'builtin' })).body.error, 'NOT_EMPTY');
+  assert.equal((await ADM('POST', base, { q: 'x', options: ['only one'], correct: 0, course: 'pf' })).body.error, 'BAD_QUESTION');
+  assert.equal((await ADM('POST', base, { q: 'x', options: ['a', 'b'], correct: 0, course: 'genai', unit: 'tp-nested' })).body.error, 'BAD_QUESTION', 'unit must belong to the course');
+  const add = await ADM('POST', base, { q: 'Which keyword starts a nested condition?', options: ['loop', 'for', 'while', 'if'], correct: 3, course: 'pf', unit: 'tp-nested' });
+  assert.equal(add.status, 200, JSON.stringify(add.body));
+  const tmp = await ADM('POST', base, { q: 'Temporary', options: ['a', 'b'], correct: 1, course: 'genai' });
+  const edited = await ADM('PUT', base + '/' + tmp.body.question.id, { q: 'Temporary (edited)', options: ['a', 'b', 'c'], correct: 2, course: 'genai' });
+  assert.equal(edited.body.question.c, 2);
+  assert.equal((await ADM('DELETE', base + '/' + tmp.body.question.id)).status, 200);
+  let list = (await ADM('GET', base)).body;
+  assert.equal(list.source, 'custom'); assert.equal(list.questions.length, Q.length + 1);
+  // move the new question to the top
+  const ids = list.questions.map((q) => q.id); ids.unshift(ids.pop());
+  assert.equal((await ADM('POST', base + '/reorder', { ids })).status, 200);
+  assert.equal((await ADM('POST', base + '/reorder', { ids: ids.slice(1) })).body.error, 'BAD_ORDER');
+  list = (await ADM('GET', base)).body;
+  assert.equal(list.questions[0].q, 'Which keyword starts a nested condition?');
+  assert.ok((await ADM('GET', '/api/admin/sprints')).body.sprints.some((s) => s.id === S && s.questions === Q.length + 1));
+
+  // an admin preview does not lock the set
+  const S2base = '/api/admin/sprints/qtest-2/questions';
+  await ADM('PATCH', '/api/admin/settings', { sprint_id: 'qtest-2' });
+  await ADM('POST', S2base, { q: 'Preview me', options: ['a', 'b'], correct: 0, course: 'pf' });
+  assert.equal((await ADM('POST', '/api/sprint/start')).status, 200);
+  assert.equal((await ADM('POST', S2base, { q: 'Still editable', options: ['a', 'b'], correct: 0, course: 'pf' })).status, 200);
+
+  // make qtest-1 the live Sprint, review after close
+  const now = Date.now();
+  assert.equal((await ADM('PATCH', '/api/admin/settings', { sprint_id: S, sprint_open: new Date(now - 60000).toISOString(), sprint_close: new Date(now + 3600000).toISOString(), review_mode: 'after_close' })).status, 200);
+  const c = client();
+  await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' });
+  const boot = await c('GET', '/api/bootstrap');
+  assert.equal(boot.body.sprint.types.length, Q.length + 1);
+  assert.equal(boot.body.sprint.reviewMode, 'after_close');
+  const st = await c('POST', '/api/sprint/start');
+  assert.equal(st.body.attempt.questions[0].o.length, 4);
+  assert.ok(st.body.attempt.questions.every((q) => q.c === undefined), 'no answers before submitting');
+  assert.equal((await ADM('POST', base, { q: 'Too late', options: ['a', 'b'], correct: 0, course: 'pf' })).body.error, 'LOCKED');
+  assert.equal((await ADM('PUT', base + '/' + list.questions[0].id, { q: 'Changed', options: ['a', 'b'], correct: 0, course: 'pf' })).body.error, 'LOCKED');
+  assert.equal((await c('GET', '/api/sprint/review')).body.reason, 'not_submitted');
+  // all right except question 2 (wrong on purpose)
+  const mcq = {}; list.questions.forEach((q, i) => { if (q.type === 'mcq') mcq[i] = i === 1 ? (q.c + 1) % q.o.length : q.c; });
+  const sub = await c('POST', '/api/sprint/submit', { mcq });
+  assert.equal(sub.body.attempt.result.score, Q.length, 'graded with this Sprint\'s set, a 4-option question included');
+
+  let rv = (await c('GET', '/api/sprint/review')).body;
+  assert.equal(rv.open, false); assert.equal(rv.reason, 'before_close');
+  assert.ok(!JSON.stringify(rv).includes('"correct"'), 'no answers before the review opens');
+  await ADM('PATCH', '/api/admin/settings', { review_mode: 'hidden' });
+  assert.equal((await c('GET', '/api/sprint/review')).body.reason, 'hidden');
+  await ADM('PATCH', '/api/admin/settings', { review_mode: 'after_submit' });
+  rv = (await c('GET', '/api/sprint/review')).body;
+  assert.equal(rv.open, true);
+  assert.equal(rv.items.length, Q.length + 1);
+  assert.deepEqual([rv.items[0].pick, rv.items[0].correct, rv.items[0].right, rv.items[0].unitTitle], [3, 3, true, 'Nested Conditional Statements']);
+  assert.equal(rv.items[1].right, false);
+  const nested = rv.byUnit.find((u) => u.unit === 'tp-nested');
+  assert.deepEqual([nested.right, nested.of], [1, 1]);
+  assert.equal(rv.byCourse.reduce((n, x) => n + x.right, 0), Q.length);
+  // after_close opens once the Sprint has closed
+  await ADM('PATCH', '/api/admin/settings', { review_mode: 'after_close', sprint_close: new Date(Date.now() - 1000).toISOString() });
+  assert.equal((await c('GET', '/api/sprint/review')).body.open, true);
+  assert.equal((await client()('GET', '/api/sprint/review')).status, 401);
+  assert.equal((await client()('GET', '/review')).status, 200);
+  await ADM('PATCH', '/api/admin/settings', { sprint_id: cur.id, sprint_open: cur.open, sprint_close: cur.close });
+});

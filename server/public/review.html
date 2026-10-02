@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saturday Sprint · Answer review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=JetBrains+Mono:wght@400;500;700;800&amp;family=VT323&amp;display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0A0A;--panel:#151515;--well:#050505;--line:#2A2A2A;--muted:#8A8A8A;--soft:#BDBDBD;--text:#FFFFFF;--accent:#FFE45C;--bad:#FF7A7A;--good:#9BE58B}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"JetBrains Mono",system-ui,sans-serif}
+body{background-image:radial-gradient(1000px 520px at 85% -15%,rgba(255,228,92,.08),transparent 60%)}
+a{color:var(--accent)}
+button{font-family:inherit;cursor:pointer}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;max-width:980px;margin:0 auto;padding:22px 24px}
+.logo{font-family:"Silkscreen",monospace;font-weight:700;font-size:22px;line-height:.95;text-decoration:none;color:var(--text)}
+.logo span{color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:12px;border:2px solid #333;background:transparent;color:var(--text);text-decoration:none;font-weight:800;font-size:14px}
+.btn.on{border-color:var(--accent);color:var(--accent)}
+main{max-width:980px;margin:0 auto;padding:0 24px 80px;display:flex;flex-direction:column;gap:18px}
+.tag{font-family:"VT323",monospace;font-size:22px;color:var(--accent);margin:0}
+h1{font-family:"Silkscreen",monospace;font-weight:700;font-size:38px;line-height:1;margin:8px 0 6px}
+h1 span{color:var(--accent)}
+.sub{color:var(--soft);margin:0;font-size:15px}
+section{background:var(--panel);border-radius:20px;padding:22px 24px;border:1px solid var(--line)}
+h2{margin:0 0 12px;font-size:19px;font-weight:800}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.fact{background:var(--well);border:1px solid var(--line);border-radius:14px;padding:14px}
+.fact .v{font-family:"VT323",monospace;font-size:34px;line-height:1.05;color:var(--accent)}
+.fact .l{font-size:12px;color:var(--soft);font-weight:700}
+.bar{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 92px;gap:12px;align-items:center;margin:10px 0;font-size:14px}
+.bar .t{overflow:hidden;text-overflow:ellipsis}
+.bar .t small{display:block;color:var(--muted);font-size:12px}
+.track{height:14px;border-radius:7px;background:var(--well);overflow:hidden}
+.fill{height:100%;border-radius:7px}
+.bar .n{text-align:right;font-family:"VT323",monospace;font-size:22px}
+.revise{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;border:1px solid var(--bad);color:var(--bad);font-size:11px;font-weight:800}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:12px}
+.q.wrong{border-color:rgba(255,122,122,.45)}
+.qh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--soft)}
+.qh b{font-size:15px;color:var(--text)}
+.badge{padding:2px 10px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid}
+.badge.ok{color:var(--good);border-color:var(--good)}
+.badge.bad{color:var(--bad);border-color:var(--bad)}
+.badge.skip{color:var(--muted);border-color:#444}
+.qt{font-size:16px;font-weight:700;line-height:1.5;white-space:pre-wrap;margin:0}
+pre{margin:0;padding:12px 14px;border-radius:12px;background:var(--well);border:1px solid var(--line);overflow:auto;font-size:14px;line-height:1.5}
+.opt{display:flex;gap:12px;align-items:center;padding:10px 14px;border-radius:12px;border:2px solid #2A2A2A;background:#0D0D0D;font-size:15px}
+.opt .k{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#262626;font-weight:800;flex-shrink:0}
+.opt.correct{border-color:var(--good);background:rgba(155,229,139,.08)}
+.opt.correct .k{background:var(--good);color:#050505}
+.opt.mine{border-color:var(--bad);background:rgba(255,122,122,.08)}
+.opt.mine .k{background:var(--bad);color:#050505}
+.opt .lab{margin-left:auto;font-size:12px;font-weight:800;white-space:nowrap}
+.opt.correct .lab{color:var(--good)}
+.opt.mine .lab{color:var(--bad)}
+.state{text-align:center;padding:40px 24px}
+.state p{color:var(--soft);line-height:1.6;max-width:560px;margin:10px auto 0}
+.muted{color:var(--muted)}
+@media (max-width:700px){.facts{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:28px}.bar{grid-template-columns:1fr 70px}.bar .track{grid-column:1 / -1;order:3}main,.top{padding-left:16px;padding-right:16px}section,.q{padding:18px 16px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="/">Saturday<br><span>Sprint</span></a>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/help">Help</a><a class="btn" href="/">Back to the portal</a></div>
+</header>
+<main id="main"><section class="state"><p>Loading your review…</p></section></main>
+
+<script>
+(function () {
+  var main = document.getElementById('main');
+  function el(tag, attrs) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { if (k === 'class') e.className = attrs[k]; else if (k === 'text') e.textContent = attrs[k]; else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), attrs[k]); else e.setAttribute(k, attrs[k]); });
+    for (var i = 2; i < arguments.length; i++) { var c = arguments[i]; if (c == null || c === false) continue; (Array.isArray(c) ? c : [c]).forEach(function (x) { if (x != null && x !== false) e.appendChild(typeof x === 'string' || typeof x === 'number' ? document.createTextNode(String(x)) : x); }); }
+    return e;
+  }
+  function fmt(ms, o) { try { return new Date(ms).toLocaleString('en-IN', Object.assign({ timeZone: 'Asia/Kolkata' }, o)); } catch (e) { return new Date(ms).toLocaleString(); } }
+  var mmss = function (ms) { var s = Math.round((ms || 0) / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+  var sc = function (x) { return x == null ? '–' : String(Math.round(Number(x) * 100) / 100); };
+  function state(title, text, extra) { main.replaceChildren(el('section', { class: 'state' }, el('p', { class: 'tag', text: '~/review' }), el('h1', null, title), el('p', { text: text }), extra || null)); }
+
+  var sprint = new URLSearchParams(location.search).get('sprint');
+  fetch('/api/sprint/review' + (sprint ? '?sprint=' + encodeURIComponent(sprint) : ''), { credentials: 'same-origin' }).then(function (r) {
+    if (r.status === 401) { location.href = '/login'; return null; }
+    return r.json();
+  }).then(function (d) {
+    if (!d) return;
+    if (d.error) return state('Something went wrong', d.message || 'Try again in a moment.');
+    if (!d.open) {
+      var R = d.result;
+      var score = R ? el('p', null, 'Your score: ', el('b', { text: sc(R.score) + ' / ' + sc(R.maxTotal) }), ' · time ' + mmss(R.usedMs)) : null;
+      if (d.reason === 'not_taken') return state('No test yet', 'You have not taken this Sprint test, so there is nothing to review.');
+      if (d.reason === 'not_submitted') return state('Finish the test first', 'Submit your Sprint test. Your answers review appears here afterwards.');
+      if (d.reason === 'hidden') return state('Review not available', 'The mentors have not opened the answers review for this Sprint.', score);
+      var when = d.sprint && d.sprint.closeMs ? fmt(d.sprint.closeMs, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase() + ' IST' : 'the Sprint closes';
+      return state('Review opens soon', 'Your answers review opens when the Sprint closes, at ' + when + ', so classmates still taking the test cannot see the answers. Come back then.', score);
+    }
+    render(d);
+  }).catch(function () { state('No connection', 'Check your internet and reload the page.'); });
+
+  function render(d) {
+    var R = d.result, items = d.items, mcq = items.filter(function (i) { return i.type === 'mcq'; });
+    var right = mcq.filter(function (i) { return i.right; }).length, skipped = mcq.filter(function (i) { return i.pick === null; }).length;
+    var filter = 'all';
+    var bar = function (g) {
+      var pct = g.of ? Math.round(g.right / g.of * 100) : 0, low = pct < 60;
+      return el('div', { class: 'bar' },
+        el('div', { class: 't' }, g.title, low ? el('span', { class: 'revise', text: 'revise this' }) : null, g.course && g.unit ? el('small', { text: g.course === 'pf' ? 'Programming Foundations' : 'Intro to GenAI' }) : null),
+        el('div', { class: 'track' }, el('div', { class: 'fill', style: 'width:' + pct + '%;background:' + (low ? 'var(--bad)' : pct < 80 ? 'var(--accent)' : 'var(--good)') })),
+        el('div', { class: 'n', text: g.right + ' / ' + g.of }));
+    };
+    var list = el('div', { style: 'display:flex;flex-direction:column;gap:14px' });
+    var drawList = function () {
+      var shown = items.filter(function (i) { return filter === 'all' || (filter === 'wrong' && i.type === 'mcq' && !i.right); });
+      list.replaceChildren.apply(list, shown.length ? shown.map(question) : [el('section', { class: 'state' }, el('p', { text: 'No wrong answers. Well done!' }))]);
+      fbtns.forEach(function (b) { b.className = 'btn' + (b.dataset.f === filter ? ' on' : ''); });
+    };
+    var fbtns = [['all', 'All questions (' + items.length + ')'], ['wrong', 'Only wrong or skipped (' + (mcq.length - right) + ')']].map(function (x) {
+      var b = el('button', { class: 'btn', 'data-f': x[0], onclick: function () { filter = x[0]; drawList(); } }, x[1]); return b;
+    });
+    main.replaceChildren(
+      el('div', null, el('p', { class: 'tag', text: '~/review · ' + (d.sprint.title || d.sprint.id) }), el('h1', null, 'Your ', el('span', { text: 'answers' })),
+        el('p', { class: 'sub', text: 'Green is the correct answer. Red is your answer when it was wrong.' })),
+      el('section', null, el('div', { class: 'facts' },
+        el('div', { class: 'fact' }, el('div', { class: 'v', text: sc(R.score) + ' / ' + sc(R.maxTotal) }), el('div', { class: 'l', text: 'your score' })),
+        el('div', { class: 'fact' }, el('div', { class: 'v', text: right }), el('div', { class: 'l', text: 'correct' })),
+        el('div', { class: 'fact' }, el('div', { class: 'v', text: mcq.length - right - skipped }), el('div', { class: 'l', text: 'wrong' + (skipped ? ' · ' + skipped + ' skipped' : '') })),
+        el('div', { class: 'fact' }, el('div', { class: 'v', text: mmss(R.usedMs) }), el('div', { class: 'l', text: 'time taken' })))),
+      el('section', null, el('h2', { text: 'Score per unit' }),
+        el('p', { class: 'muted', style: 'margin:-6px 0 6px;font-size:13px', text: 'Below 60%: go back to that unit (Watch → Play → Read) and its practice questions.' }),
+        d.byUnit.map(bar),
+        d.byCourse.length > 1 ? el('div', { style: 'margin-top:14px;padding-top:10px;border-top:1px solid var(--line)' }, d.byCourse.map(bar)) : null),
+      el('div', { class: 'filters' }, fbtns),
+      list);
+    drawList();
+  }
+
+  function question(it) {
+    var status = it.type !== 'mcq' ? null : it.pick === null ? el('span', { class: 'badge skip', text: 'skipped' }) : it.right ? el('span', { class: 'badge ok', text: 'correct' }) : el('span', { class: 'badge bad', text: 'wrong' });
+    return el('div', { class: 'q' + (it.type === 'mcq' && !it.right ? ' wrong' : '') },
+      el('div', { class: 'qh' }, el('b', { text: 'Q' + it.n }), status, el('span', { text: it.unitTitle || it.courseTitle })),
+      el('p', { class: 'qt', text: it.q }),
+      it.code ? el('pre', { text: it.code }) : null,
+      it.type === 'mcq' ? el('div', { style: 'display:flex;flex-direction:column;gap:8px' }, it.o.map(function (o, k) {
+        var isC = k === it.correct, mine = k === it.pick;
+        return el('div', { class: 'opt' + (isC ? ' correct' : mine ? ' mine' : '') }, el('span', { class: 'k', text: 'ABCDEF'[k] }), el('span', { text: o }),
+          isC || mine ? el('span', { class: 'lab', text: isC && mine ? 'your answer · correct' : isC ? 'correct answer' : 'your answer' }) : null);
+      })) : el('p', { class: 'muted', text: 'Marked by the panel.' }));
+  }
+})();
+</script>
+</body>
+</html>

@@ -623,6 +623,8 @@
         v.t.probScore = R.probN ? R.probDone + ' / ' + R.probN : '–';
         v.t.used = this.mmss(R.usedMs || 0);
       } else if (v.t.done) { v.t.mcqScore = '…'; v.t.probScore = '…'; }
+      // Test options: the portal letters them A–C; questions can have up to 6 options.
+      if (v.tq && Array.isArray(v.tq.opts)) v.tq.opts.forEach(function (o, i) { o.k = 'ABCDEF'[i]; });
       v.t.start = function () {
         if (self._p && self.ssProctorCfg().enabled) { self._p.rules = true; self.ssOverlay(); return; }
         self.ssStart();
@@ -750,6 +752,15 @@
         banner: { on: U.kind === 'admin', text: 'Admin preview: you are viewing the student portal. Your test attempts are not saved to the leaderboard.' },
         toast: { on: !!S.ssToast, text: S.ssToast ? S.ssToast.text : '', ring: S.ssToast && S.ssToast.err ? '#FF7A7A' : '#9BE58B' },
         submit: { pending: !!S.ssSubmitting || (!!v.t.done && !R && !S.ssSubmitErr), failed: !!S.ssSubmitErr && !R, error: S.ssSubmitErr || '', retry: function () { self._ssRetryAt = 0; self.gradeTest(); } },
+        review: (function () {
+          var mode = self.ss.sprint.reviewMode || 'after_close', admin = U.kind === 'admin';
+          if (!R || (mode === 'hidden' && !admin)) return { on: false, text: '', label: '', open: null };
+          var waiting = !admin && mode === 'after_close' && Date.now() + clock.offset < self.ss.sprint.closeMs;
+          return { on: true, label: waiting ? 'Open review page' : 'Review my answers',
+            text: waiting ? 'Your answers review opens when the Sprint closes at ' + when.close + ' IST: each question with the correct answer, and your score per unit.'
+              : 'See each question with your answer and the correct one, and your score per unit.',
+            open: function () { window.open('/review', '_blank', 'noopener'); } };
+        })(),
         result: {
           on: !!R, score: R ? fmtScore(R.score) + ' / ' + fmtScore(R.maxTotal) : '',
           note: R ? (R.endedByViolations ? 'Submitted automatically: too many proctoring violations.' : R.textPending ? 'Written problems are marked by the panel. Your total and rank update when marks are added.' : R.autoSubmitted ? 'Auto-submitted when time ran out.' : 'All parts marked.') : ''

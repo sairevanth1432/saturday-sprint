@@ -2,7 +2,7 @@
 // the server stores it as a timeline per attempt, counts violations and, past the limit set in Sprint settings,
 // submits the attempt automatically from the student's saved answers.
 import { one, all, run, getSetting, parseJSON } from './db.js';
-import { getAttempt, readDraft, cleanAnswers, finalizeAttempt, SprintError } from './sprint.js';
+import { getAttempt, readDraft, cleanAnswers, finalizeAttempt, getQuestions, SprintError } from './sprint.js';
 import * as kv from './kv.js';
 
 // Counted as violations (each one shows the student a warning).
@@ -77,7 +77,8 @@ export async function recordEvents(who, body) {
 
   // Over the limit: submit now, from the answers sent with this report (or the last autosave).
   if (settings.enabled && settings.maxViolations > 0 && violations >= settings.maxViolations) {
-    const answers = b.answers ? cleanAnswers(b.answers) : cleanAnswers(await readDraft(a));
+    const qs = await getQuestions(a.sprint_id);
+    const answers = b.answers ? cleanAnswers(b.answers, qs) : cleanAnswers(await readDraft(a), qs);
     s.endedBy = 'violations';
     await run('UPDATE attempts SET proctor = ? WHERE id = ?', JSON.stringify(s), a.id);
     try {
