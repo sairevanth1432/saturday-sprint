@@ -704,3 +704,36 @@ test('Sprint questions: per-Sprint sets managed by admins, locked once students 
   assert.equal((await client()('GET', '/review')).status, 200);
   await ADM('PATCH', '/api/admin/settings', { sprint_id: cur.id, sprint_open: cur.open, sprint_close: cur.close });
 });
+
+test('super admin tests any Sprint at any time: preview another set, take it outside the window, restart; students unaffected', async () => {
+  const before = (await ADM('GET', '/api/admin/settings')).body.sprint;
+  await ADM('PATCH', '/api/admin/settings', { sprint_open: new Date(Date.now() + 86400000).toISOString(), sprint_close: new Date(Date.now() + 2 * 86400000).toISOString() });
+  const live = (await ADM('GET', '/api/admin/settings')).body.sprint;
+  await ADM('POST', '/api/admin/sprints/pv-1/questions', { q: 'Preview only?', options: ['yes', 'no'], correct: 0, course: 'pf' });
+  const set = await ADM('POST', '/api/admin/preview', { sprintId: 'pv-1' });
+  assert.equal(set.body.previewSprint, 'pv-1');
+  assert.ok((await ADM('GET', '/api/admin/sprints')).body.sprints.some((s) => s.id === 'pv-1'));
+  const boot = await ADM('GET', '/api/bootstrap');
+  assert.equal(boot.body.sprint.previewOf, 'pv-1');
+  assert.equal(boot.body.sprint.types.length, 1);
+  const st = await ADM('POST', '/api/sprint/start');
+  assert.equal(st.status, 200, 'admins start before the window opens');
+  assert.equal(st.body.attempt.questions[0].q, 'Preview only?');
+  const sub = await ADM('POST', '/api/sprint/submit', { mcq: { 0: 0 } });
+  assert.equal(sub.body.attempt.result.score, 1);
+  assert.equal((await ADM('GET', '/api/sprint/review')).body.open, true, 'admins always see the review');
+  assert.equal((await ADM('POST', '/api/sprint/restart')).status, 200);
+  assert.equal((await ADM('GET', '/api/bootstrap')).body.attempt.status, 'none', 'restart gives a fresh attempt');
+  // students still get the live Sprint, closed
+  const c = client();
+  await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' });
+  const sb = await c('GET', '/api/bootstrap');
+  assert.equal(sb.body.sprint.id, live.id); assert.equal(sb.body.sprint.previewOf, null);
+  assert.equal((await c('POST', '/api/sprint/start')).body.error, 'NOT_OPEN');
+  assert.equal((await c('POST', '/api/sprint/restart')).status, 403);
+  assert.equal(Number((await db.one("SELECT COUNT(*) AS n FROM attempts WHERE sprint_id = 'pv-1' AND roll_no NOT LIKE 'ADMIN-%'")).n), 0);
+  // back to the live Sprint
+  assert.equal((await ADM('POST', '/api/admin/preview', { sprintId: '' })).body.previewSprint, null);
+  assert.equal((await ADM('GET', '/api/bootstrap')).body.sprint.id, live.id);
+  await ADM('PATCH', '/api/admin/settings', { sprint_open: before.open, sprint_close: before.close });
+});

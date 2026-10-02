@@ -17,7 +17,7 @@ import {
 import { normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
 import { readStudents, rowsFrom, importStudents, syncStudentsFile, watchStudentsFile, studentsFilePath, studentCounts, logImport } from './students.js';
 import {
-  SprintError, getSprint, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
+  SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
   submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, clearBoardCache, readDraft, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
@@ -146,7 +146,7 @@ api.get('/info', async (req, res) => {
 
 api.get('/bootstrap', who, async (req, res) => {
   noStore(res);
-  const w = req.who, sprint = await getSprint();
+  const w = req.who, sprint = await sprintFor(w);
   const [a, prog, fb, bytes, proctor] = await Promise.all([
     getAttempt(w, sprint),
     w.kind === 'student' ? one('SELECT data FROM progress WHERE roll_no = ?', w.roll_no) : null,
@@ -159,7 +159,7 @@ api.get('/bootstrap', who, async (req, res) => {
     user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
-      preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id) },
+      preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id), previewOf: sprint.previewOf || null },
     violations: a && a.status === 'running' ? a.violations || 0 : 0,
     attempt: await attemptView(a, { withQuestions: true }),
     testFeedbackDone: !!fb,
@@ -196,6 +196,11 @@ api.post('/activity', who, async (req, res) => {
 api.get('/sprint/review', who, async (req, res) => {
   noStore(res);
   res.json(await reviewFor(req.who, req.query.sprint ? String(req.query.sprint) : null));
+});
+// Admin preview: start the test again from scratch
+api.post('/sprint/restart', who, async (req, res) => {
+  await restartPreview(req.who);
+  res.json({ ok: true });
 });
 api.post('/sprint/submit', who, async (req, res) => {
   const a = await submitAttempt(req.who, req.body);
@@ -528,7 +533,17 @@ adm.delete('/users/:roll', requireSuper, async (req, res) => {
 });
 
 // ---------- Sprint questions (one set per Sprint ID). Everyone can read; super admins edit.
-adm.get('/sprints', async (req, res) => res.json({ sprints: await listSprints() }));
+adm.get('/sprints', async (req, res) => {
+  const mine = await sprintFor({ kind: 'admin', id: req.admin.id });
+  res.json({ sprints: await listSprints({ include: mine.previewOf }), previewSprint: mine.previewOf || null });
+});
+// Which Sprint this super admin's portal preview shows (null = the current Sprint). Students are not affected.
+adm.post('/preview', requireSuper, async (req, res) => {
+  const id = req.body && req.body.sprintId ? String(req.body.sprintId).trim() : '';
+  if (id && !/^[A-Za-z0-9_.-]{3,60}$/.test(id)) return res.status(400).json({ error: 'BAD_SPRINT', message: 'Unknown Sprint ID.' });
+  await setPreviewSprint({ kind: 'admin', id: req.admin.id }, id || null);
+  res.json({ ok: true, previewSprint: (await sprintFor({ kind: 'admin', id: req.admin.id })).previewOf || null });
+});
 adm.get('/sprints/:sid/questions', async (req, res) => res.json(await listQuestions(req.params.sid)));
 adm.post('/sprints/:sid/questions', requireSuper, async (req, res) => {
   const q = await addQuestion(req.params.sid, req.body, req.admin.email);

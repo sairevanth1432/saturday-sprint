@@ -388,6 +388,12 @@ const DONE_BOARD = `
 <button class="b3" onClick="{{ ss.review.open }}" style="flex-shrink: 0; min-height: 46px; padding: 0 20px; border: 0; border-radius: 12px; background: #FFE45C; color: #050505; font-size: 15px; font-weight: 800">{{ ss.review.label }}</button>
 </div>
 </sc-if>
+<sc-if value="{{ ss.again.on }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border: 2px dashed #FFE45C; border-radius: 16px">
+<span style="flex-grow: 1; min-width: 220px; font-size: 15px; line-height: 1.5; color: #EDEDED">{{ ss.again.text }}</span>
+<button class="b3" onClick="{{ ss.again.go }}" style="flex-shrink: 0; min-height: 46px; padding: 0 20px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 15px; font-weight: 800">Take the test again</button>
+</div>
+</sc-if>
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
 <div style="font-size: 20px; font-weight: 800">Leaderboard</div>

@@ -1,7 +1,7 @@
 // Sprint questions managed in Admin → Sprint questions (one set per Sprint ID), and the student review after
 // the test. Answers are stored by question position, so a set is locked once a student has started that Sprint.
 import { one, all, run, tx, getSetting, setSetting, parseJSON } from './db.js';
-import { getSprint, getQuestions, builtinQuestions, clearQuestionCache, rowToQuestion, resultView, SprintError, MARKS } from './sprint.js';
+import { getSprint, sprintFor, getQuestions, builtinQuestions, clearQuestionCache, rowToQuestion, resultView, SprintError, MARKS } from './sprint.js';
 import { packUnits } from './media.js';
 
 const COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
@@ -22,13 +22,15 @@ async function assertUnlocked(sprintId) {
 const rowsOf = (sprintId) => all('SELECT * FROM sprint_questions WHERE sprint_id = ? ORDER BY position, id', sprintId);
 
 // Sprints an admin can pick: the current one, plus any with questions or attempts.
-export async function listSprints() {
+// include: a Sprint ID to list even when it has nothing yet (the one an admin is previewing).
+export async function listSprints({ include } = {}) {
   const cur = await getSprint();
   const rows = await all(`SELECT sprint_id, SUM(q) AS questions, SUM(a) AS attempts FROM (
       SELECT sprint_id, 1 AS q, 0 AS a FROM sprint_questions
       UNION ALL SELECT sprint_id, 0 AS q, 1 AS a FROM attempts WHERE roll_no NOT LIKE 'ADMIN-%') x GROUP BY sprint_id`);
   const list = rows.map((r) => ({ id: r.sprint_id, questions: Number(r.questions), attempts: Number(r.attempts), current: r.sprint_id === cur.id }));
   if (!list.some((s) => s.current)) list.push({ id: cur.id, questions: 0, attempts: 0, current: true });
+  if (include && !list.some((s) => s.id === include)) list.push({ id: include, questions: 0, attempts: 0, current: false });
   return list.sort((a, b) => (b.current - a.current) || a.id.localeCompare(b.id));
 }
 
@@ -142,7 +144,7 @@ export async function setReviewMode(sprintId, mode) {
 
 export async function reviewFor(who, rawSprint) {
   const cur = await getSprint();
-  const sprintId = rawSprint ? checkSprintId(rawSprint) : cur.id;
+  const sprintId = rawSprint ? checkSprintId(rawSprint) : (await sprintFor(who)).id;
   const key = who.kind === 'admin' ? 'ADMIN-' + who.id : who.roll_no;
   const a = await one('SELECT * FROM attempts WHERE sprint_id = ? AND roll_no = ?', sprintId, key);
   const sprint = { id: sprintId, title: sprintId === cur.id ? cur.title : sprintId, closeMs: sprintId === cur.id ? cur.closeMs : null };

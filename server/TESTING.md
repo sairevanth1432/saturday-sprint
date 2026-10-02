@@ -114,6 +114,8 @@ Mark each ✅ / ❌ per browser. *Expected* is what should happen.
 | Q5 | Sprint settings → *Students see the answers review* = After the Sprint closes → submit as a student | Result card: "review opens when the Sprint closes"; /review says the same |
 | Q6 | Set it to *Right after each student submits* → open /review | Every question with your answer (red if wrong) and the correct one (green), score per unit, "revise this" under 60% |
 | Q7 | Set it to *Hidden* | No review button; /review says it is not available |
+| Q8 | Super admin → Sprint questions → pick a Sprint that is not live → *Test this Sprint ↗* | Portal opens with "Admin preview of Sprint …"; the test starts even outside the window; students still see the live Sprint |
+| Q9 | Submit the preview → *Take the test again* | A fresh attempt with the same questions; previews are never ranked |
 
 ### D. Leaderboard
 | # | Steps | Expected |

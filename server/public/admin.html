@@ -599,6 +599,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   VIEWS.questions = function () {
     var st = CACHE.questions;
     return api('GET', '/api/admin/sprints').then(function (sp) {
+      CACHE.previewSprint = sp.previewSprint;
       if (!st.sprint || !sp.sprints.some(function (s) { return s.id === st.sprint; })) st.sprint = (sp.sprints.find(function (s) { return s.current; }) || sp.sprints[0]).id;
       return api('GET', '/api/admin/sprints/' + encodeURIComponent(st.sprint) + '/questions').then(function (d) {
         var canEdit = isSuper() && !d.locked, custom = d.source === 'custom';
@@ -624,7 +625,15 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
                 h('button', { class: 'btn sm', onclick: function () { api('POST', base + '/copy', { from: s.id }).then(function (r) { toast(r.count + ' questions copied.'); dd.close(); refresh(); }, fail); } }, 'Copy'));
             })) : null));
         };
+        var testThis = function () {
+          var cur = sp.sprints.find(function (s) { return s.current; });
+          api('POST', '/api/admin/preview', { sprintId: cur && cur.id === d.sprintId ? '' : d.sprintId }).then(function () {
+            toast('Your portal preview now shows Sprint ' + d.sprintId + '.'); window.open('/', '_blank', 'noopener'); refresh();
+          }, fail);
+        };
         var head = [];
+        if (sp.previewSprint) head.push(h('div', { class: 'note' }, 'Your portal preview shows Sprint ', h('b', null, sp.previewSprint), ' (students see the live Sprint). ',
+          h('a', { href: '#', onclick: function (e) { e.preventDefault(); api('POST', '/api/admin/preview', { sprintId: '' }).then(function () { toast('Preview is back on the live Sprint.'); refresh(); }, fail); } }, 'Preview the live Sprint instead')));
         if (d.locked) head.push(h('div', { class: 'note warn' }, d.attempts + ' student' + (d.attempts === 1 ? ' has' : 's have') + ' started this Sprint, so its questions are locked: answers are stored by question number. For a new set, set a new Sprint ID in Sprint settings.'));
         else if (!custom) head.push(h('div', { class: 'note' }, 'This Sprint uses the built-in questions from the portal (shown below). ' + (isSuper() ? 'Copy them to edit them, or add your first question to start an empty set.' : 'A super admin can replace them.')));
         if (!isSuper()) head.push(h('div', { class: 'note' }, 'Read-only. Only a super admin can change questions.'));
@@ -645,7 +654,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         });
         return h('div', { style: 'display:flex;flex-direction:column;gap:14px;max-width:980px' },
           header('~/admin/questions', 'Sprint questions', d.questions.length + ' questions · ' + d.maxTotal + ' marks · ' + (custom ? 'own set for this Sprint' : 'built-in set'),
-            [sel, canEdit && !custom ? h('button', { class: 'btn', onclick: copyFrom }, 'Copy questions…') : null,
+            [sel, isSuper() && d.questions.length ? h('button', { class: 'btn', title: 'Take this Sprint\'s test in the student portal now (admin preview: any time, never ranked)', onclick: testThis }, 'Test this Sprint ↗') : null,
+              canEdit && !custom ? h('button', { class: 'btn', onclick: copyFrom }, 'Copy questions…') : null,
               canEdit ? h('button', { class: 'btn pri', onclick: function () {
                 if (!custom && !confirm('Start an empty set for ' + d.sprintId + '? The built-in questions will no longer be used for this Sprint. To keep and edit them, use "Copy questions…" instead.')) return;
                 questionForm(d, null, base);

@@ -645,7 +645,7 @@
         dur: mins + ' minutes', durCap: mins + ' minutes', close: sameDay ? tm(sp.closeMs) : day(sp.closeMs) + ', ' + tm(sp.closeMs)
       };
       if (v.status && /closes 11:30 AM/.test(v.status.top || '')) v.status.top = 'Sprint is live · closes ' + when.close;
-      if (this.ss.sprint.preview) v.t.readyNote = '(Admin preview: opens any time, ' + mins + '-minute timer, not ranked.)';
+      if (this.ss.sprint.preview) v.t.readyNote = '(Admin preview' + (sp.previewOf ? ' of Sprint "' + sp.previewOf + '"' : '') + ': opens any time, ' + mins + '-minute timer, not ranked.)';
 
       // Lessons: units are one lesson with three steps (Watch → Play → Read); older lessons keep their own media.
       var CO = this.courseList()[S.course], mod = CO && CO.modules[S.mod], les = mod && mod.lessons[S.les];
@@ -749,7 +749,14 @@
           if (self.ssProctorActive()) { self.ssToast('Help is closed while the test runs. Finish and submit first.', true); return; }
           window.open('/help', '_blank', 'noopener');
         },
-        banner: { on: U.kind === 'admin', text: 'Admin preview: you are viewing the student portal. Your test attempts are not saved to the leaderboard.' },
+        banner: { on: U.kind === 'admin', text: self.ss.sprint.previewOf
+          ? 'Admin preview of Sprint "' + self.ss.sprint.previewOf + '" (not the live Sprint). The test opens any time and is never ranked. Change it in Admin → Sprint questions.'
+          : 'Admin preview: you are viewing the student portal. The test opens any time and your attempts are never ranked.' },
+        again: { on: U.kind === 'admin' && !!R, text: 'Admin preview: start a fresh attempt with the same questions (this result is discarded).',
+          go: function () {
+            if (!confirm('Discard this preview attempt and start the test again?')) return;
+            api('POST', '/api/sprint/restart').then(function () { location.reload(); }, function (e) { self.ssToast(e.message, true); });
+          } },
         toast: { on: !!S.ssToast, text: S.ssToast ? S.ssToast.text : '', ring: S.ssToast && S.ssToast.err ? '#FF7A7A' : '#9BE58B' },
         submit: { pending: !!S.ssSubmitting || (!!v.t.done && !R && !S.ssSubmitErr), failed: !!S.ssSubmitErr && !R, error: S.ssSubmitErr || '', retry: function () { self._ssRetryAt = 0; self.gradeTest(); } },
         review: (function () {
