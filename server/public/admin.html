@@ -889,7 +889,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           }))))),
         h('div', { class: 'grid g2' },
           h('div', { class: 'card' }, h('h2', null, 'Time on units per day'), x.daily.length ? dayChart(x.daily, Math.min(x.days, 60), 'ms', dur) : h('p', { class: 'muted' }, 'No activity in this period.')),
-          h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(spentAreas(x.areas)), h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, TIME_NOTE)))),
+          h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(spentAreas(x.areas)), h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, TIME_NOTE))),
         h('div', { class: 'card' }, h('h2', null, 'Practice by topic'), h('div', { class: 'tablewrap' }, h('table', null,
           h('thead', null, h('tr', null, ['Topic', 'Answered', 'Correct', 'Time'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
           h('tbody', null, x.practice.map(function (t) {

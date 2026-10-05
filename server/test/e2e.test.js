@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'sprint-test-'));
 process.env.DATA_DIR = DATA;
@@ -853,4 +854,14 @@ test('business metrics: every value matches a hand-computed dataset; TEST accoun
   } finally {
     for (const r of others) await db.run('UPDATE students_master SET active = 1 WHERE roll_no = ?', r);
   }
+});
+
+test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
+  for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {
+    const html = fs.readFileSync(path.join(dir, f), 'utf8'), re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+    let m;
+    while ((m = re.exec(html))) assert.doesNotThrow(() => new vm.Script(m[1], { filename: f }), f);
+  }
+  assert.doesNotThrow(() => new vm.Script(fs.readFileSync(path.join(dir, 'portal-bridge.js'), 'utf8'), { filename: 'portal-bridge.js' }));
 });
