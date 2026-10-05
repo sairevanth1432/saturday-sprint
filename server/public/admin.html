@@ -720,11 +720,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     return hh ? hh + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm';
   }
   function bars(rows, opts) { // horizontal bars: [{label, value, text}]
-    var max = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.value; })));
+    var max = opts && opts.max || Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.value || 0; })));
     return h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, rows.map(function (r) {
       return h('div', { style: 'display:grid;grid-template-columns:' + (opts && opts.labelW || '120px') + ' minmax(0,1fr) 80px;gap:10px;align-items:center;font-size:13px' },
         h('span', { class: 'soft', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: r.label }, r.label),
-        h('span', { style: 'height:12px;border-radius:6px;background:var(--well);overflow:hidden' }, h('span', { style: 'display:block;height:100%;width:' + Math.round(r.value / max * 100) + '%;background:' + (r.color || 'var(--accent)') })),
+        h('span', { style: 'height:12px;border-radius:6px;background:var(--well);overflow:hidden' }, h('span', { style: 'display:block;height:100%;width:' + Math.min(100, Math.round((r.value || 0) / max * 100)) + '%;background:' + (r.color || 'var(--accent)') })),
         h('span', { class: 'mono', style: 'text-align:right' }, r.text));
     }));
   }
@@ -738,6 +738,25 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         return h('div', { title: x.day + ': ' + fmt(x.v), style: 'flex:1;min-width:2px;height:' + Math.max(x.v ? 3 : 0, Math.round(x.v / max * 100)) + '%;background:var(--accent);border-radius:3px 3px 0 0;opacity:' + (x.v ? 1 : .2) });
       })),
       h('div', { class: 'row muted', style: 'justify-content:space-between;font-size:12px;margin-top:4px' }, h('span', null, list[0].day), h('span', null, 'peak ' + fmt(max)), h('span', null, list[list.length - 1].day)));
+  }
+
+  function colChart(rows, opts) { // vertical columns: [{label, value, text, color}]; opts.max fixes the scale (e.g. 100 for %)
+    var max = opts && opts.max || Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.value || 0; })));
+    return h('div', null,
+      h('div', { style: 'display:flex;align-items:flex-end;gap:10px;height:150px;border-bottom:1px solid var(--line);padding-top:20px' }, rows.map(function (r) {
+        var v = r.value == null ? 0 : r.value;
+        return h('div', { title: r.label + ': ' + r.text, style: 'flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px' },
+          h('span', { class: 'mono', style: 'font-size:12px;color:' + (r.value == null ? 'var(--muted)' : 'var(--text)') }, r.text),
+          h('div', { style: 'width:100%;max-width:56px;border-radius:4px 4px 0 0;height:' + (r.value == null ? 0 : Math.max(v ? 2 : 0, Math.round(v / max * 100))) + '%;background:' + (r.color || 'var(--accent)') }));
+      })),
+      h('div', { style: 'display:flex;gap:10px;margin-top:6px' }, rows.map(function (r) {
+        return h('div', { class: 'muted', style: 'flex:1;min-width:0;text-align:center;font-size:11px;line-height:1.3;overflow-wrap:anywhere' }, r.label);
+      })));
+  }
+  function legend(items) { // [[color, label]]
+    return h('div', { class: 'row', style: 'gap:14px;font-size:12px;margin-top:10px' }, items.map(function (x) {
+      return h('span', { class: 'muted', style: 'display:inline-flex;align-items:center;gap:6px' }, h('span', { style: 'width:10px;height:10px;border-radius:3px;background:' + x[0] }), x[1]);
+    }));
   }
 
   CACHE.analytics = { days: 30, q: '', sort: 'time', sprint: '' };
@@ -814,23 +833,75 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       }
       loadStudents();
       var since = B.since.activity ? 'Activity data since ' + B.since.activity + ' (IST).' : 'No activity recorded yet.';
+      // ---- Business metrics charts: drawn from the same numbers as the metric cards below them
+      var M = {}; B.funnel.forEach(function (f) { f.metrics.forEach(function (m) { M[m.label] = m; }); });
+      var mv = function (label) { return M[label] && M[label].value != null ? Number(M[label].value) : null; };
+      var J = B.charts.journey, list = J[0].n;
+      var note = function (t) { return h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px;line-height:1.45' }, t); };
+      var journeyCard = h('div', { class: 'card' }, h('h2', null, 'Student journey'),
+        bars(J.map(function (x, i) {
+          return { label: x.label, value: x.n, color: i >= 5 ? 'var(--info)' : 'var(--accent)',
+            text: x.n.toLocaleString('en-IN') + (i && list ? ' · ' + Math.round(x.n / list * 100) + '%' : '') };
+        }), { labelW: '170px', max: Math.max(1, list) }),
+        legend([['var(--accent)', 'Learning'], ['var(--info)', 'Sprint ' + B.sprint.id]]), note('Each bar is a number of students. Percentages are of the student list.'));
+      var rate = function (label, value, color) { return { label: label, value: value, color: color, text: value == null ? '–' : value + '%' }; };
+      var ratesCard = h('div', { class: 'card' }, h('h2', null, 'Rates at a glance'),
+        bars([
+          rate('Registered', list ? Math.round(J[1].n / list * 1000) / 10 : null),
+          rate('Activated', J[1].n ? Math.round(J[2].n / J[1].n * 1000) / 10 : null),
+          rate('Content done', mv('Content completion rate')),
+          rate('Units done', mv('Lesson completion rate')),
+          rate('Practice done', mv('Practice completion rate')),
+          rate('Submitted', mv('Submission rate'), 'var(--info)'),
+          rate('Passed', mv('Pass rate'), 'var(--good)'),
+          rate('DAU / MAU', mv('DAU/MAU'))
+        ], { labelW: '120px', max: 100 }),
+        note('All on one 0–100% scale. Registered is of the list, Activated of registered, completion rates of what students started. “–” means not measurable yet; the cards below say why.'));
+      var activeCard = h('div', { class: 'card' }, h('h2', null, 'Active students'),
+        colChart([['Today', mv('DAU')], ['Last 7 days', mv('WAU')], ['Last 30 days', mv('MAU')], ['Registered', J[1].n]].map(function (x, i) {
+          return { label: x[0], value: x[1], text: x[1] == null ? '–' : x[1].toLocaleString('en-IN'), color: i === 3 ? 'var(--line2)' : 'var(--accent)' };
+        })), note('Students who used the portal in each window, next to everyone registered.'));
+      var retCard = h('div', { class: 'card' }, h('h2', null, 'Retention'),
+        colChart(['D1 retention', 'D7 retention', 'D30 retention', 'Weekly retention'].map(function (l) {
+          var v = mv(l); return { label: l.replace(' retention', ''), value: v, text: v == null ? '–' : v + '%', color: 'var(--good)' };
+        }), { max: 100 }), note('Share of students who came back. “–” until enough days of data exist.'));
+      var topStart = Math.max(1, Math.max.apply(null, B.units.map(function (x) { return x.started; })));
+      var unitsCard = h('div', { class: 'card' }, h('h2', null, 'Units: started vs completed'),
+        B.units.length ? h('div', { style: 'display:flex;flex-direction:column;gap:12px' }, B.units.map(function (u) {
+          var bar = function (n, c) { return h('span', { style: 'display:block;height:8px;border-radius:4px;width:' + Math.round(n / topStart * 100) + '%;background:' + c }); };
+          return h('div', { style: 'display:grid;grid-template-columns:150px minmax(0,1fr) 90px;gap:10px;align-items:center;font-size:13px' },
+            h('span', { class: 'soft', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: u.title }, u.title),
+            h('span', { style: 'display:flex;flex-direction:column;gap:3px;background:var(--well);border-radius:4px;padding:2px 0' }, bar(u.started, 'var(--accent)'), bar(u.completed, 'var(--good)')),
+            h('span', { class: 'mono', style: 'text-align:right' }, u.started + ' → ' + u.completed));
+        })) : h('p', { class: 'muted' }, 'No units.'),
+        legend([['var(--accent)', 'Started'], ['var(--good)', 'Completed all 3 steps']]));
+      var pm = Number(B.sprint.passMark) || 0, bands = B.charts.scoreBands, scored = bands.reduce(function (n, b) { return n + b.n; }, 0);
+      var scoreCard = h('div', { class: 'card' }, h('h2', null, 'Sprint scores · ' + B.sprint.id),
+        scored ? colChart(bands.map(function (b) {
+          return { label: b.from + '–' + (b.to === 100 ? '100' : b.to - 1), value: b.n, text: String(b.n), color: pm > 0 && b.from >= pm ? 'var(--good)' : pm > 0 && b.to <= pm ? 'var(--bad)' : 'var(--accent)' };
+        })) : h('p', { class: 'muted' }, 'No submitted attempts for this Sprint yet.'),
+        scored && pm > 0 ? legend([['var(--bad)', 'Below the pass mark'], ['var(--good)', 'At or above ' + pm + '%']].concat(pm % 10 ? [['var(--accent)', 'Band containing the pass mark']] : [])) : null,
+        scored ? note('Students per score band (% of total marks), ' + scored + ' submitted attempts. Average ' + (mv('Avg. score') == null ? '–' : mv('Avg. score') + '%') + '.') : null);
+      var bizCharts = h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start' }, journeyCard, ratesCard, activeCard, retCard, unitsCard, scoreCard);
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
         header('~/admin/analytics', 'Student analytics', 'Real students only (TEST accounts are never counted). Every number is computed from recorded data; anything that cannot be measured yet says why. ' + since,
           [h('button', { class: 'btn', onclick: function () { st.fresh = true; refresh(); } }, 'Refresh now'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/activity.csv?days=' + st.days); } }, 'Export CSV')]),
-        h('h2', { style: 'margin:4px 0 0' }, 'Business metrics'), funnel,
+        h('div', { class: 'card' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:10px' }, h('h2', { style: 'margin:0' }, 'Students'), h('div', { class: 'row' }, search, sortSel, period)),
+          h('p', { class: 'soft', style: 'margin:0 0 10px' }, TIME_NOTE + ' Videos is the part of Learn spent with a video playing. Click a student for units, days, videos, practice topics and every login.'), studentsHolder),
+        h('h2', { style: 'margin:4px 0 0' }, 'Activity detail'),
+        h('div', { class: 'grid g2' },
+          h('div', { class: 'card' }, h('h2', null, 'Active students per day'), dayChart(o.daily, Math.min(o.days, 90), 'students', function (v) { return v + ' students'; })),
+          h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(spentAreas(o.areas)), h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Time on units ' + dur(o.totals.ms) + ' · time on portal ' + dur(o.totals.portalMs) + '. ' + TIME_NOTE),
+            h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Clicks: ' + o.areas.map(function (a) { return (AREA_NAMES[a.area] || a.area) + ' ' + a.opens; }).join(' · ')))),
         h('div', { class: 'card' }, h('h2', null, 'Units'),
           h('p', { class: 'soft', style: 'margin:0 0 10px' }, 'Click a unit for its funnel, Sprint questions and practice. Finished = the ✓ a student gets on moving past a step. Time = average active time per student with time recorded on that step. Accuracy = first answers that were right. Time to complete = median from opening the unit to finishing its last step.'),
           h('div', { class: 'tablewrap' }, h('table', null,
             h('thead', null, h('tr', null, ['Unit', 'Started', 'Finished W · P · R', 'Completed', 'Time W · P · R', 'Video watched', 'Practice accuracy', 'Sprint correct', 'Time to complete'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
             h('tbody', null, unitRows))),
           B.untagged.length ? h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Sprint questions without a unit: ' + B.untagged.map(function (x) { return x.courseTitle + ' ' + x.questions + ' questions, ' + pc(x.correctPct) + ' correct'; }).join(' · ') + '. Give them a unit in Sprint questions to see them per unit.') : null),
-        h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0' }, 'Activity detail'), period),
-        h('div', { class: 'grid g2' },
-          h('div', { class: 'card' }, h('h2', null, 'Active students per day'), dayChart(o.daily, Math.min(o.days, 90), 'students', function (v) { return v + ' students'; })),
-          h('div', { class: 'card' }, h('h2', null, 'Where the time goes'), bars(spentAreas(o.areas)), h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Time on units ' + dur(o.totals.ms) + ' · time on portal ' + dur(o.totals.portalMs) + '. ' + TIME_NOTE),
-            h('p', { class: 'muted', style: 'margin:10px 0 0;font-size:12px' }, 'Clicks: ' + o.areas.map(function (a) { return (AREA_NAMES[a.area] || a.area) + ' ' + a.opens; }).join(' · ')))),
-        h('div', { class: 'card' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:10px' }, h('h2', { style: 'margin:0' }, 'Students'), h('div', { class: 'row' }, search, sortSel)),
-          h('p', { class: 'soft', style: 'margin:0 0 10px' }, TIME_NOTE + ' Videos is the part of Learn spent with a video playing. Click a student for units, days, videos, practice topics and every login.'), studentsHolder));
+        h('h2', { style: 'margin:12px 0 0' }, 'Business metrics'),
+        h('p', { class: 'soft', style: 'margin:0' }, 'All time, from recorded data only. The charts summarise the metric cards below them.'),
+        bizCharts, funnel);
     });
   };
 

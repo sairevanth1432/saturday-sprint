@@ -480,8 +480,27 @@ async function computeBusiness(sprintIdParam) {
     return { course: c, courseTitle: COURSE_TITLES[c] || c, questions: uq.length, correctPct: uq.length && sprintSubs.length ? pct(uq.reduce((s, q) => s + q.right, 0), uq.length * sprintSubs.length) : null, items: uq };
   }).filter((x) => x.questions);
 
+  // ---- chart data: the student journey as counts, and how Sprint scores spread (10 bands of 10%)
+  const learnedAny = [...rolls].filter((r) => unitIds.some((u) => started(r, u))).length;
+  const finishedAny = [...rolls].filter((r) => unitIds.some((u) => doneOf(r, u).size === 3)).length;
+  const passed = Number.isFinite(pm) && pm > 0 ? scorePct.filter((x) => x >= pm).length : null;
+  const scoreBands = Array.from({ length: 10 }, (_, i) => ({ from: i * 10, to: i * 10 + 10, n: scorePct.filter((x) => (i === 9 ? x >= 90 : x >= i * 10 && x < i * 10 + 10)).length }));
+  const charts = {
+    journey: [
+      { key: 'list', label: 'In the student list', n: cohort },
+      { key: 'registered', label: 'Registered', n: registered.size },
+      { key: 'activated', label: 'Activated', n: activated.size },
+      { key: 'learned', label: 'Started a unit', n: learnedAny },
+      { key: 'finished', label: 'Completed a unit', n: finishedAny },
+      { key: 'sprint', label: 'Started the Sprint', n: startedA },
+      { key: 'submitted', label: 'Submitted the Sprint', n: sub.length },
+      ...(passed == null ? [] : [{ key: 'passed', label: `Passed (≥ ${pm}%)`, n: passed }])
+    ],
+    scoreBands
+  };
+
   return {
-    at: now, today, since: { activity: actSince, sessions: sessSince, unitEvents: evSince },
+    at: now, today, since: { activity: actSince, sessions: sessSince, unitEvents: evSince }, charts,
     sprint: { id: sprintId, current: sprintId === cur.id, list: sprintList.map((s) => ({ id: s.sprint_id, attempts: Number(s.n) })), passMark: pm },
     funnel: [
       { key: 'reach', title: 'Reach', metrics: reach }, { key: 'activity', title: 'Activity', metrics: activity },
