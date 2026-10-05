@@ -219,7 +219,7 @@
     }
 
     // ---------- activity (Admin → Student analytics)
-    // Counts ACTIVE time only: the page is visible and the student used it in the last minute, is inside a game
+    // Counts ACTIVE time only: the page is visible and the student used it recently (see ssActIdleMs), is inside a game
     // (an iframe has focus), or a video is playing. Opening a unit or a step counts as one click ("open").
     ssActKey() {
       var S = this.state;
@@ -247,9 +247,24 @@
       if (key !== A.key) { A.key = key; this.ssActRow(key).opens++; }
       var vis = document.visibilityState === 'visible';
       var inFrame = document.activeElement && document.activeElement.tagName === 'IFRAME' && document.hasFocus();
-      var playing = A.playing > 0;
-      if (vis && (now - A.lastInput < 60000 || inFrame || playing)) { this.ssActSession(); this.ssActRow(key).ms += Math.min(5000, now - A.lastTick); A.lastCounted = now; }
+      if (vis && (now - A.lastInput < this.ssActIdleMs(key) || inFrame || this.ssActPlaying())) { this.ssActSession(); this.ssActRow(key).ms += Math.min(5000, now - A.lastTick); A.lastCounted = now; }
       A.lastTick = now;
+    }
+    // How long without a click, key or scroll still counts as working. Scrolling the Read notes or using a Play game
+    // happens inside a frame the portal cannot see, and practice and test questions take thinking time.
+    ssActIdleMs(key) {
+      var area = key.split('|')[0], step = key.split('|')[2];
+      if (area === 'test') return this.ssRunning() ? Infinity : 60000;
+      if (area === 'learn') return step === 'play' || step === 'read' ? 5 * 60000 : 2 * 60000;
+      if (area === 'practice' || area === 'code') return 3 * 60000;
+      return 60000;
+    }
+    // A video is playing right now. Read from the players themselves: the reused player can switch to the next unit's
+    // video mid-play without a pause event, which left a play counter stuck and counted idle time.
+    ssActPlaying() {
+      var vs = document.getElementsByTagName('video');
+      for (var i = 0; i < vs.length; i++) if (!vs[i].paused && !vs[i].ended && vs[i].readyState > 2) return true;
+      return false;
     }
     ssActFlush(beacon) {
       var A = this._act;
@@ -267,8 +282,6 @@
     }
     ssActVideo(el, src) {
       var self = this, last = null;
-      el.addEventListener('play', function () { self._act && self._act.playing++; });
-      ['pause', 'ended'].forEach(function (t) { el.addEventListener(t, function () { if (self._act && self._act.playing > 0) self._act.playing--; }); });
       el.addEventListener('timeupdate', function () {
         // one <video> element can be reused for the next unit: always use the source it plays now
         var A = self._act, cur = el._src; if (!A || !cur) return;
@@ -283,7 +296,7 @@
     }
     ssActMount() {
       if (this.ss.user.kind !== 'student') return;
-      var self = this, A = this._act = { rows: {}, key: null, lastInput: Date.now(), lastTick: Date.now(), lastCounted: Date.now(), playing: 0, session: null };
+      var self = this, A = this._act = { rows: {}, key: null, lastInput: Date.now(), lastTick: Date.now(), lastCounted: Date.now(), session: null };
       this.ssActSession(true);
       var poke = function () { A.lastInput = Date.now(); };
       ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (t) { window.addEventListener(t, poke, { passive: true, capture: true }); });

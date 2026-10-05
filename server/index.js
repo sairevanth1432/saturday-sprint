@@ -800,10 +800,10 @@ adm.get('/export/:what', async (req, res) => {
     if (req.admin.role !== 'super_admin') return res.status(403).json({ error: 'FORBIDDEN', message: 'Super admins only.' });
     const d = await studentRows({ days: daysOf(req), limit: 100000 });
     const mins = (ms) => Math.round(ms / 6000) / 10;
-    const rows = d.rows.map((r) => ({ ...r, minutes: mins(r.ms), learn_minutes: mins(r.learn_ms), practice_minutes: mins(r.practice_ms), video_minutes: mins(r.video_ms),
+    const rows = d.rows.map((r) => ({ ...r, portal_minutes: mins(r.portal_ms), unit_minutes: mins(r.ms), learn_minutes: mins(r.learn_ms), practice_minutes: mins(r.practice_ms), video_minutes: mins(r.video_ms), sprint_minutes: mins(r.sprint_ms),
       last_active: iso(r.last_active), last_login: iso(r.last_login_at), registered: r.registered ? 'yes' : 'no' }));
     name = `activity-last-${d.days}-days.csv`;
-    body = toCSV(['roll_no', 'name', 'batch', 'registered', 'logins', 'last_login', 'last_active', 'days_active', 'minutes', 'learn_minutes', 'practice_minutes', 'video_minutes',
+    body = toCSV(['roll_no', 'name', 'batch', 'registered', 'logins', 'last_login', 'last_active', 'days_active', 'portal_minutes', 'unit_minutes', 'learn_minutes', 'video_minutes', 'practice_minutes', 'sprint_minutes',
       'units_opened', 'unit_clicks', 'steps_done', 'units_completed', 'practice_answered', 'practice_correct', 'coding_solved'], rows);
   } else return res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown export.' });
   await audit(req, 'export', req.params.what);

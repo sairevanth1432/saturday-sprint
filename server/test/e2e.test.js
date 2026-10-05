@@ -600,9 +600,14 @@ test('student analytics: active time, unit clicks, video watched, logins per stu
     { area: 'learn', item: 'tp-nested', step: 'play', ms: 120000, opens: 1 },
     { area: 'practice', item: 'For Loop', ms: 60000, opens: 1 },
     { area: 'learn', item: 'tp-forloop', step: 'watch', ms: 99999999, opens: 1 },
+    { area: 'home', item: '', ms: 45000, opens: 1 },
     { area: 'hacking', item: 'x', ms: 1000 } ] });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  assert.equal(r.body.saved, 4, 'unknown areas are dropped');
+  assert.equal(r.body.saved, 5, 'unknown areas are dropped');
+  // a submitted Sprint test: its time is the attempt's own clock (10 minutes), not portal activity
+  const t0 = Date.now() - 15 * 60000;
+  await db.run(`INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, submitted_at, used_ms, updated_at)
+    VALUES ('analytics-time', 'SIMPLE01', 'submitted', ?, ?, ?, 600000, ?)`, t0, t0 + 20 * 60000, t0 + 600000, Date.now());
   await c('POST', '/api/activity', { items: [{ area: 'learn', item: 'tp-nested', step: 'watch', ms: 30000, opens: 1, videoPct: 60 }] });
   const row = await db.one("SELECT ms, opens, video_pct FROM activity WHERE roll_no = 'SIMPLE01' AND item = 'tp-nested' AND step = 'watch'");
   assert.deepEqual([Number(row.ms), row.opens, row.video_pct], [120000, 3, 85], 'summed per day; video keeps the furthest point');
@@ -620,14 +625,22 @@ test('student analytics: active time, unit clicks, video watched, logins per stu
   const me = list.body.rows[0];
   assert.equal(me.roll_no, 'SIMPLE01');
   assert.equal(me.units_opened, 2); assert.equal(me.units_completed, 1); assert.ok(me.logins >= 2);
-  assert.equal(me.ms, 120000 + 120000 + 60000 + 300000);
+  assert.equal(me.sprint_ms, 600000);
+  assert.equal(me.ms, 120000 + 120000 + 60000 + 300000 + 600000, 'time on units = Learn + Practice + Sprint; Home is not counted');
+  assert.equal(me.portal_ms, me.ms + 45000, 'time on portal also counts Home');
   const det = await ADM('GET', '/api/admin/analytics/students/SIMPLE01');
+  assert.equal(det.body.totals.ms, me.ms, 'the student page shows the same time on units');
+  assert.equal(det.body.totals.portalMs, me.portal_ms, 'and the same time on portal');
+  assert.equal(det.body.totals.sprintMs, 600000);
+  assert.equal(det.body.areas.find((a) => a.area === 'home').counted, false);
   assert.equal(det.body.units.find((x) => x.id === 'tp-nested').steps.play.ms, 120000);
   assert.ok(det.body.logins.length >= 2);
   assert.equal(det.body.practice.find((t) => t.sess === 'For Loop').ms, 60000);
   const csv = await ADM('GET', '/api/admin/export/activity.csv?days=7');
   assert.match(csv.text, /SIMPLE01/);
+  assert.match(csv.text, /portal_minutes,unit_minutes/);
   assert.equal((await c('GET', '/api/admin/analytics/overview')).status, 401);
+  await db.run("DELETE FROM attempts WHERE sprint_id = 'analytics-time'");
 });
 
 test('Sprint questions: per-Sprint sets managed by admins, locked once students start; grading and the review use them', async () => {
