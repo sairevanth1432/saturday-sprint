@@ -4,7 +4,7 @@ import { one, all, run, tx, getSetting, setSetting, parseJSON } from './db.js';
 import { getSprint, sprintFor, getQuestions, builtinQuestions, clearQuestionCache, rowToQuestion, resultView, SprintError, MARKS } from './sprint.js';
 import { packUnits } from './media.js';
 
-const COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+const COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI', wad: 'Web Application Development' };
 export const unitsList = () => (packUnits().units || []).map((u) => ({ id: u.id || (u.lessons && u.lessons[0] && u.lessons[0].id), course: u.course, title: u.name || u.title || '' }));
 const SPRINT_ID = /^[A-Za-z0-9_.-]{3,60}$/;
 function checkSprintId(id) {
@@ -38,7 +38,7 @@ export async function listQuestions(rawId) {
   const sprintId = checkSprintId(rawId);
   const [rows, attempts] = await Promise.all([rowsOf(sprintId), studentAttempts(sprintId)]);
   const custom = rows.length > 0;
-  const questions = custom ? rows.map(rowToQuestion) : builtinQuestions().map((q) => ({ ...q, unit: q.unit || '' }));
+  const questions = custom ? rows.map(rowToQuestion) : builtinQuestions(sprintId).map((q) => ({ ...q, unit: q.unit || '' }));
   return { sprintId, source: custom ? 'custom' : 'builtin', locked: attempts > 0, attempts, units: unitsList(), courses: COURSES,
     questions, maxTotal: questions.reduce((s, q) => s + (MARKS[q.type] || 1), 0) };
 }
@@ -113,7 +113,7 @@ export async function copyQuestions(rawId, from, by) {
   await assertUnlocked(sprintId);
   if ((await rowsOf(sprintId)).length) throw new SprintError('NOT_EMPTY', 'This Sprint already has questions. Delete them first, or copy into a new Sprint ID.', 409);
   let src;
-  if (from === 'builtin') src = builtinQuestions().filter((q) => q.type === 'mcq').map((q) => ({ ...q, unit: q.unit || '' }));
+  if (from === 'builtin') src = builtinQuestions(sprintId).filter((q) => q.type === 'mcq').map((q) => ({ ...q, unit: q.unit || '' }));
   else {
     const fromId = checkSprintId(from);
     if (fromId === sprintId) throw new SprintError('BAD_SPRINT', 'Choose a different Sprint to copy from.', 400);

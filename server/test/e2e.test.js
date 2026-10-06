@@ -1017,6 +1017,25 @@ test('next Sprint: switched to once, after the current Sprint closes; the Learn 
   if (ns) assert.ok(ns.groups.every((g) => g.topics.every((x) => !x.includes('\u2014'))), 'no em dashes in the topic names');
 });
 
+test('Sprint question sets per Sprint ID: content/sprint-sets is used for that Sprint, answers stay on the server', async () => {
+  const sp = await import('../sprint.js');
+  const sets = path.join(here, '..', 'generated', 'sprint-sets');
+  for (const f of fs.existsSync(sets) ? fs.readdirSync(sets) : []) {
+    const id = f.replace(/\.json$/, ''), qs = await sp.getQuestions(id);
+    assert.deepEqual(qs, JSON.parse(fs.readFileSync(path.join(sets, f), 'utf8')));
+    const pub = await sp.publicQuestions(id);
+    assert.ok(pub.every((q) => q.c === undefined && q.level === undefined), 'no answers or levels in what students get');
+  }
+  const next = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'sprint-schedule.json'), 'utf8'));
+  if (next) {
+    const qs = await sp.getQuestions(next.id);
+    assert.equal(qs.length, 20, 'the next Sprint has its own 20 questions');
+    for (const lv of ['easy', 'medium', 'hard']) assert.ok(qs.filter((q) => q.level === lv).length >= 5, 'mixed difficulty: ' + lv);
+    assert.ok(qs.every((q) => !JSON.stringify(q).includes('—')), 'no em dashes');
+  }
+  assert.notDeepEqual(await sp.getQuestions('some-other-sprint'), await sp.getQuestions(next ? next.id : 'x'));
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

@@ -12,9 +12,21 @@ import { maskRoll } from './security.js';
 // Written problems ("reviewed by panel"): awarded by an admin, 0..MARKS.text each.
 export const MARKS = { mcq: 1, code: 1, text: 1 };
 
-// The built-in set from the portal HTML (npm run build → generated/sprint-test.json).
+// The built-in set: content/sprint-sets/<sprintId>.json when that Sprint has one (npm run build → generated/sprint-sets/),
+// otherwise the set from the portal HTML (generated/sprint-test.json).
 let builtin = null, builtinMtime = 0;
-export function builtinQuestions() {
+const setCache = new Map();
+export function builtinQuestions(sprintId) {
+  if (sprintId) {
+    const sf = path.join(path.dirname(config.sprintTestFile), 'sprint-sets', String(sprintId).replace(/[^A-Za-z0-9._-]/g, '') + '.json');
+    if (fs.existsSync(sf)) {
+      const m = fs.statSync(sf).mtimeMs, hit = setCache.get(sf);
+      if (hit && hit.m === m) return hit.v;
+      const v = JSON.parse(fs.readFileSync(sf, 'utf8'));
+      setCache.set(sf, { m, v });
+      return v;
+    }
+  }
   const f = config.sprintTestFile;
   if (!fs.existsSync(f)) throw new Error('Sprint questions not found. Run `npm run build:portal` (creates ' + f + ').');
   const m = fs.statSync(f).mtimeMs;
@@ -36,7 +48,7 @@ export async function getQuestions(sprintId) {
   const hit = qCache.get(sprintId);
   if (hit && Date.now() - hit.at < Q_CACHE_MS) return hit.v;
   const rows = await all('SELECT * FROM sprint_questions WHERE sprint_id = ? ORDER BY position, id', sprintId);
-  const v = rows.length ? rows.map(rowToQuestion) : builtinQuestions();
+  const v = rows.length ? rows.map(rowToQuestion) : builtinQuestions(sprintId);
   if (qCache.size > 200) qCache.clear();
   qCache.set(sprintId, { at: Date.now(), v });
   return v;

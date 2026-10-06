@@ -223,6 +223,25 @@ fs.writeFileSync(config.lessonsFile, JSON.stringify(lessonsOut, null, 2));
     console.log(`Next Sprint → ${n.id}: ${new Date(o).toISOString()} – ${new Date(c).toISOString()}, ${d} min (applied once the current Sprint has closed)`);
   }
   fs.writeFileSync(path.join(ROOT, 'generated', 'sprint-schedule.json'), JSON.stringify(n));
+  // Question sets for named Sprints (content/sprint-sets/<sprintId>.json): used instead of the portal's set for
+  // that Sprint ID until an admin builds one in Admin → Sprint questions.
+  const SETS = path.join(ROOT, 'content', 'sprint-sets'), OUT = path.join(ROOT, 'generated', 'sprint-sets');
+  fs.rmSync(OUT, { recursive: true, force: true });
+  fs.mkdirSync(OUT, { recursive: true });
+  for (const f of fs.existsSync(SETS) ? fs.readdirSync(SETS).filter((x) => x.endsWith('.json')) : []) {
+    const set = JSON.parse(fs.readFileSync(path.join(SETS, f), 'utf8'));
+    if (!Array.isArray(set) || !set.length) throw new Error(`content/sprint-sets/${f}: needs a list of questions.`);
+    set.forEach((q, i) => {
+      const where = `content/sprint-sets/${f} question ${i + 1}`;
+      if (q.type !== 'mcq') throw new Error(`${where}: only "mcq" questions are supported here.`);
+      if (!['pf', 'genai', 'wad'].includes(q.course)) throw new Error(`${where}: course must be pf, genai or wad.`);
+      if (!(Array.isArray(q.o) && q.o.length >= 2 && q.o.length <= 6 && Number.isInteger(q.c) && q.c >= 0 && q.c < q.o.length)) throw new Error(`${where}: needs 2–6 options "o" and a valid answer index "c".`);
+      if (new Set(q.o.map((o) => String(o).toLowerCase())).size !== q.o.length) throw new Error(`${where}: two options are the same.`);
+    });
+    fs.writeFileSync(path.join(OUT, f), JSON.stringify(set, null, 2));
+    const lv = set.reduce((c, q) => ((c[q.level || '?'] = (c[q.level || '?'] || 0) + 1), c), {});
+    console.log(`Sprint set  → ${f.replace(/\.json$/, '')}: ${set.length} questions (${Object.entries(lv).map(([k, v]) => v + ' ' + k).join(', ')})`);
+  }
   const topicsFile = path.join(ROOT, 'content', 'next-sprint.json');
   const t = fs.existsSync(topicsFile) ? JSON.parse(fs.readFileSync(topicsFile, 'utf8')) : null;
   const topics = t && Array.isArray(t.groups) ? { title: String(t.title || 'Next Sprint topics'), groups: t.groups.map((g) => ({ name: String(g.name), topics: (g.topics || []).map(String) })) } : null;
