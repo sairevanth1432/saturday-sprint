@@ -391,12 +391,26 @@ async function rankOf(sprintId, roll) {
   return v;
 }
 
+// Until the current Sprint has its first result, the board shows the latest Sprint that has results (labelled as such),
+// so students never see an empty leaderboard between Sprints. Every Sprint's results stay in the database.
+async function boardSprintId(currentId) {
+  return kv.cached('lb:latest:' + currentId, 30, async () => {
+    const r = await one(`SELECT a.sprint_id FROM attempts a WHERE a.status = 'submitted' AND a.roll_no NOT LIKE 'ADMIN-%'
+      GROUP BY a.sprint_id ORDER BY MAX(a.submitted_at) DESC LIMIT 1`);
+    return r ? r.sprint_id : currentId;
+  }, { localMs: 15000 });
+}
 export async function leaderboard(meRoll, limit = 50) {
   const sprint = await getSprint();
-  const top = await boardTop(sprint.id);
-  const mine = meRoll ? await rankOf(sprint.id, meRoll) : null;
+  let id = sprint.id, top = await boardTop(id);
+  if (!top.participants) {
+    const prev = await boardSprintId(sprint.id);
+    if (prev !== id) { const t = await boardTop(prev); if (t.participants) { id = prev; top = t; } }
+  }
+  const mine = meRoll ? await rankOf(id, meRoll) : null;
+  const previous = id !== sprint.id;
   return {
-    sprintId: sprint.id, title: sprint.title, rule: RANK_RULE, participants: top.participants, updatedAt: top.at,
+    sprintId: id, previous, title: previous ? 'Last Sprint results (' + id + ')' : sprint.title, rule: RANK_RULE, participants: top.participants, updatedAt: top.at,
     rows: top.rows.slice(0, limit).map((r) => publicRow(r, meRoll)),
     me: mine ? publicRow(mine, meRoll) : null
   };

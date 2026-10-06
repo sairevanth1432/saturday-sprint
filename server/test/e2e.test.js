@@ -1036,6 +1036,24 @@ test('Sprint question sets per Sprint ID: content/sprint-sets is used for that S
   assert.notDeepEqual(await sp.getQuestions('some-other-sprint'), await sp.getQuestions(next ? next.id : 'x'));
 });
 
+test('leaderboard between Sprints: a new Sprint without results shows the last Sprint with results; nothing is deleted', async () => {
+  const before = await A('GET', '/api/leaderboard');
+  assert.ok(before.body.participants > 0, 'the current Sprint has results in this suite');
+  const oldId = await db.getSetting('sprint_id', null);
+  const n0 = Number((await db.one('SELECT COUNT(*) AS n FROM attempts')).n);
+  await db.setSetting('sprint_id', 'brand-new-sprint');
+  const lb = await A('GET', '/api/leaderboard');
+  assert.equal(lb.body.previous, true);
+  assert.notEqual(lb.body.sprintId, 'brand-new-sprint', 'the latest Sprint that has results');
+  assert.ok(lb.body.participants > 0 && lb.body.rows.length > 0);
+  assert.match(lb.body.title, /Last Sprint results/);
+  assert.equal(Number((await db.one('SELECT COUNT(*) AS n FROM attempts')).n), n0, 'no attempts removed');
+  if (oldId === null) await db.run("DELETE FROM settings WHERE key = 'sprint_id'"); else await db.setSetting('sprint_id', oldId);
+  db.clearSettingCache();
+  const after = await A('GET', '/api/leaderboard');
+  assert.equal(after.body.previous, false);
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {
