@@ -20,12 +20,14 @@ import {
   SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
   submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, clearBoardCache, readDraft, MARKS, RANK_RULE
 } from './sprint.js';
-import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache } from './media.js';
+import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
+  syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
 import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
+import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 const app = express();
@@ -85,6 +87,8 @@ app.use(express.static(PUBLIC, { index: false, extensions: [], setHeaders: (res)
 // ===================================================================== student API
 const api = express.Router();
 app.use('/api', api);
+// Admin-added courses and topics (Admin → Courses & topics) are read once per few seconds per instance.
+api.use(async (req, res, next) => { await syncContent(); next(); });
 
 api.get('/health', async (req, res) => {
   noStore(res);
@@ -95,7 +99,7 @@ api.get('/health', async (req, res) => {
 api.post('/auth/:purpose/start', async (req, res) => res.json(await startOtp(req, req.params.purpose, req.body && req.body.rollNo, req.body && req.body.phone)));
 api.post('/auth/:purpose/verify', async (req, res) => {
   const b = req.body || {};
-  const r = await verifyOtp(req, res, req.params.purpose, b.rollNo, b.otp, b.phone, b.password);
+  const r = await verifyOtp(req, res, req.params.purpose, b.rollNo, b.otp, b.phone, b.password, b.photo);
   res.json(r.status === 'pending' ? { ok: true, status: 'pending' } : { ok: true, status: 'active', rollNo: r.user.roll_no, hasPassword: !!r.hasPassword });
 });
 // NIAT ID + password (no OTP needed after the password is set).
@@ -127,6 +131,18 @@ api.get('/me', who, (req, res) => {
     : { kind: 'admin', name: w.name, email: w.email, role: w.role });
 });
 
+// The student's photograph: required before the portal opens (see public/portal-bridge.js), changeable later.
+api.get('/me/photo', who, async (req, res) => {
+  if (req.who.kind !== 'student') return res.status(404).end();
+  sendPhoto(res, await studentPhoto(req.who.roll_no));
+});
+api.put('/me/photo', who, async (req, res) => {
+  if (req.who.kind !== 'student') return res.status(403).json({ error: 'STUDENTS_ONLY', message: 'Only students have a photo.' });
+  if (!(await kv.rateLimit('photo:' + req.who.roll_no, 20, 3600000)).ok) return res.status(429).json({ error: 'RATE_LIMITED', message: 'Too many photo changes. Try again later.' });
+  await saveStudentPhoto(req.who.roll_no, checkPhoto((req.body || {}).photo));
+  res.json({ ok: true, photoAt: await photoStamp(req.who.roll_no) });
+});
+
 // Public facts for the Help page and the landing page (no login): Sprint window, format, rules and the units it is based on.
 api.get('/info', async (req, res) => {
   const [sprint, proctor, mode] = await Promise.all([getSprint(), proctorSettings(), loginMode()]);
@@ -147,16 +163,17 @@ api.get('/info', async (req, res) => {
 api.get('/bootstrap', who, async (req, res) => {
   noStore(res);
   const w = req.who, sprint = await sprintFor(w);
-  const [a, prog, fb, bytes, proctor] = await Promise.all([
+  const [a, prog, fb, bytes, proctor, photoAt] = await Promise.all([
     getAttempt(w, sprint),
     w.kind === 'student' ? one('SELECT data FROM progress WHERE roll_no = ?', w.roll_no) : null,
     w.kind === 'student' ? one("SELECT 1 AS x FROM feedback WHERE roll_no = ? AND kind = 'sprint-test' LIMIT 1", w.roll_no) : null,
     unitContentMap(),
-    proctorSettings()
+    proctorSettings(),
+    w.kind === 'student' ? photoStamp(w.roll_no) : 0
   ]);
   res.json({
     serverNow: Date.now(),
-    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch }
+    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, photoAt }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
       preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id), previewOf: sprint.previewOf || null },
@@ -165,7 +182,8 @@ api.get('/bootstrap', who, async (req, res) => {
     testFeedbackDone: !!fb,
     progress: prog ? parseJSON(prog.data, {}) : {},
     unitContent: bytes,
-    units: packUnits()
+    units: packUnits(),
+    courses: customCourses().map((c) => ({ id: c.id, name: c.name, color: c.color }))
   });
 });
 
@@ -426,7 +444,8 @@ adm.get('/students/:roll', async (req, res) => {
   ]);
   const requests = await all('SELECT id, phone, status, note, created_at, decided_at, decided_by FROM registration_requests WHERE roll_no = ? ORDER BY created_at DESC LIMIT 20', roll);
   if (u) { u.has_password = !!u.password_hash; delete u.password_hash; }
-  res.json({ master: m, user: u, attempts, progress: pr ? { ...progressSummary(pr.data), updated_at: pr.updated_at, data: parseJSON(pr.data, {}) } : null, feedback, sessions, otps, requests });
+  const photoAt = await photoStamp(roll);
+  res.json({ master: m, user: u, photoAt, attempts, progress: pr ? { ...progressSummary(pr.data), updated_at: pr.updated_at, data: parseJSON(pr.data, {}) } : null, feedback, sessions, otps, requests });
 });
 
 function cleanStudent(b, roll) {
@@ -474,13 +493,18 @@ adm.post('/users/:roll/status', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- student photographs (accounts and registration requests)
+adm.get('/photos/student/:roll', async (req, res) => sendPhoto(res, await studentPhoto(normRoll(req.params.roll))));
+adm.get('/photos/request/:id', async (req, res) => sendPhoto(res, await requestPhoto(Number(req.params.id) || 0)));
+
 // ---------- registration approvals
 adm.get('/approvals', async (req, res) => {
   const status = ['pending', 'approved', 'rejected', 'superseded'].includes(req.query.status) ? req.query.status : 'pending';
   const rows = await all(`SELECT r.*, m.name, m.phone AS sheet_phone, m.email, m.batch, m.active,
       (SELECT COUNT(*) FROM registration_requests r2 WHERE r2.roll_no = r.roll_no AND r2.status = 'pending' AND r2.id <> r.id) AS other_requests_same_id,
       (SELECT COUNT(*) FROM registration_requests r3 WHERE r3.phone = r.phone AND r3.roll_no <> r.roll_no AND r3.status IN ('pending', 'approved')) AS phone_used_for_other_ids,
-      (SELECT u.roll_no FROM users u WHERE u.roll_no = r.roll_no) AS has_account
+      (SELECT u.roll_no FROM users u WHERE u.roll_no = r.roll_no) AS has_account,
+      (SELECT 1 FROM request_photos rp WHERE rp.request_id = r.id) AS has_photo
     FROM registration_requests r LEFT JOIN students_master m ON m.roll_no = r.roll_no
     WHERE r.status = ? ORDER BY r.created_at ${status === 'pending' ? 'ASC' : 'DESC'} LIMIT 2000`, status);
   res.json({ rows: rows.map((r) => ({ ...r, matches_sheet: !!r.sheet_phone && r.sheet_phone === r.phone })),
@@ -691,7 +715,7 @@ const slotOk = (req, res) => {
 const typeError = (slot) => (slot === 'watch' ? 'Upload an MP4 (or WebM) video.' : 'Upload a single .html file.');
 adm.get('/media', async (req, res) => {
   const kind = storageKind();
-  res.json({ lessons: await catalog(), storage: kind, blob: kind === 'blob', s3: kind === 's3', localUpload: kind === 'local',
+  res.json({ lessons: await catalog(), courses: BUILTIN_COURSES.map((c) => ({ ...c, custom: false })).concat(customCourses().map((c) => ({ id: c.id, name: c.name, custom: true }))), storage: kind, blob: kind === 'blob', s3: kind === 's3', localUpload: kind === 'local',
     maxBytes: config.maxVideoBytes, maxHtmlBytes: maxBytesFor('play'),
     folder: config.isVercel ? 'server/public/learning-bytes/ (in the repository; redeploy after adding files)' : config.learningBytesDir });
 });
@@ -748,6 +772,41 @@ adm.put('/media/:unitId/:slot/local', async (req, res) => {
   }).catch((e) => { try { fs.unlinkSync(file); } catch {} throw e; });
   await setContent(unitId, slot, { url: '/uploads/' + name, storage: 'local', fileName: decodeURIComponent(String(req.headers['x-file-name'] || name)).slice(0, 200), size, contentType: type, by: req.admin.email });
   await audit(req, 'media.uploaded', unitId + ':' + slot, { storage: 'local', size });
+  res.json({ ok: true });
+});
+// Courses and topics added by admins. A new topic starts empty: upload its Watch / Play / Read files in its row.
+adm.post('/content/courses', async (req, res) => {
+  const c = await addCourse(req.body || {}, req.admin.email);
+  await audit(req, 'content.course_added', c.id, { name: c.name });
+  res.json(c);
+});
+adm.patch('/content/courses/:id', async (req, res) => {
+  await updateCourse(req.params.id, req.body || {});
+  await audit(req, 'content.course_renamed', req.params.id, { name: (req.body || {}).name });
+  res.json({ ok: true });
+});
+adm.delete('/content/courses/:id', requireSuper, async (req, res) => {
+  await deleteCourse(req.params.id);
+  await audit(req, 'content.course_deleted', req.params.id, null);
+  res.json({ ok: true });
+});
+adm.post('/content/units', async (req, res) => {
+  const u = await addUnit(req.body || {}, req.admin.email);
+  await audit(req, 'content.topic_added', u.id, { course: (req.body || {}).course, title: u.title });
+  res.json(u);
+});
+adm.patch('/content/units/:id', async (req, res) => {
+  await updateUnit(req.params.id, req.body || {});
+  await audit(req, 'content.topic_updated', req.params.id, req.body || null);
+  res.json({ ok: true });
+});
+adm.post('/content/units/:id/move', async (req, res) => {
+  await moveUnit(req.params.id, Number((req.body || {}).dir) || 1);
+  res.json({ ok: true });
+});
+adm.delete('/content/units/:id', requireSuper, async (req, res) => {
+  await deleteUnit(req.params.id);
+  await audit(req, 'content.topic_deleted', req.params.id, null);
   res.json({ ok: true });
 });
 adm.delete('/media/:unitId/:slot', async (req, res) => {
@@ -896,7 +955,7 @@ adm.patch('/admins/:id', requireSuper, async (req, res) => {
 // ===================================================================== errors
 api.use((req, res) => res.status(404).json({ error: 'NOT_FOUND', message: 'No such API route.' }));
 app.use((err, req, res, next) => {
-  if (err instanceof AuthError || err instanceof SprintError) {
+  if (err instanceof AuthError || err instanceof SprintError || err instanceof ContentError || err instanceof PhotoError) {
     return res.status(err.status).json({ error: err.code, message: err.message, ...(err.extra || {}) });
   }
   if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'BAD_JSON', message: 'Invalid JSON.' });

@@ -239,6 +239,21 @@ CREATE TABLE IF NOT EXISTS settings (
   key    TEXT PRIMARY KEY,
   value  TEXT NOT NULL
 );
+
+-- Courses and topics (units) added by admins in Admin → Courses & topics, after the built-in ones from
+-- content/units.json. Course ids are letters only; unit ids never change once students have progress.
+CREATE TABLE IF NOT EXISTS content_courses (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#FFE45C', sort INTEGER NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL, created_by TEXT);
+CREATE TABLE IF NOT EXISTS content_units (
+  id TEXT PRIMARY KEY, course TEXT NOT NULL, title TEXT NOT NULL, goal TEXT NOT NULL DEFAULT '', concept TEXT NOT NULL DEFAULT '',
+  orientation TEXT NOT NULL DEFAULT 'landscape', practice_topic TEXT NOT NULL DEFAULT '', sort INTEGER NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL, created_by TEXT);
+
+-- Student photographs (small JPEG data URLs, resized in the browser). Kept out of users/registration_requests
+-- so the session and approval queries stay small.
+CREATE TABLE IF NOT EXISTS student_photos (roll_no TEXT PRIMARY KEY, photo TEXT NOT NULL, updated_at BIGINT NOT NULL);
+CREATE TABLE IF NOT EXISTS request_photos (request_id BIGINT PRIMARY KEY, photo TEXT NOT NULL, created_at BIGINT NOT NULL);
 `;
 
 // ---------- backend

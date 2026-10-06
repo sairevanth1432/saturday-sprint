@@ -74,7 +74,9 @@
       // Units from content/units.json. mode "replace": they replace the course's original units;
       // "append": they come after them. Each unit is Video → Play → Read.
       var self = this, pack = Array.isArray(B.units) ? { mode: 'append', units: B.units } : (B.units || { units: [] });
-      var field = function (c) { return c === 'pf' ? 'pfModules' : c === 'genai' ? 'modules' : null; };
+      // Courses added in Admin → Courses & topics get their own module list (see courseList below).
+      (B.courses || []).forEach(function (c) { self['_ssMods_' + c.id] = []; });
+      var field = function (c) { return c === 'pf' ? 'pfModules' : c === 'genai' ? 'modules' : Array.isArray(self['_ssMods_' + c]) ? '_ssMods_' + c : null; };
       if (pack.mode === 'replace') pack.units.forEach(function (u) { var f = field(u.course); if (f && !self['_ssReplaced' + f]) { self[f] = []; self['_ssReplaced' + f] = true; } });
       pack.units.forEach(function (u) {
         var f = field(u.course);
@@ -84,9 +86,34 @@
       this._ssContentV = this.courseList().map(function (c) { return c.id + ':' + c.modules.map(function (m) { return m.lessons.map(function (l) { return l.id; }).join(','); }).join('|'); }).join(';');
 
       var p = B.progress || {};
-      var sameContent = p.cv === this._ssContentV;
+      var sameContent = p.cv === this._ssContentV, moved = !sameContent;
+      // Progress is stored by position; when topics were added, removed or reordered, move each tick to where
+      // its lesson is now (matched by lesson id through the content version saved with it).
+      if (!sameContent && p.cv) {
+        var posOf = function (cv) {
+          var m = {};
+          String(cv).split(';').forEach(function (seg) {
+            var k = seg.indexOf(':'); if (k < 0) return;
+            var cid = seg.slice(0, k);
+            seg.slice(k + 1).split('|').forEach(function (mods, mi) { mods.split(',').forEach(function (lid, li) { if (lid) m[cid + '-' + mi + '-' + li] = cid + '/' + lid; }); });
+          });
+          return m;
+        };
+        var oldPos = posOf(p.cv), newPos = {}, cur = posOf(this._ssContentV);
+        Object.keys(cur).forEach(function (k) { newPos[cur[k]] = k; });
+        var remap = function (obj) {
+          var out = {};
+          Object.keys(obj || {}).forEach(function (k) {
+            var m = /^([^:]+)(:.*)?$/.exec(k), at = m && oldPos[m[1]] && newPos[oldPos[m[1]]];
+            if (at && obj[k]) out[at + (m[2] || '')] = obj[k];
+          });
+          return out;
+        };
+        p = Object.assign({}, p, { done: remap(p.done), stepDone: remap(p.stepDone) });
+        sameContent = true;
+      }
       PROGRESS_KEYS.forEach(function (k) { if (p[k] !== undefined && (k !== 'done' || sameContent)) S[k] = p[k]; });
-      if (!sameContent) { S.course = 0; S.mod = 0; S.les = 0; }
+      if (moved) { S.course = 0; S.mod = 0; S.les = 0; }
       if (p.code) S.code = Object.assign({}, S.code, p.code);
 
       var a = B.attempt;
@@ -627,6 +654,16 @@
       setTimeout(function () { if (self.state.ssToast && self.state.ssToast.at === at) self.setState({ ssToast: null }); }, 4500);
     }
 
+    // Built-in courses, then the courses admins added that have at least one topic.
+    courseList() {
+      var list = super.courseList(), self = this;
+      ((this.ss && this.ss.courses) || []).forEach(function (c) {
+        var mods = self['_ssMods_' + c.id];
+        if (mods && mods.length) list.push({ id: c.id, name: c.name, topic: '', color: c.color || '#FFE45C', modules: mods });
+      });
+      return list;
+    }
+
     renderVals() {
       var v = super.renderVals(), S = this.state, self = this, U = this.ss.user;
       // the practice topic on screen (the portal picks a default when the student has not chosen one)
@@ -673,6 +710,19 @@
       var portrait = w.orientation === 'portrait';
       if (v.wt) { v.wt.vw = portrait ? 'min(100%, 440px)' : '100%'; v.wt.aspect = portrait ? '9 / 16' : '16 / 9'; v.wt.tall = !!w.tall; }
       var unitsPrev = null;
+      // Topic list: a tick when every lesson of the topic is done (a unit is done once its last step, Read, is finished).
+      if (Array.isArray(v.lgroups)) {
+        var CLs = this.courseList(), sdAll = S.stepDone || {}, doneAll = S.done || {};
+        v.lgroups.forEach(function (g, ci) {
+          var c = CLs[ci];
+          (g.topics || []).forEach(function (t, mi) {
+            var m = c && c.modules[mi];
+            var dn = !!(m && m.lessons.length) && m.lessons.every(function (l, li) { var k = c.id + '-' + mi + '-' + li; return !!doneAll[k] || !!sdAll[k + ':read']; });
+            t.done = dn; t.tickBg = t.on ? '#050505' : '#FFE45C'; t.tickFg = t.on ? '#FFE45C' : '#050505';
+            t.aria = dn ? 'completed' : 'not completed yet';
+          });
+        });
+      }
       if (v.show.learn && les && les.tabs) {
         var over = (this.ss.unitContent || {})[les.id] || {};
         var src = {
@@ -712,6 +762,18 @@
         }
         v.ss_readSoon = tab === 'read' && !src.read;
         v.ss_missing = tab !== 'read' && !src[tab];
+        // Play and Read open full screen (the game or notes frame only); browsers without it get a new tab.
+        if ((tab === 'play' || tab === 'read') && src[tab]) {
+          var fsUrl = src[tab];
+          v.ss_fs = { on: true, label: 'Full screen', hint: tab === 'play' ? 'Press Esc to leave full screen' : 'Read in full screen · Esc to leave',
+            go: function () {
+              var el = document.getElementById('ss-embed');
+              var rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
+              var tab2 = function () { window.open(fsUrl, '_blank', 'noopener'); };
+              if (!rq) return tab2();
+              try { var p = rq.call(el); if (p && p.catch) p.catch(tab2); } catch (e) { tab2(); }
+            } };
+        }
         // Bottom bar: "Next: Play →" / "Next: Read →", then the next unit
         var nextStep = STEPS[ti + 1], baseGo = v.cur.stepGo, baseHint = String(v.cur.stepHint || '').replace(/^Step \d+ of \d+ · /, '');
         v.cur.stepHint = 'Step ' + (ti + 1) + ' of 3 · ' + baseHint;
@@ -752,10 +814,19 @@
         when: when,
         prev: unitsPrev || { on: false, label: '', go: null },
         readSoon: !!v.ss_readSoon,
+        fs: v.ss_fs || { on: false, label: '', hint: '', go: null },
         user: {
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),
           sub: U.kind === 'admin' ? (U.role === 'super_admin' ? 'super admin' : 'admin') + ' · preview' : U.rollNo + (U.batch ? ' · ' + U.batch : ''),
-          isAdmin: U.kind === 'admin'
+          isAdmin: U.kind === 'admin',
+          hasPhoto: U.kind === 'student' && !!U.photoAt,
+          photo: U.photoAt ? '/api/me/photo?v=' + U.photoAt : '',
+          changePhoto: function () {
+            if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; }
+            pickPhoto().then(function (d) { return api('PUT', '/api/me/photo', { photo: d }); }).then(function (r) {
+              U.photoAt = r.photoAt; self.setState({ ssPhotoAt: r.photoAt }); self.ssToast('Photo updated.');
+            }, function (e) { if (e && e.message) self.ssToast(e.message, true); });
+          }
         },
         logout: function () {
           if (self.ssProctorActive() && !confirm('The Sprint is still running. If you log out, the timer keeps running. Log out anyway?')) return;
@@ -813,9 +884,58 @@
     app.querySelector('div div div:nth-child(3)').textContent = msg;
   }
 
+  // Opens the file chooser; resolves with a small JPEG data URL (public/photo.js), rejects if nothing usable was chosen.
+  function pickPhoto() {
+    return new Promise(function (resolve, reject) {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = function () { window.SSPhoto.fromFile(inp.files[0]).then(resolve, reject); };
+      inp.click();
+    });
+  }
+
+  // Every student needs a photograph. Accounts without one (simple log-in, or registered before photos were
+  // asked for) add it here before the portal opens. Skipped while a Sprint attempt is running.
+  function photoGate(B, done) {
+    var app = document.getElementById('app'), data = '';
+    app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0A0A0A;color:#EDEDED;font-family:JetBrains Mono,monospace;padding:24px;box-sizing:border-box">' +
+      '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:18px;background:#151515;border-radius:22px;padding:28px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 48px -20px rgba(0,0,0,.9)">' +
+      '<div style="font-family:VT323,monospace;font-size:20px;color:#FFE45C">~/profile/photo</div>' +
+      '<div style="font-family:Silkscreen,monospace;font-size:28px;line-height:1.1;color:#FFFFFF">Add your photograph</div>' +
+      '<div data-k="hello" style="font-size:15px;line-height:1.55;color:#BDBDBD"></div>' +
+      '<div style="display:flex;align-items:center;gap:16px"><div data-k="prev" style="width:112px;height:112px;flex-shrink:0;border-radius:16px;border:2px dashed #333333;background:#050505;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#5E5E5E;font-size:12px">no photo</div>' +
+      '<button data-k="choose" type="button" style="min-height:46px;padding:0 18px;border:2px solid #333333;border-radius:12px;background:transparent;color:#FFFFFF;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Choose a photo</button></div>' +
+      '<div data-k="msg" role="alert" style="display:none;padding:10px 14px;border-radius:12px;border:2px solid #FF7A7A;color:#FF7A7A;font-size:14px;font-weight:700"></div>' +
+      '<button data-k="save" type="button" disabled style="min-height:50px;border:0;border-radius:14px;background:#262626;color:#8A8A8A;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Save and open the portal</button>' +
+      '<button data-k="out" type="button" style="align-self:flex-start;border:0;background:none;color:#8A8A8A;font-family:inherit;font-size:14px;font-weight:700;text-decoration:underline;cursor:pointer;padding:0">Log out</button>' +
+      '</div></div>';
+    var $ = function (k) { return app.querySelector('[data-k="' + k + '"]'); };
+    var first = String(B.user.name || '').trim().split(/\s+/)[0];
+    $('hello').textContent = (first ? 'Hi ' + first + '. ' : '') + 'Add a clear, recent photo of your face. It appears on your profile and helps mentors recognise you. You can change it later by clicking it in the sidebar.';
+    var say = function (t) { var m = $('msg'); m.textContent = t || ''; m.style.display = t ? 'block' : 'none'; };
+    var ready = function (on) { var b = $('save'); b.disabled = !on; b.style.background = on ? '#FFE45C' : '#262626'; b.style.color = on ? '#050505' : '#8A8A8A'; b.style.cursor = on ? 'pointer' : 'not-allowed'; };
+    $('choose').onclick = function () {
+      pickPhoto().then(function (d) {
+        data = d; say('');
+        var img = document.createElement('img'); img.src = d; img.alt = 'Your photo'; img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+        var p = $('prev'); p.replaceChildren(img); p.style.border = '2px solid #FFE45C';
+        $('choose').textContent = 'Change photo'; ready(true);
+      }, function (e) { say(e.message); });
+    };
+    $('save').onclick = function () {
+      if (!data) return;
+      ready(false); $('save').textContent = 'Saving…';
+      api('PUT', '/api/me/photo', { photo: data }).then(function (r) { B.user.photoAt = r.photoAt; app.innerHTML = ''; done(); },
+        function (e) { say(e.message); ready(true); $('save').textContent = 'Save and open the portal'; });
+    };
+    $('out').onclick = function () { api('POST', '/api/auth/logout').then(function () { location.href = '/login'; }, function () { location.href = '/login'; }); };
+  }
+
   api('GET', '/api/bootstrap').then(function (B) {
     clock.offset = B.serverNow - Date.now();
     window.__ssBoot = B;
-    bootPortal(SprintPortal, { testMode: B.sprint.preview ? 'preview-open' : 'auto' });
+    var boot = function () { bootPortal(SprintPortal, { testMode: B.sprint.preview ? 'preview-open' : 'auto' }); };
+    var testRunning = B.attempt && B.attempt.status === 'running';
+    if (B.user.kind === 'student' && !B.user.photoAt && !testRunning && window.SSPhoto) photoGate(B, boot); else boot();
   }, function (e) { if (e.code !== 'AUTH') fail(e.message); });
 })();

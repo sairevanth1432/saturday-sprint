@@ -23,6 +23,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 let server, base, mod, db, sec;
 const log = console.log;
+// A tiny photo data URL: registration requires a photograph.
+const PHOTO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP==';
 before(async () => {
   console.log = () => {};
   mod = await import('../index.js');
@@ -68,7 +70,7 @@ const waitFor = async (fn, ms = 8000) => {
 async function signup(c, roll, phone) {
   const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone });
   assert.equal(s.status, 200, JSON.stringify(s.body));
-  const v = await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone, password: 'Sprint2026' });
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone, photo: PHOTO, password: 'Sprint2026' });
   assert.equal(v.status, 200, JSON.stringify(v.body));
   assert.equal(v.body.status, 'pending');
   const { approveRequest } = await import('../auth.js');
@@ -123,10 +125,10 @@ test('register with OWN phone → pending until admin approves; impostor request
   assert.equal(s.status, 200);
   assert.equal(s.body.maskedPhone, '+91 90•••••001', 'the code goes to the number the student typed, not the sheet');
   const wrong = String((Number(s.body.devOtp) + 1) % 1000000).padStart(6, '0');
-  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: wrong, phone: '9000000001', password: 'Sprint2026' })).body.error, 'OTP_WRONG');
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: wrong, phone: '9000000001', photo: PHOTO, password: 'Sprint2026' })).body.error, 'OTP_WRONG');
   // a code for one phone cannot be used with another phone
-  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000099', password: 'Sprint2026' })).body.error, 'OTP_EXPIRED');
-  const v = await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000001', password: 'Sprint2026' });
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000099', photo: PHOTO, password: 'Sprint2026' })).body.error, 'OTP_EXPIRED');
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: s.body.devOtp, phone: '9000000001', photo: PHOTO, password: 'Sprint2026' });
   assert.equal(v.status, 200);
   assert.equal(v.body.status, 'pending');
   assert.equal((await c('GET', '/api/me')).status, 401, 'no session before approval');
@@ -135,7 +137,7 @@ test('register with OWN phone → pending until admin approves; impostor request
   // someone else tries to claim the same NIAT ID with their phone
   const x = client();
   const xs = await x('POST', '/api/auth/register/start', { rollNo: ROLL, phone: '9000000666' });
-  await x('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: xs.body.devOtp, phone: '9000000666', password: 'Sprint2026' });
+  await x('POST', '/api/auth/register/verify', { rollNo: ROLL, otp: xs.body.devOtp, phone: '9000000666', photo: PHOTO, password: 'Sprint2026' });
   const reqs = await db.all("SELECT id, phone FROM registration_requests WHERE roll_no = ? AND status = 'pending' ORDER BY id", ROLL);
   assert.equal(reqs.length, 2);
 
@@ -294,7 +296,7 @@ test('updating the master file: removed students are deactivated; the account ph
 });
 
 test('admin approvals screen: list, reject with reason, bulk approve, change login phone', async () => {
-  const mk = async (roll, phone) => { const c = client(); const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone }); await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone, password: 'Sprint2026' }); return c; };
+  const mk = async (roll, phone) => { const c = client(); const s = await c('POST', '/api/auth/register/start', { rollNo: roll, phone }); await c('POST', '/api/auth/register/verify', { rollNo: roll, otp: s.body.devOtp, phone, photo: PHOTO, password: 'Sprint2026' }); return c; };
   await db.run("INSERT INTO students_master (roll_no, name, phone, active, source, updated_at) VALUES ('N26P02A0901', 'Ravi', '+919000000901', 1, 'admin', 1), ('N26P02A0902', 'Sita', '', 1, 'admin', 1)");
   await mk('N26P02A0901', '9000000901');
   const sita = await mk('N26P02A0902', '9000000902');
@@ -442,9 +444,9 @@ test('student password: register with a password → log in with NIAT ID + passw
   // 1) register with a password (weak passwords are refused at verify)
   const c = client();
   const s = await c('POST', '/api/auth/register/start', { rollNo: 'PWTEST01', phone: '9111100001' });
-  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: 'PWTEST01', otp: s.body.devOtp, phone: '9111100001', password: 'short' })).body.error, 'WEAK_PASSWORD');
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: 'PWTEST01', otp: s.body.devOtp, phone: '9111100001', photo: PHOTO, password: 'short' })).body.error, 'WEAK_PASSWORD');
   const s2 = await c('POST', '/api/auth/register/start', { rollNo: 'PWTEST01', phone: '9111100001' });
-  const v = await c('POST', '/api/auth/register/verify', { rollNo: 'PWTEST01', otp: s2.body.devOtp, phone: '9111100001', password: 'Sprint2026' });
+  const v = await c('POST', '/api/auth/register/verify', { rollNo: 'PWTEST01', otp: s2.body.devOtp, phone: '9111100001', photo: PHOTO, password: 'Sprint2026' });
   assert.equal(v.body.status, 'pending', JSON.stringify(v.body));
   assert.equal((await client()('POST', '/api/auth/password-login', { rollNo: 'PWTEST01', password: 'Sprint2026' })).body.error, 'PENDING_APPROVAL');
   const { approveRequest } = await import('../auth.js');
@@ -463,7 +465,7 @@ test('student password: register with a password → log in with NIAT ID + passw
   // 2) admin reset: the student is signed out, told to use a code, then sets a new password right after the code login
   const q = client();
   const s3 = await q('POST', '/api/auth/register/start', { rollNo: 'PWTEST02', phone: '9111100002' });
-  await q('POST', '/api/auth/register/verify', { rollNo: 'PWTEST02', otp: s3.body.devOtp, phone: '9111100002', password: 'Before2026' });
+  await q('POST', '/api/auth/register/verify', { rollNo: 'PWTEST02', otp: s3.body.devOtp, phone: '9111100002', photo: PHOTO, password: 'Before2026' });
   await approveRequest((await db.one("SELECT id FROM registration_requests WHERE roll_no = 'PWTEST02' AND status = 'pending'")).id, 'test');
   assert.equal((await q('POST', '/api/auth/password-login', { rollNo: 'PWTEST02', password: 'Before2026' })).status, 200);
   const det = await ADM('GET', '/api/admin/students/PWTEST02');
@@ -854,6 +856,93 @@ test('business metrics: every value matches a hand-computed dataset; TEST accoun
   } finally {
     for (const r of others) await db.run('UPDATE students_master SET active = 1 WHERE roll_no = ?', r);
   }
+});
+
+test('student photo: required to register, carried to the account on approval, admins see it, students change their own', async () => {
+  // registration without a photo is refused before the code is even checked
+  const c = client();
+  const r = await c('POST', '/api/auth/register/verify', { rollNo: 'NIAT24009', otp: '123456', phone: '9000000009', password: 'Sprint2026' });
+  assert.equal(r.status, 400);
+  assert.equal(r.body.error, 'PHOTO_REQUIRED');
+  assert.equal((await c('POST', '/api/auth/register/verify', { rollNo: 'NIAT24009', otp: '123456', phone: '9000000009', password: 'Sprint2026', photo: 'data:text/html;base64,PGI+' })).body.error, 'PHOTO_INVALID');
+
+  // A registered with a photo: approval copied it to the account
+  const boot = await A('GET', '/api/bootstrap');
+  assert.ok(boot.body.user.photoAt > 0, 'bootstrap tells the portal the student has a photo');
+  const mine = await fetch(base + '/api/me/photo', { headers: { cookie: A.cookie() } });
+  assert.equal(mine.status, 200);
+  assert.equal(mine.headers.get('content-type'), 'image/jpeg');
+  assert.equal((await ADM('GET', '/api/admin/approvals?status=approved')).body.rows.find((x) => x.roll_no === 'NIAT24001').has_photo, 1);
+  assert.equal((await ADM('GET', '/api/admin/students/NIAT24001')).body.photoAt > 0, true);
+  const adm = await fetch(base + '/api/admin/photos/student/NIAT24001', { headers: { cookie: ADM.cookie() } });
+  assert.equal(adm.status, 200);
+  assert.equal((await fetch(base + '/api/admin/photos/student/NIAT24001', { headers: { cookie: A.cookie() } })).status, 401, 'students cannot read admin photo URLs');
+
+  // changing it: bad data refused, a new photo bumps the stamp
+  assert.equal((await A('PUT', '/api/me/photo', { photo: '' })).body.error, 'PHOTO_REQUIRED');
+  assert.equal((await A('PUT', '/api/me/photo', { photo: 'data:image/jpeg;base64,' + 'A'.repeat(500 * 1024) })).status, 413);
+  const up = await A('PUT', '/api/me/photo', { photo: 'data:image/png;base64,iVBORw0KGgo=' });
+  assert.equal(up.status, 200, JSON.stringify(up.body));
+  assert.ok(up.body.photoAt >= boot.body.user.photoAt);
+  assert.equal((await fetch(base + '/api/me/photo', { headers: { cookie: A.cookie() } })).headers.get('content-type'), 'image/png');
+  assert.equal((await ADM('PUT', '/api/me/photo', { photo: PHOTO })).status, 403, 'admins have no student photo');
+});
+
+test('courses & topics: admins add courses and topics; the portal gets them; edit, reorder, upload, delete', async () => {
+  assert.equal((await A('POST', '/api/admin/content/courses', { name: 'Hack' })).status, 401, 'students cannot manage content');
+  const co = await ADM('POST', '/api/admin/content/courses', { name: 'Data Structures 101' });
+  assert.equal(co.status, 200, JSON.stringify(co.body));
+  assert.equal(co.body.id, 'datastructures', 'course ids are letters only (progress keys and analytics depend on it)');
+  assert.equal((await ADM('POST', '/api/admin/content/courses', { name: 'Data Structures' })).body.id, 'datastructuresa', 'ids never clash');
+  assert.equal((await ADM('POST', '/api/admin/content/courses', { name: ' ' })).body.error, 'BAD_NAME');
+
+  const t1 = await ADM('POST', '/api/admin/content/units', { course: 'datastructures', title: 'Arrays', goal: 'Watch. An array keeps items in order.', orientation: 'portrait' });
+  assert.equal(t1.status, 200, JSON.stringify(t1.body));
+  assert.equal(t1.body.id, 'u-arrays');
+  const t2 = await ADM('POST', '/api/admin/content/units', { course: 'datastructures', title: 'Linked Lists' });
+  assert.equal((await ADM('POST', '/api/admin/content/units', { course: 'datastructures', title: 'Arrays' })).body.id, 'u-arrays-2', 'unit ids never clash');
+  assert.equal((await ADM('POST', '/api/admin/content/units', { course: 'nope', title: 'X' })).body.error, 'BAD_COURSE');
+  const pfTopic = await ADM('POST', '/api/admin/content/units', { course: 'pf', title: 'While Loop' });
+  assert.equal(pfTopic.status, 200);
+
+  // the portal: new course + its topics after the built-in ones, as Watch → Play → Read units
+  let boot = await A('GET', '/api/bootstrap');
+  assert.ok(boot.body.courses.some((c) => c.id === 'datastructures' && c.name === 'Data Structures 101'));
+  let ds = boot.body.units.units.filter((u) => u.course === 'datastructures').map((u) => u.id);
+  assert.deepEqual(ds, ['u-arrays', 'u-linked-lists', 'u-arrays-2']);
+  const arr = boot.body.units.units.find((u) => u.id === 'u-arrays');
+  assert.equal(arr.lessons[0].kind, 'video');
+  assert.equal(arr.lessons[0].watch.orientation, 'portrait');
+  const pf = boot.body.units.units.filter((u) => u.course === 'pf').map((u) => u.id);
+  assert.equal(pf[pf.length - 1], pfTopic.body.id, 'topics added to a built-in course come after its units');
+
+  // the admin catalog lists them, and their steps take uploads like any unit
+  const media = await ADM('GET', '/api/admin/media');
+  assert.ok(media.body.courses.find((c) => c.id === 'datastructures').custom);
+  assert.equal(media.body.lessons.find((l) => l.id === 'u-arrays').steps.read.active, 'none');
+  assert.equal((await ADM('POST', '/api/admin/media/u-arrays/read/html', { html: '<!doctype html><h1>Array notes</h1>', fileName: 'a.html' })).status, 200);
+  boot = await A('GET', '/api/bootstrap');
+  assert.match(boot.body.unitContent['u-arrays'].read, /^\/api\/content\/u-arrays\/read\?v=\d+$/);
+
+  // edit and reorder
+  assert.equal((await ADM('PATCH', '/api/admin/content/units/u-linked-lists', { title: 'Linked Lists 1' })).status, 200);
+  assert.equal((await ADM('POST', '/api/admin/content/units/u-linked-lists/move', { dir: -1 })).status, 200);
+  boot = await A('GET', '/api/bootstrap');
+  ds = boot.body.units.units.filter((u) => u.course === 'datastructures');
+  assert.deepEqual(ds.map((u) => u.id), ['u-linked-lists', 'u-arrays', 'u-arrays-2']);
+  assert.equal(ds[0].name, 'Linked Lists 1');
+  assert.equal((await ADM('PATCH', '/api/admin/content/units/tp-nested', { title: 'Nested' })).status, 404, 'built-in units are not edited here');
+  assert.equal((await ADM('PATCH', '/api/admin/content/courses/datastructures', { name: 'DSA' })).status, 200);
+
+  // delete: a course must be empty; deleting a topic removes its uploads
+  assert.equal((await ADM('DELETE', '/api/admin/content/courses/datastructures')).body.error, 'NOT_EMPTY');
+  for (const id of ['u-arrays', 'u-arrays-2', 'u-linked-lists', pfTopic.body.id]) assert.equal((await ADM('DELETE', '/api/admin/content/units/' + id)).status, 200);
+  assert.equal(await db.one("SELECT COUNT(*) AS n FROM unit_content WHERE unit_id = 'u-arrays'").then((r) => Number(r.n)), 0);
+  assert.equal((await ADM('DELETE', '/api/admin/content/courses/datastructures')).status, 200);
+  assert.equal((await ADM('DELETE', '/api/admin/content/courses/datastructuresa')).status, 200);
+  boot = await A('GET', '/api/bootstrap');
+  assert.equal(boot.body.courses.length, 0);
+  assert.equal(boot.body.units.units.length, 6);
 });
 
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {

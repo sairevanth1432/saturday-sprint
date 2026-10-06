@@ -155,6 +155,12 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   var sc = function (x) { return x == null ? '–' : String(Math.round(Number(x) * 100) / 100); };
   var isSuper = function () { return ME && ME.role === 'super_admin'; };
   function pill(text, kind) { return h('span', { class: 'pill ' + (kind || '') }, text); }
+  // Student photo (opens full size in a new tab), or a dashed placeholder when there is none.
+  function photo(url, size) {
+    var st = 'width:' + size + 'px;height:' + size + 'px;border-radius:10px;flex-shrink:0;';
+    if (!url) return h('span', { title: 'No photo', style: st + 'display:inline-flex;align-items:center;justify-content:center;border:2px dashed var(--line);color:var(--muted);font-size:11px' }, 'no photo');
+    return h('a', { href: url, target: '_blank', rel: 'noopener', title: 'Open the photo' }, h('img', { src: url, alt: 'Student photo', loading: 'lazy', style: st + 'display:block;object-fit:cover;background:#000' }));
+  }
   function debounce(fn, ms) { var t; return function () { var a = arguments, s = this; clearTimeout(t); t = setTimeout(function () { fn.apply(s, a); }, ms); }; }
   function download(url) { var a = h('a', { href: url, download: '' }); document.body.appendChild(a); a.click(); a.remove(); }
   function localInput(iso) { var d = new Date(iso); if (isNaN(d)) return ''; return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
@@ -240,7 +246,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   // ------------------------------------------------------------------ layout
   var NAV = [
     ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'],
-    ['media', 'Learning bytes'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
+    ['media', 'Courses & topics'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
     var nav = h('div', { class: 'nav' }, NAV.map(function (n) {
@@ -409,7 +415,9 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           } }, label);
         };
         d.set(h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
-          header('~/admin/students/' + m.roll_no, m.name || m.roll_no, m.roll_no + (m.batch ? ' · ' + m.batch : '') + ' · ' + m.phone),
+          h('div', { class: 'row', style: 'gap:16px;align-items:center;justify-content:flex-start' },
+            photo(s.photoAt ? '/api/admin/photos/student/' + encodeURIComponent(m.roll_no) + '?v=' + s.photoAt : null, 88),
+            h('div', { style: 'flex-grow:1' }, header('~/admin/students/' + m.roll_no, m.name || m.roll_no, m.roll_no + (m.batch ? ' · ' + m.batch : '') + ' · ' + m.phone))),
           h('div', { class: 'card' }, h('h2', null, 'Account'),
             u ? h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
               h('div', { class: 'row' }, u.status === 'active' ? pill('active', 'ok') : pill('disabled', 'bad'), u.has_password ? pill('password set', 'ok') : pill('no password yet', 'warn'), h('span', { class: 'soft' }, 'Registered ' + dt(u.created_at) + ' · last login ' + dt(u.last_login_at) + ' · ' + s.sessions.length + ' active session(s)')),
@@ -1194,9 +1202,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         if (r.other_requests_same_id > 0) flags.push(pill(r.other_requests_same_id + ' other request(s) for this NIAT ID', 'bad'));
         if (r.phone_used_for_other_ids > 0) flags.push(pill('phone used for ' + r.phone_used_for_other_ids + ' other NIAT ID(s)', 'bad'));
         if (!r.active) flags.push(pill('not in master list', 'bad'));
+        if (!r.has_photo) flags.push(pill('no photo', 'warn'));
         var cb = pendingRows ? h('input', { type: 'checkbox', onchange: function (e) { picked[r.id] = e.target.checked; } }) : null;
         return h('tr', null,
           pendingRows ? h('td', null, cb) : null,
+          h('td', null, photo(r.has_photo ? '/api/admin/photos/request/' + r.id : null, 56)),
           h('td', { class: 'mono' }, r.roll_no),
           h('td', null, r.name || '–', r.email ? h('div', { class: 'muted', style: 'font-size:12px' }, r.email) : null),
           h('td', { class: 'mono' }, r.phone),
@@ -1209,7 +1219,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       });
       var matching = d.rows.filter(function (r) { return r.matches_sheet && !r.other_requests_same_id && !r.phone_used_for_other_ids && r.active; });
       return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
-        header('~/admin/approvals', 'Registration approvals', 'Students register with their NIAT ID and their own phone (verified by OTP). Check the name and flags, then approve. A NIAT ID can have only one account; approving one request closes the others for that ID.',
+        header('~/admin/approvals', 'Registration approvals', 'Students register with their NIAT ID, their own phone (verified by OTP) and a photograph. Check the photo, name and flags, then approve. A NIAT ID can have only one account; approving one request closes the others for that ID.',
           [pill(d.counts.pending + ' pending', d.counts.pending ? 'warn' : ''), pill(d.counts.approved + ' approved', 'ok'), pill(d.counts.rejected + ' rejected', '')]),
         h('div', { class: 'toolbar' },
           h('select', { onchange: function (e) { CACHE.approvalStatus = e.target.value; refresh(); } },
@@ -1222,8 +1232,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('span', { class: 'grow' }), h('button', { class: 'btn', onclick: refresh }, 'Refresh')),
         h('div', { class: 'note' }, 'Red flags mean extra care: two people claiming the same NIAT ID, or one phone used for several IDs. If unsure, contact the student before approving.'),
         h('div', { class: 'tablewrap' }, h('table', null,
-          h('thead', null, h('tr', null, (pendingRows ? [''] : []).concat(['NIAT ID', 'Name (from sheet)', 'Phone entered', 'Checks', 'Requested', '']).map(function (t) { return h('th', null, t); }))),
-          h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 7, class: 'muted' }, pendingRows ? 'Nothing waiting. New registrations appear here.' : 'None.'))))));
+          h('thead', null, h('tr', null, (pendingRows ? [''] : []).concat(['Photo', 'NIAT ID', 'Name (from sheet)', 'Phone entered', 'Checks', 'Requested', '']).map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 8, class: 'muted' }, pendingRows ? 'Nothing waiting. New registrations appear here.' : 'None.'))))));
     });
   };
 
@@ -1415,11 +1425,71 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             } }, 'Remove') : null)));
       };
       var groups = {};
-      info.lessons.forEach(function (l) { (groups[l.courseName] = groups[l.courseName] || []).push(l); });
+      (info.courses || []).forEach(function (c) { groups[c.id] = []; });
+      info.lessons.forEach(function (l) { (groups[l.course] = groups[l.course] || []).push(l); });
+      var courseOf = function (id) { return (info.courses || []).find(function (c) { return c.id === id; }) || { id: id, name: id, custom: false }; };
+      // Add / edit a topic: one unit with Watch -> Play -> Read. The files are uploaded in its row afterwards.
+      var topicForm = function (courseId, l) {
+        var dr = drawer();
+        var f = {
+          course: h('select', { disabled: l ? true : null }, (info.courses || []).map(function (c) { return h('option', { value: c.id, selected: c.id === courseId ? true : null }, c.name); })),
+          title: h('input', { type: 'text', maxlength: 120, value: l ? l.title : '', placeholder: 'e.g. While Loop', required: true }),
+          goal: h('input', { type: 'text', maxlength: 300, value: l ? l.goal : '', placeholder: 'One line above the video, e.g. "Watch. A loop runs while its condition is true."' }),
+          concept: h('textarea', { rows: 3, maxlength: 500, placeholder: 'What the student learns (shown on the reading page and in analytics)' }, l ? l.concept : ''),
+          orientation: h('select', null, [['landscape', 'Landscape 16:9'], ['portrait', 'Upright 9:16 (phone video)']].map(function (o) { return h('option', { value: o[0], selected: (l ? l.orientation : 'landscape') === o[0] ? true : null }, o[1]); })),
+          practiceTopic: h('input', { type: 'text', maxlength: 120, value: l ? (l.practiceTopic || '') : '', placeholder: 'Optional: the Practice topic for this unit (analytics)' })
+        };
+        dr.set(h('form', { style: 'display:flex;flex-direction:column;gap:14px', onsubmit: function (e) {
+          e.preventDefault();
+          var body = { title: f.title.value, goal: f.goal.value, concept: f.concept.value, orientation: f.orientation.value, practiceTopic: f.practiceTopic.value };
+          var call = l ? api('PATCH', '/api/admin/content/units/' + encodeURIComponent(l.id), body) : api('POST', '/api/admin/content/units', Object.assign({ course: f.course.value }, body));
+          call.then(function () { dr.close(); toast(l ? 'Topic updated.' : 'Topic added. Upload its Watch, Play and Read files in its row.'); refresh(); }, fail);
+        } },
+          header('~/admin/courses', l ? 'Edit topic' : 'Add a topic', l ? l.id : 'Students see it in Learn after reloading. Steps: Watch (MP4) \u2192 Play (HTML) \u2192 Read (HTML).'),
+          h('div', { class: 'field' }, h('label', null, 'Course'), f.course),
+          h('div', { class: 'field' }, h('label', null, 'Topic title'), f.title),
+          h('div', { class: 'field' }, h('label', null, 'Goal line'), f.goal),
+          h('div', { class: 'field' }, h('label', null, 'Concept'), f.concept),
+          h('div', { class: 'grid g2' }, h('div', { class: 'field' }, h('label', null, 'Video shape'), f.orientation), h('div', { class: 'field' }, h('label', null, 'Practice topic'), f.practiceTopic)),
+          h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'submit' }, l ? 'Save topic' : 'Add topic'), h('button', { class: 'btn', type: 'button', onclick: function () { dr.close(); } }, 'Cancel'))));
+        setTimeout(function () { f.title.focus(); }, 50);
+      };
+      var addCourse = function () {
+        var name = prompt('Name of the new course (e.g. Data Structures):');
+        if (!name || !name.trim()) return;
+        api('POST', '/api/admin/content/courses', { name: name }).then(function () { toast('Course added. Add its first topic: courses without topics are hidden from students.'); refresh(); }, fail);
+      };
+      var courseTools = function (c) {
+        return h('div', { class: 'row', style: 'gap:6px;justify-content:flex-end' },
+          h('button', { class: 'btn sm pri', type: 'button', onclick: function () { topicForm(c.id); } }, '+ Add topic'),
+          c.custom ? h('button', { class: 'btn sm', type: 'button', onclick: function () {
+            var name = prompt('New name for "' + c.name + '":', c.name);
+            if (!name || !name.trim() || name === c.name) return;
+            api('PATCH', '/api/admin/content/courses/' + encodeURIComponent(c.id), { name: name }).then(function () { toast('Renamed.'); refresh(); }, fail);
+          } }, 'Rename') : null,
+          c.custom && isSuper() ? h('button', { class: 'btn sm bad', type: 'button', onclick: function () {
+            if (!confirm('Delete the course "' + c.name + '"? It must have no topics.')) return;
+            api('DELETE', '/api/admin/content/courses/' + encodeURIComponent(c.id)).then(function () { toast('Course deleted.'); refresh(); }, fail);
+          } }, 'Delete course') : null);
+      };
+      var topicTools = function (l, list) {
+        if (!l.custom) return null;
+        var mine = list.filter(function (x) { return x.custom; }), k = mine.indexOf(l);
+        var move = function (dir) { api('POST', '/api/admin/content/units/' + encodeURIComponent(l.id) + '/move', { dir: dir }).then(refresh, fail); };
+        return h('div', { class: 'row', style: 'gap:6px;margin-top:8px' },
+          pill('added here', 'info'),
+          h('button', { class: 'btn sm', type: 'button', onclick: function () { topicForm(l.course, l); } }, 'Edit'),
+          h('button', { class: 'btn sm', type: 'button', title: 'Move up', 'aria-label': 'Move up', disabled: k <= 0 ? true : null, onclick: function () { move(-1); } }, '\u2191'),
+          h('button', { class: 'btn sm', type: 'button', title: 'Move down', 'aria-label': 'Move down', disabled: k >= mine.length - 1 ? true : null, onclick: function () { move(1); } }, '\u2193'),
+          isSuper() ? h('button', { class: 'btn sm bad', type: 'button', onclick: function () {
+            if (!confirm('Delete the topic "' + l.title + '" and its uploaded files? Students lose its progress ticks.')) return;
+            api('DELETE', '/api/admin/content/units/' + encodeURIComponent(l.id)).then(function () { toast('Topic deleted.'); refresh(); }, fail);
+          } }, 'Delete') : null);
+      };
       var count = function (slot) { return info.lessons.filter(function (l) { return l.steps && l.steps[slot].active !== 'none'; }).length; };
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
-        header('~/admin/learning-bytes', 'Learning bytes', 'Each unit has three steps students go through in order: Watch (MP4 video) → Play (interactive HTML) → Read (HTML notes). Upload or replace any of them here.',
-          [pill('Watch ' + count('watch') + '/' + info.lessons.length, 'ok'), pill('Play ' + count('play') + '/' + info.lessons.length, 'ok'), pill('Read ' + count('read') + '/' + info.lessons.length, count('read') ? 'ok' : 'warn')]),
+        header('~/admin/courses', 'Courses & topics', 'Add courses and topics, and upload their content. Each topic has three steps students go through in order: Watch (MP4 video) → Play (interactive HTML) → Read (HTML notes).',
+          [h('button', { class: 'btn pri', type: 'button', onclick: addCourse }, '+ Add course'), pill('Watch ' + count('watch') + '/' + info.lessons.length, 'ok'), pill('Play ' + count('play') + '/' + info.lessons.length, 'ok'), pill('Read ' + count('read') + '/' + info.lessons.length, count('read') ? 'ok' : 'warn')]),
         h('div', { class: 'grid g2' },
           h('div', { class: 'card' }, h('h2', null, 'What to upload'), h('div', { class: 'soft', style: 'line-height:1.6' },
             h('b', null, 'Watch: '), 'an .mp4 video (H.264). Upright 9:16 videos are shown upright.', h('br'),
@@ -1429,11 +1499,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             'A unit with no Read yet shows "Reading material is coming soon". Removing an upload brings back the built-in file, if there is one.'))),
         Object.keys(groups).map(function (g) {
           return h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,
-            h('thead', null, h('tr', null, h('th', { colspan: 4, style: 'font-size:14px;color:var(--accent)' }, g))),
+            h('thead', null, h('tr', null, h('th', { colspan: 3, style: 'font-size:14px;color:var(--accent)' }, courseOf(g).name, courseOf(g).custom ? h('span', { class: 'muted mono', style: 'margin-left:8px' }, courseOf(g).id) : null), h('th', null, courseTools(courseOf(g))))),
             h('thead', null, h('tr', null, ['Unit', '1 · Watch (MP4)', '2 · Play (HTML)', '3 · Read (HTML)'].map(function (t) { return h('th', null, t); }))),
-            h('tbody', null, groups[g].map(function (l) {
+            h('tbody', null, !groups[g].length ? h('tr', null, h('td', { colspan: 4, class: 'muted' }, 'No topics yet. Students do not see this course until it has one: use "+ Add topic".')) : groups[g].map(function (l, i, list) {
               return h('tr', null,
-                h('td', null, h('b', null, l.title), h('div', { class: 'muted mono', style: 'font-size:15px' }, l.id), l.concept ? h('div', { class: 'muted', style: 'font-size:12px;line-height:1.4;margin-top:4px;max-width:260px' }, l.concept) : null),
+                h('td', null, h('b', null, l.title), h('div', { class: 'muted mono', style: 'font-size:15px' }, l.id), l.concept ? h('div', { class: 'muted', style: 'font-size:12px;line-height:1.4;margin-top:4px;max-width:260px' }, l.concept) : null, topicTools(l, list)),
                 l.steps ? cell(l, 'watch') : h('td', null, '–'), l.steps ? cell(l, 'play') : h('td', null, '–'), l.steps ? cell(l, 'read') : h('td', null, '–'));
             }))));
         }));

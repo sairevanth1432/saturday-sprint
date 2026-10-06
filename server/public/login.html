@@ -28,6 +28,11 @@ h1{margin:0;font-size:22px;font-weight:800}
 .sub{margin:6px 0 0;font-size:14px;line-height:1.5;color:var(--soft)}
 label{display:block;font-size:14px;font-weight:800;margin-bottom:8px}
 .hint{display:block;margin-top:6px;font-size:13px;color:var(--muted);line-height:1.45}
+.photo{display:flex;align-items:center;gap:14px}
+.photo .ph{width:84px;height:84px;flex-shrink:0;border-radius:14px;border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);font-size:12px;background:var(--well)}
+.photo .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.photo .ph.on{border:2px solid var(--accent)}
+.photo .btn{width:auto;min-height:44px;padding:0 16px;font-size:14px}
 input{width:100%;min-height:54px;padding:0 16px;border:2px solid var(--line);border-radius:12px;background:var(--well);color:var(--text);
   font-family:"VT323",monospace;font-size:26px;letter-spacing:1px;outline:none;transition:border-color 140ms ease}
 input:focus{border-color:var(--accent)}
@@ -173,6 +178,15 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
           <div class="phone"><span>+91</span><input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" placeholder="98765 43210"></div>
           <span class="hint">Use a number you will keep. Login codes are always sent to this number.</span>
         </div>
+        <div id="photo-field" hidden>
+          <label for="photo">Your photograph</label>
+          <div class="photo">
+            <div class="ph" id="photo-prev" aria-hidden="true">no photo</div>
+            <button class="btn ghost" id="b-photo" type="button">Choose a photo</button>
+            <input id="photo" type="file" accept="image/*" hidden>
+          </div>
+          <span class="hint">Required. A clear, recent photo of your face. The admin checks it before approving you.</span>
+        </div>
         <div id="pw-field">
           <div class="pwrow"><label for="pw">Password</label><button class="link" id="b-showpw" type="button">Show</button></div>
           <input id="pw" class="pw" name="password" type="password" autocomplete="current-password" maxlength="128">
@@ -237,10 +251,11 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
   </section>
 </main>
 
+<script src="/photo.js"></script>
 <script>
 (function () {
   // Modes: login = NIAT ID + password; code = NIAT ID + SMS code (first login / forgot password); register.
-  var mode = 'login', roll = '', phone = '', password = '', resendTimer = null, busy = false, forgot = false;
+  var mode = 'login', roll = '', phone = '', password = '', photoData = '', resendTimer = null, busy = false, forgot = false;
   var $ = function (id) { return document.getElementById(id); };
   var COPY = {
     login: { title: 'Welcome back', sub: 'Log in with your NIAT ID and password.', send: 'Log in', verify: '' },
@@ -273,6 +288,7 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
     $('b-send').textContent = COPY[mode].send;
     $('b-verify').textContent = COPY[mode].verify;
     show($('phone-field'), mode === 'register');
+    show($('photo-field'), mode === 'register');
     show($('pw-field'), mode !== 'code');
     show($('pw2-field'), mode === 'register');
     show($('pw-hint'), mode === 'register');
@@ -360,6 +376,7 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
         var prob = pwProblem(password);
         if (prob) { message(prob); $('pw').focus(); return; }
         if ($('pw2').value !== password) { message('The two passwords do not match.'); $('pw2').focus(); return; }
+        if (!photoData) { message('Add your photograph: choose a clear photo of your face.'); $('b-photo').focus(); return; }
       }
       body.phone = phone;
     }
@@ -376,7 +393,7 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
     if (code.length !== 6) { message('Enter the 6-digit code.'); $('otp').focus(); return; }
     busy = true; $('b-verify').disabled = true; message('');
     var body = { rollNo: roll, otp: code };
-    if (mode === 'register') { body.phone = phone; body.password = password; }
+    if (mode === 'register') { body.phone = phone; body.password = password; body.photo = photoData; }
     call('/api/auth/' + (mode === 'register' ? 'register' : 'login') + '/verify', body).then(function (d) {
       busy = false; $('b-verify').disabled = false;
       if (d.status === 'pending') return pendingStep('Your number is confirmed and your request is sent. An admin will approve it; then log in with your NIAT ID ' + roll + ' and the password you chose.');
@@ -401,6 +418,19 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
   $('tab-login').onclick = function () { setMode('login', true); };
   $('tab-register').onclick = function () { setMode('register', true); };
   $('f-start').onsubmit = function (e) { e.preventDefault(); send(); };
+  $('b-photo').onclick = function () { $('photo').click(); };
+  $('photo').onchange = function () {
+    var f = $('photo').files[0];
+    if (!f) return;
+    SSPhoto.fromFile(f).then(function (d) {
+      photoData = d;
+      var box = $('photo-prev'), img = document.createElement('img');
+      img.src = d; img.alt = '';
+      box.replaceChildren(img); box.className = 'ph on';
+      $('b-photo').textContent = 'Change photo';
+      message('');
+    }, function (e) { message(e.message); }).then(function () { $('photo').value = ''; });
+  };
   $('f-otp').onsubmit = function (e) { e.preventDefault(); verify(); };
   $('f-setpw').onsubmit = function (e) { e.preventDefault(); savePassword(); };
   $('b-back').onclick = function () { startStep(true); };

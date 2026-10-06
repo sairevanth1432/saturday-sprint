@@ -229,7 +229,7 @@ const bootRe = /\n\/\*[^\n]*preview=1[^\n]*\*\/\n?bootPortal\(Component[^\n]*\n|
 if (!bootRe.test(html)) throw new Error('Could not find the bootPortal(Component, …) call.');
 html = html.replace(bootRe, '\n/* Booted by /portal-bridge.js after login (see server/public/portal-bridge.js). */\n');
 const bodyEnd = html.lastIndexOf('</body>');
-html = html.slice(0, bodyEnd) + '<script src="/portal-bridge.js"></script>\n' + html.slice(bodyEnd);
+html = html.slice(0, bodyEnd) + '<script src="/photo.js"></script>\n<script src="/portal-bridge.js"></script>\n' + html.slice(bodyEnd);
 
 // ---------- 3. template additions
 const ICON_BOARD = '<svg style="flex-shrink: 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path></svg>';
@@ -244,9 +244,14 @@ ${ICON_BOARD}
 
 const NAV_USER = `<div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
 <sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}">
-<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 4px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 4px; min-width: 0">
+<sc-if value="{{ ss.user.hasPhoto }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ ss.user.changePhoto }}" aria-label="Change your photo" title="Change your photo" style="flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 2px solid #333333; border-radius: 12px; overflow: hidden; background: #050505; cursor: pointer"><img src="{{ ss.user.photo }}" alt="" style="display: block; width: 100%; height: 100%; object-fit: cover"></button>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
 <span style="font-size: 15px; font-weight: 800; color: #FFFFFF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" title="{{ ss.user.name }}">{{ ss.user.name }}</span>
 <span style="font-family: 'VT323', monospace; font-size: 18px; color: #8A8A8A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ ss.user.sub }}</span>
+</div>
 </div>
 </sc-if>
 <sc-if value="{{ ss.user.isAdmin }}" hint-placeholder-val="{{ false }}">
@@ -417,7 +422,7 @@ replaceOnce('style="display: block; width: 100%; aspect-ratio: 16 / 9; border-ra
   'style="display: block; width: {{ wt.vw }}; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; margin: 0 auto; border-radius: 12px; background: #000000"></video>', 'video sizing');
 replaceOnce('<a data-embed="slides" href="{{ wt.src }}"', '<a data-embed="slides" data-tall="{{ wt.tall }}" href="{{ wt.src }}"', 'embed height flag');
 replaceOnce("style: 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });",
-  "style: props['data-tall'] ? 'display:block;width:100%;height:80vh;min-height:560px;border:0;border-radius:12px;background:#0A0A0A' : 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });", 'embed sizing');
+  "style: props['data-tall'] ? 'display:block;width:100%;height:calc(100vh - 290px);min-height:560px;border:0;border-radius:12px;background:#0A0A0A' : 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });", 'embed sizing');
 
 // ---------- 4b. units: "← Previous" next to the Next button, and a placeholder when a Read step has no notes yet
 replaceOnce('<span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>',
@@ -432,6 +437,27 @@ replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">',
 </div>
 </sc-if>
 <sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">`, 'read placeholder');
+
+// ---------- 4c. Learn topic list: a tick on completed topics instead of the per-lesson progress dots
+replaceOnce('<span>{{ lt2.name }}</span><span aria-hidden="true" style="display: flex; gap: 5px"><sc-for list="{{ lt2.dots }}" as="dt" hint-placeholder-count="3"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{ dt.bg }}; box-shadow: inset 0 0 0 1.5px {{ dt.ring }}"></span></sc-for></span></button>',
+  `<span style="display: flex; align-items: flex-start; gap: 10px; width: 100%"><span style="flex-grow: 1">{{ lt2.name }}</span><sc-if value="{{ lt2.done }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" title="Completed" style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: {{ lt2.tickBg }}; color: {{ lt2.tickFg }}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800">✓</span></sc-if></span></button>`, 'topic list tick');
+
+// ---------- 4d. Learn uses the full width of the screen; Play and Read get a full-screen button
+replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-width: 1040px">',
+  '<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">', 'learn media width');
+replaceOnce('<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F; max-width: 1040px">',
+  '<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">', 'learn bottom bar width');
+replaceOnce('<sc-if value="{{ wt.isSlides }}" hint-placeholder-val="{{ false }}">\n<a data-embed="slides"',
+  `<sc-if value="{{ ss.fs.on }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="flex-grow: 1; font-family: 'VT323', monospace; font-size: 19px; color: #8A8A8A">{{ ss.fs.hint }}</span>
+<button class="k3" onClick="{{ ss.fs.go }}" aria-label="{{ ss.fs.label }}" title="{{ ss.fs.label }}" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 14px; font-weight: 800"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M20 9V4h-5"></path><path d="M4 15v5h5"></path><path d="M20 15v5h-5"></path></svg><span>{{ ss.fs.label }}</span></button>
+</div>
+</sc-if>
+<sc-if value="{{ wt.isSlides }}" hint-placeholder-val="{{ false }}">
+<a data-embed="slides"`, 'full screen button');
+replaceOnce("return h('iframe', { src: props.href, title: 'Class slides', allowfullscreen: true, loading: 'lazy',",
+  "return h('iframe', { id: 'ss-embed', src: props.href, title: 'Class slides', allowfullscreen: true, allow: 'fullscreen', loading: 'lazy',", 'embed id');
 
 // ---------- 5. Sprint date/time/duration text follows Admin → Sprint settings (the HTML had them fixed)
 replaceOnce('<div style="font-size: 15px; color: #8A8A8A">Sat, 3 Oct · 11:00 – 11:30 AM IST</div>',

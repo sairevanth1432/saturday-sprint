@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { one, all, run, tx, getSetting } from './db.js';
 import { rateLimit } from './kv.js';
 import { deliverOtp } from './otp.js';
+import { checkPhoto, saveRequestPhoto, copyRequestPhoto } from './photos.js';
 import { randomToken, sha256, hmac, safeEqual, normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, verifyTotp } from './security.js';
 
 export const STUDENT_COOKIE = 'ss_session';
@@ -191,13 +192,15 @@ export async function startOtp(req, purpose, rawRoll, rawPhone) {
 }
 
 // Returns { status: 'active', user } (signed in) or { status: 'pending' } (registration waiting for an admin).
-export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone, rawPassword) {
+export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone, rawPassword, rawPhoto) {
   if (!PURPOSES.has(purpose)) throw new AuthError('BAD_REQUEST', 'Unknown request.');
   // Registration also sets the password the student will log in with after approval.
-  let pwHash = null;
+  // It also carries the student's photograph (required), shown to the admin who approves the request.
+  let pwHash = null, photo = null;
   if (purpose === 'register') {
     const prob = studentPasswordProblem(rawPassword);
     if (prob) throw new AuthError('WEAK_PASSWORD', prob, 400);
+    try { photo = checkPhoto(rawPhoto); } catch (e) { throw new AuthError(e.code, e.message, e.status); }
     pwHash = hashPassword(String(rawPassword));
   }
   const roll = checkRoll(rawRoll);
@@ -240,6 +243,7 @@ export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone, r
       } else {
         reqRow = await one('UPDATE registration_requests SET password_hash = ? WHERE id = ? RETURNING *', pwHash, reqRow.id);
       }
+      await saveRequestPhoto(reqRow.id, photo);
       if (!autoApprove) return { status: 'pending' };
       const user = await approveInTx(reqRow.id, 'auto-approve');
       return { status: 'active', user };
@@ -378,6 +382,7 @@ async function approveInTx(requestId, decidedBy) {
   const user = await one('INSERT INTO users (roll_no, phone, status, created_at, password_hash, password_set_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING *',
     r.roll_no, r.phone, 'active', now, r.password_hash || null, r.password_hash ? now : null);
   await run("UPDATE registration_requests SET status = 'approved', decided_at = ?, decided_by = ? WHERE id = ?", now, decidedBy, r.id);
+  await copyRequestPhoto(r.id, r.roll_no);
   // Any other open requests for the same NIAT ID (e.g. someone else trying to claim it) are closed.
   await run("UPDATE registration_requests SET status = 'superseded', decided_at = ?, decided_by = ? WHERE roll_no = ? AND status = 'pending'", now, decidedBy, r.roll_no);
   return user;
