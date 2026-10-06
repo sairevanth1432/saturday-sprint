@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
-import { one, all, run, tx, parseJSON } from './db.js';
+import { one, all, run, tx, parseJSON, setSetting } from './db.js';
 import * as kv from './kv.js';
 
 export const SLOTS = ['watch', 'play', 'read'];
@@ -21,7 +21,12 @@ let lessonsCache = null;
 // Built-in lessons (generated/lessons.json) followed by the topics admins added (Admin → Courses & topics).
 export function lessons() {
   if (!lessonsCache) lessonsCache = fs.existsSync(config.lessonsFile) ? JSON.parse(fs.readFileSync(config.lessonsFile, 'utf8')) : [];
-  return lessonsCache.concat(customLessons());
+  return lessonsCache.filter((l) => !isHidden(l)).concat(customLessons());
+}
+// Built-in lessons that a super admin removed (Admin → Courses & topics → Delete). They can be restored.
+export function hiddenLessons() {
+  if (!lessonsCache) lessons();
+  return lessonsCache.filter((l) => isHidden(l) && l.kind === 'unit');
 }
 export const lessonIds = () => new Set(lessons().map((l) => l.id));
 
@@ -147,29 +152,41 @@ function builtUnits() {
   }
   return unitsCache;
 }
+// "replaced": the built-in courses whose original lessons the units replace (mode "replace"), even when an admin
+// removed every unit of that course, so the portal never falls back to the original lessons.
 export function packUnits() {
   const b = builtUnits();
-  return { ...b, units: (b.units || []).concat(customUnits()) };
+  const replaced = b.mode === 'replace' ? [...new Set((b.units || []).map((u) => u.course))] : [];
+  return { ...b, replaced, hiddenCourses: custom.hidden.courses.slice(), units: (b.units || []).filter((u) => !isHidden(u)).concat(customUnits()) };
 }
 
 // ---------- courses and topics added by admins (content_courses / content_units)
 // Kept in a per-instance snapshot so packUnits()/lessons() stay synchronous; syncContent() refreshes it
 // (cached 30 s across instances, 5 s per instance) and runs before every /api request.
 export const BUILTIN_COURSES = [{ id: 'pf', name: 'Programming Foundations' }, { id: 'genai', name: 'Intro to GenAI' }];
-let custom = { courses: [], units: [] };
+let custom = { courses: [], units: [], hidden: { courses: [], units: [] } };
 export async function syncContent() {
-  custom = await kv.cached('content:v1', 30, async () => ({
-    courses: await all('SELECT id, name, color, sort, created_at FROM content_courses ORDER BY sort, created_at'),
-    units: await all('SELECT id, course, title, goal, concept, orientation, practice_topic, sort, created_at FROM content_units ORDER BY sort, created_at')
-  }), { localMs: 5000 });
+  const c = await kv.cached('content:v1', 30, async () => {
+    const h = await one("SELECT value FROM settings WHERE key = 'content_hidden'");
+    return {
+      courses: await all('SELECT id, name, color, sort, created_at FROM content_courses ORDER BY sort, created_at'),
+      units: await all('SELECT id, course, title, goal, concept, orientation, practice_topic, sort, created_at FROM content_units ORDER BY sort, created_at'),
+      hidden: parseJSON(h && h.value, null) || { courses: [], units: [] }
+    };
+  }, { localMs: 5000 });
+  custom = { ...c, hidden: { courses: (c.hidden && c.hidden.courses) || [], units: (c.hidden && c.hidden.units) || [] } };
   return custom;
 }
+// A built-in unit is hidden when it, or its whole built-in course, was removed by an admin.
+const isHidden = (u) => custom.hidden.units.includes(u.id) || custom.hidden.courses.includes(u.course);
+export const hiddenState = () => ({ courses: custom.hidden.courses.slice(), units: custom.hidden.units.slice() });
+export const builtinCourses = () => BUILTIN_COURSES.filter((c) => !custom.hidden.courses.includes(c.id));
 export const clearCustomCache = async () => { await kv.invalidate('content:v1'); custom = await syncContent(); };
 export const customCourses = () => custom.courses;
-export const courseNames = () => Object.fromEntries(BUILTIN_COURSES.concat(custom.courses).map((c) => [c.id, c.name]));
+export const courseNames = () => Object.fromEntries(builtinCourses().concat(custom.courses).map((c) => [c.id, c.name]));
 // Units of a course in the order the portal shows them (built-in first, then admin-added by position).
 function customUnits() {
-  const order = new Map(BUILTIN_COURSES.concat(custom.courses).map((c, i) => [c.id, i]));
+  const order = new Map(builtinCourses().concat(custom.courses).map((c, i) => [c.id, i]));
   return custom.units.filter((u) => order.has(u.course)).map((u) => ({
     id: u.id, course: u.course, name: u.title, color: '#FFE45C', practiceTopic: u.practice_topic || '', custom: true,
     lessons: [{ id: u.id, kind: 'video', title: u.title, goal: u.goal || '', tabs: { watch: null, play: null, read: null },
@@ -271,7 +288,51 @@ export async function moveUnit(id, dir) {
 
 export async function deleteUnit(id) {
   if (!(await one('SELECT id FROM content_units WHERE id = ?', id))) throw new ContentError('NOT_FOUND', 'Only topics added here can be deleted.', 404);
+  await syncContent();
+  const before = custom.units;
+  custom = { ...custom, units: before.filter((u) => u.id !== id) };
+  try { leavesSomething(hiddenState()); } finally { custom = { ...custom, units: before }; }
   for (const slot of SLOTS) await removeContent(id, slot);
   await run('DELETE FROM content_units WHERE id = ?', id);
   await clearCustomCache();
+}
+
+// ---------- removing built-in courses and topics (from content/units.json): they are hidden, not deleted, so
+// they can be restored. Removing a built-in course hides all of its units and the topics admins added to it.
+async function saveHidden(h) {
+  await setSetting('content_hidden', { courses: [...new Set(h.courses)], units: [...new Set(h.units)] });
+  await clearCustomCache();
+}
+// Students must always have at least one course with a topic in Learn.
+function leavesSomething(h) {
+  const hiddenUnit = (u) => h.units.includes(u.id) || h.courses.includes(u.course);
+  const built = (builtUnits().units || []).some((u) => !hiddenUnit(u));
+  const added = custom.units.some((u) => !h.courses.includes(u.course));
+  if (!built && !added) throw new ContentError('LAST_TOPIC', 'Students need at least one topic in Learn. Add another topic before removing this one.', 409);
+}
+const builtinUnitIds = () => new Set((builtUnits().units || []).map((u) => u.id));
+
+export async function hideBuiltinUnit(id) {
+  await syncContent();
+  if (!builtinUnitIds().has(id)) throw new ContentError('NOT_FOUND', 'Unknown topic.', 404);
+  const h = hiddenState();
+  h.units.push(id);
+  leavesSomething(h);
+  await saveHidden(h);
+}
+export async function hideBuiltinCourse(id) {
+  await syncContent();
+  if (!BUILTIN_COURSES.some((c) => c.id === id)) throw new ContentError('NOT_FOUND', 'Unknown course.', 404);
+  const h = hiddenState();
+  h.courses.push(id);
+  leavesSomething(h);
+  await saveHidden(h);
+}
+export async function restoreBuiltin(kind, id) {
+  await syncContent();
+  const h = hiddenState();
+  const key = kind === 'course' ? 'courses' : 'units';
+  if (!h[key].includes(id)) throw new ContentError('NOT_FOUND', 'Nothing to restore.', 404);
+  h[key] = h[key].filter((x) => x !== id);
+  await saveHidden(h);
 }

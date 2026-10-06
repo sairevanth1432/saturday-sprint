@@ -21,7 +21,8 @@ import {
   submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, clearBoardCache, readDraft, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
-  syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit } from './media.js';
+  syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
+  builtinCourses, hiddenLessons, hiddenState, hideBuiltinUnit, hideBuiltinCourse, restoreBuiltin } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
 import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
@@ -715,7 +716,8 @@ const slotOk = (req, res) => {
 const typeError = (slot) => (slot === 'watch' ? 'Upload an MP4 (or WebM) video.' : 'Upload a single .html file.');
 adm.get('/media', async (req, res) => {
   const kind = storageKind();
-  res.json({ lessons: await catalog(), courses: BUILTIN_COURSES.map((c) => ({ ...c, custom: false })).concat(customCourses().map((c) => ({ id: c.id, name: c.name, custom: true }))), storage: kind, blob: kind === 'blob', s3: kind === 's3', localUpload: kind === 'local',
+  res.json({ lessons: await catalog(), hidden: { units: hiddenLessons().filter((l) => hiddenState().units.includes(l.id)).map((l) => ({ id: l.id, title: l.title, course: l.course, courseName: l.courseName })), courses: BUILTIN_COURSES.filter((c) => hiddenState().courses.includes(c.id)) },
+    courses: builtinCourses().map((c) => ({ ...c, custom: false })).concat(customCourses().map((c) => ({ id: c.id, name: c.name, custom: true }))), storage: kind, blob: kind === 'blob', s3: kind === 's3', localUpload: kind === 'local',
     maxBytes: config.maxVideoBytes, maxHtmlBytes: maxBytesFor('play'),
     folder: config.isVercel ? 'server/public/learning-bytes/ (in the repository; redeploy after adding files)' : config.learningBytesDir });
 });
@@ -807,6 +809,23 @@ adm.post('/content/units/:id/move', async (req, res) => {
 adm.delete('/content/units/:id', requireSuper, async (req, res) => {
   await deleteUnit(req.params.id);
   await audit(req, 'content.topic_deleted', req.params.id, null);
+  res.json({ ok: true });
+});
+// Built-in courses and topics (content/units.json) are removed by hiding them; Restore brings them back with
+// their files and the students' progress.
+adm.delete('/content/builtin/units/:id', requireSuper, async (req, res) => {
+  await hideBuiltinUnit(req.params.id);
+  await audit(req, 'content.builtin_topic_removed', req.params.id, null);
+  res.json({ ok: true });
+});
+adm.delete('/content/builtin/courses/:id', requireSuper, async (req, res) => {
+  await hideBuiltinCourse(req.params.id);
+  await audit(req, 'content.builtin_course_removed', req.params.id, null);
+  res.json({ ok: true });
+});
+adm.post('/content/builtin/:kind/:id/restore', requireSuper, async (req, res) => {
+  await restoreBuiltin(req.params.kind === 'courses' ? 'course' : 'unit', req.params.id);
+  await audit(req, 'content.builtin_restored', req.params.kind + ':' + req.params.id, null);
   res.json({ ok: true });
 });
 adm.delete('/media/:unitId/:slot', async (req, res) => {

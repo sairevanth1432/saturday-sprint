@@ -945,6 +945,39 @@ test('courses & topics: admins add courses and topics; the portal gets them; edi
   assert.equal(boot.body.units.units.length, 6);
 });
 
+test('built-in courses and topics: a super admin removes them from the portal and restores them; the last topic cannot go', async () => {
+  assert.equal((await A('DELETE', '/api/admin/content/builtin/units/tp-forloop')).status, 401, 'students cannot remove content');
+  assert.equal((await ADM('DELETE', '/api/admin/content/builtin/units/nope')).status, 404);
+  assert.equal((await ADM('DELETE', '/api/admin/content/builtin/units/tp-forloop')).status, 200);
+  let boot = await A('GET', '/api/bootstrap');
+  assert.ok(!boot.body.units.units.some((u) => u.id === 'tp-forloop'), 'removed topic is gone from the portal');
+  assert.deepEqual(boot.body.units.replaced.sort(), ['genai', 'pf'], 'the portal keeps replacing the original lessons');
+  let media = await ADM('GET', '/api/admin/media');
+  assert.ok(!media.body.lessons.some((l) => l.id === 'tp-forloop'));
+  assert.deepEqual(media.body.hidden.units.map((u) => u.id), ['tp-forloop']);
+
+  // remove the whole Programming Foundations course: its units go, and the course is listed as removed
+  assert.equal((await ADM('DELETE', '/api/admin/content/builtin/courses/pf')).status, 200);
+  boot = await A('GET', '/api/bootstrap');
+  assert.ok(!boot.body.units.units.some((u) => u.course === 'pf'));
+  assert.deepEqual(boot.body.units.hiddenCourses, ['pf']);
+  media = await ADM('GET', '/api/admin/media');
+  assert.ok(!media.body.courses.some((c) => c.id === 'pf'));
+  assert.deepEqual(media.body.hidden.courses.map((c) => c.id), ['pf']);
+  assert.equal((await ADM('POST', '/api/admin/content/units', { course: 'pf', title: 'Loops again' })).body.error, 'BAD_COURSE', 'no new topics in a removed course');
+
+  // the last course with topics cannot be removed
+  assert.equal((await ADM('DELETE', '/api/admin/content/builtin/courses/genai')).body.error, 'LAST_TOPIC');
+
+  // restore both
+  assert.equal((await ADM('POST', '/api/admin/content/builtin/courses/pf/restore')).status, 200);
+  assert.equal((await ADM('POST', '/api/admin/content/builtin/units/tp-forloop/restore')).status, 200);
+  assert.equal((await ADM('POST', '/api/admin/content/builtin/units/tp-forloop/restore')).status, 404, 'nothing left to restore');
+  boot = await A('GET', '/api/bootstrap');
+  assert.equal(boot.body.units.units.length, 6);
+  assert.deepEqual(boot.body.units.hiddenCourses, []);
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

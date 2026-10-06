@@ -77,7 +77,8 @@
       // Courses added in Admin → Courses & topics get their own module list (see courseList below).
       (B.courses || []).forEach(function (c) { self['_ssMods_' + c.id] = []; });
       var field = function (c) { return c === 'pf' ? 'pfModules' : c === 'genai' ? 'modules' : Array.isArray(self['_ssMods_' + c]) ? '_ssMods_' + c : null; };
-      if (pack.mode === 'replace') pack.units.forEach(function (u) { var f = field(u.course); if (f && !self['_ssReplaced' + f]) { self[f] = []; self['_ssReplaced' + f] = true; } });
+      // "replaced" lists every course the units replace, even one whose units an admin removed (it must not fall back to the original lessons).
+      if (pack.mode === 'replace') (pack.replaced || pack.units.map(function (u) { return u.course; })).forEach(function (c) { var f = field(c); if (f && !self['_ssReplaced' + f]) { self[f] = []; self['_ssReplaced' + f] = true; } });
       pack.units.forEach(function (u) {
         var f = field(u.course);
         if (f && !self[f].some(function (m) { return m._pack && m.name === u.name; })) self[f].push({ name: u.name, color: u.color, lessons: u.lessons, _pack: true });
@@ -656,7 +657,9 @@
 
     // Built-in courses, then the courses admins added that have at least one topic.
     courseList() {
-      var list = super.courseList(), self = this;
+      // Built-in courses an admin removed, or left without topics, are not shown.
+      var hidden = (this.ss && this.ss.units && this.ss.units.hiddenCourses) || [], self = this;
+      var list = super.courseList().filter(function (c) { return hidden.indexOf(c.id) < 0 && !(self.ss && c.modules.length === 0); });
       ((this.ss && this.ss.courses) || []).forEach(function (c) {
         var mods = self['_ssMods_' + c.id];
         if (mods && mods.length) list.push({ id: c.id, name: c.name, topic: '', color: c.color || '#FFE45C', modules: mods });
@@ -718,6 +721,13 @@
           (g.topics || []).forEach(function (t, mi) {
             var m = c && c.modules[mi];
             var dn = !!(m && m.lessons.length) && m.lessons.every(function (l, li) { var k = c.id + '-' + mi + '-' + li; return !!doneAll[k] || !!sdAll[k + ':read']; });
+            var over = self.ss.unitContent || {};
+            t.soon = !dn && !!(m && m.lessons.length) && m.lessons.every(function (l) {
+              if (!l.tabs) return false;
+              var o = over[l.id] || {};
+              return !['watch', 'play', 'read'].some(function (k) { return o[k] || (l.tabs[k] && l.tabs[k].src); });
+            });
+            t.soonFg = t.on ? '#050505' : '#8A8A8A';
             t.done = dn; t.tickBg = t.on ? '#050505' : '#FFE45C'; t.tickFg = t.on ? '#FFE45C' : '#050505';
             t.aria = dn ? 'completed' : 'not completed yet';
           });
@@ -760,8 +770,13 @@
         } else {
           v.wt = Object.assign({}, v.wt, { isVideo: false, isSlides: !!src[tab], src: src[tab], title: les.title, groups: [], tall: true, ref: null });
         }
-        v.ss_readSoon = tab === 'read' && !src.read;
-        v.ss_missing = tab !== 'read' && !src[tab];
+        // A step without a file shows the "Will be updated soon" card.
+        if (!src[tab]) {
+          var other = STEPS.filter(function (x) { return x[0] !== tab && src[x[0]]; }).map(function (x) { return x[1] === 'Watch' ? 'watch the video' : x[1] === 'Play' ? 'play the game' : 'read the notes'; });
+          v.ss_soon = { on: true, kicker: '~/' + tab,
+            text: (tab === 'watch' ? 'The video' : tab === 'play' ? 'The game' : 'The reading material') + ' for this topic is on its way.' +
+              (other.length ? ' For now, ' + other.join(' and ') + '.' : ' Check back soon!') };
+        }
         // Play and Read open full screen (the game or notes frame only); browsers without it get a new tab.
         if ((tab === 'play' || tab === 'read') && src[tab]) {
           var fsUrl = src[tab];
@@ -813,7 +828,7 @@
       v.ss = {
         when: when,
         prev: unitsPrev || { on: false, label: '', go: null },
-        readSoon: !!v.ss_readSoon,
+        soon: v.ss_soon || { on: false, kicker: '', text: '' },
         fs: v.ss_fs || { on: false, label: '', hint: '', go: null },
         user: {
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),

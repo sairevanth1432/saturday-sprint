@@ -424,23 +424,39 @@ replaceOnce('<a data-embed="slides" href="{{ wt.src }}"', '<a data-embed="slides
 replaceOnce("style: 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });",
   "style: props['data-tall'] ? 'display:block;width:100%;height:calc(100vh - 290px);min-height:560px;border:0;border-radius:12px;background:#0A0A0A' : 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });", 'embed sizing');
 
+// A friendly "on its way" icon for topics and steps without content yet: a little smiling robot with a sparkle.
+function ICON_SOON(px) {
+  return `<svg aria-hidden="true" width="${px}" height="${px}" viewBox="0 0 64 64" fill="none" style="flex-shrink: 0">
+<path d="M32 6v7" stroke="#FFE45C" stroke-width="3" stroke-linecap="round"></path><circle cx="32" cy="5" r="3.5" fill="#FFE45C"></circle>
+<rect x="12" y="13" width="40" height="32" rx="11" fill="#FFE45C"></rect>
+<rect x="7" y="24" width="5" height="11" rx="2.5" fill="#9E8618"></rect><rect x="52" y="24" width="5" height="11" rx="2.5" fill="#9E8618"></rect>
+<circle cx="24" cy="28" r="4" fill="#050505"></circle><circle cx="40" cy="28" r="4" fill="#050505"></circle>
+<circle cx="25.4" cy="26.6" r="1.3" fill="#FFFFFF"></circle><circle cx="41.4" cy="26.6" r="1.3" fill="#FFFFFF"></circle>
+<path d="M25 36c2 2.6 4.3 3.8 7 3.8s5-1.2 7-3.8" stroke="#050505" stroke-width="3" stroke-linecap="round"></path>
+<circle cx="18.5" cy="35" r="2.6" fill="#FF9E9E" opacity=".75"></circle><circle cx="45.5" cy="35" r="2.6" fill="#FF9E9E" opacity=".75"></circle>
+<rect x="22" y="47" width="20" height="10" rx="5" fill="#9E8618"></rect>
+<path d="M54 50l1.6 3.4L59 55l-3.4 1.6L54 60l-1.6-3.4L49 55l3.4-1.6z" fill="#FFFFFF"></path>
+</svg>`;
+}
+
 // ---------- 4b. units: "← Previous" next to the Next button, and a placeholder when a Read step has no notes yet
 replaceOnce('<span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>',
   `<span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>
 <sc-if value="{{ ss.prev.on }}" hint-placeholder-val="{{ false }}"><button class="k3" onClick="{{ ss.prev.go }}" style="min-height: 50px; padding: 0 20px; border: 2px solid #333333; border-radius: 14px; background: transparent; color: #FFFFFF; font-size: 16px; font-weight: 800">{{ ss.prev.label }}</button></sc-if>`, 'previous button');
 replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">',
-  `<sc-if value="{{ ss.readSoon }}" hint-placeholder-val="{{ false }}">
-<div class="well" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 320px; padding: 32px; border-radius: 12px; background: #050505; text-align: center">
-<div style="font-family: 'VT323', monospace; font-size: 22px; color: #FFE45C">~/read</div>
-<div style="font-size: 22px; font-weight: 800; color: #FFFFFF">Reading material is coming soon</div>
-<div style="font-size: 15px; color: #8A8A8A; max-width: 460px; line-height: 1.5">Watch the video and play the game for now. The notes for this topic will appear here.</div>
+  `<sc-if value="{{ ss.soon.on }}" hint-placeholder-val="{{ false }}">
+<div class="well pop" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 360px; padding: 32px; border-radius: 12px; background: #050505; text-align: center">
+${ICON_SOON(112)}
+<div style="font-family: 'VT323', monospace; font-size: 22px; color: #FFE45C">{{ ss.soon.kicker }}</div>
+<div style="font-size: 24px; font-weight: 800; color: #FFFFFF">Will be updated soon</div>
+<div style="font-size: 15px; color: #8A8A8A; max-width: 480px; line-height: 1.5">{{ ss.soon.text }}</div>
 </div>
 </sc-if>
 <sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">`, 'read placeholder');
 
 // ---------- 4c. Learn topic list: a tick on completed topics instead of the per-lesson progress dots
 replaceOnce('<span>{{ lt2.name }}</span><span aria-hidden="true" style="display: flex; gap: 5px"><sc-for list="{{ lt2.dots }}" as="dt" hint-placeholder-count="3"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{ dt.bg }}; box-shadow: inset 0 0 0 1.5px {{ dt.ring }}"></span></sc-for></span></button>',
-  `<span style="display: flex; align-items: flex-start; gap: 10px; width: 100%"><span style="flex-grow: 1">{{ lt2.name }}</span><sc-if value="{{ lt2.done }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" title="Completed" style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: {{ lt2.tickBg }}; color: {{ lt2.tickFg }}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800">✓</span></sc-if></span></button>`, 'topic list tick');
+  `<span style="display: flex; align-items: flex-start; gap: 10px; width: 100%"><span style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px"><span>{{ lt2.name }}</span><sc-if value="{{ lt2.soon }}" hint-placeholder-val="{{ false }}"><span style="display: flex; align-items: center; gap: 6px; font-family: 'VT323', monospace; font-size: 17px; font-weight: 400; color: {{ lt2.soonFg }}">${ICON_SOON(20)}Updated soon</span></sc-if></span><sc-if value="{{ lt2.done }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" title="Completed" style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: {{ lt2.tickBg }}; color: {{ lt2.tickFg }}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800">✓</span></sc-if></span></button>`, 'topic list tick');
 
 // ---------- 4d. Learn uses the full width of the screen; Play and Read get a full-screen button
 replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-width: 1040px">',
