@@ -829,6 +829,13 @@
         when: when,
         prev: unitsPrev || { on: false, label: '', go: null },
         soon: v.ss_soon || { on: false, kicker: '', text: '' },
+        next: (function () {
+          var N = self.ss.nextSprint, open = !S.ssNextFolded;
+          if (!N || !Array.isArray(N.groups) || !N.groups.length) return { on: false };
+          return { on: true, title: N.title, when: when.line + ' · ' + when.dur, open: open, toggleLabel: open ? 'Hide' : 'Show topics',
+            toggle: function () { self.setState(function (s) { return { ssNextFolded: !s.ssNextFolded }; }); },
+            groups: N.groups.map(function (g) { return { name: g.name, topics: g.topics.map(function (t) { return { t: t }; }) }; }) };
+        })(),
         fs: v.ss_fs || { on: false, label: '', hint: '', go: null },
         user: {
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),

@@ -31,6 +31,9 @@ import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS }
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
 
 const PUBLIC = path.join(ROOT, 'public');
+// Topics of the next Sprint (content/next-sprint.json → generated/ by npm run build), shown on the Learn page.
+const NEXT_SPRINT_FILE = path.join(ROOT, 'generated', 'next-sprint.json');
+const nextSprintTopics = fs.existsSync(NEXT_SPRINT_FILE) ? parseJSON(fs.readFileSync(NEXT_SPRINT_FILE, 'utf8'), null) : null;
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', config.trustProxy);
@@ -184,7 +187,8 @@ api.get('/bootstrap', who, async (req, res) => {
     progress: prog ? parseJSON(prog.data, {}) : {},
     unitContent: bytes,
     units: packUnits(),
-    courses: customCourses().map((c) => ({ id: c.id, name: c.name, color: c.color }))
+    courses: customCourses().map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    nextSprint: nextSprintTopics
   });
 });
 

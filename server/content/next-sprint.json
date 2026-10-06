@@ -1,0 +1,12 @@
+{
+  "_help": [
+    "Topics of the next Sprint, shown at the top of the Learn page. Run `npm run build` after changing this.",
+    "The date line under the title comes from the Sprint settings, so it always matches the countdown."
+  ],
+  "title": "Next Sprint topics",
+  "groups": [
+    { "name": "GenAI", "topics": ["Prompt Engineering Fundamentals", "Building Social Media Content Automation Workflow | Part 2", "Productivity Power-Up with Tools"] },
+    { "name": "Programming Foundations", "topics": ["Variables & Data Types", "Type Conversion", "Logical Operators"] },
+    { "name": "WAD", "topics": ["Intro to CSS | Part 1", "Intro to CSS Box Model | Part 1", "HTML Hyperlinks"] }
+  ]
+}

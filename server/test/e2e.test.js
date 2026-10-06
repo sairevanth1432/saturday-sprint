@@ -30,6 +30,8 @@ before(async () => {
   mod = await import('../index.js');
   db = await import('../db.js');
   sec = await import('../security.js');
+  // The real next-Sprint switch (content/sprint.json) would change the Sprint mid-suite; one test turns it on.
+  (await import('../sprint.js')).setScheduleForTest(null);
   server = await mod.start();
   await new Promise((r) => server.once('listening', r));
   base = 'http://127.0.0.1:' + server.address().port;
@@ -976,6 +978,43 @@ test('built-in courses and topics: a super admin removes them from the portal an
   boot = await A('GET', '/api/bootstrap');
   assert.equal(boot.body.units.units.length, 6);
   assert.deepEqual(boot.body.units.hiddenCourses, []);
+});
+
+test('next Sprint: switched to once, after the current Sprint closes; the Learn page gets its topics', async () => {
+  const sp = await import('../sprint.js');
+  const keys = ['sprint_id', 'sprint_title', 'sprint_open', 'sprint_close', 'sprint_duration_min', 'sprint_schedule_applied'];
+  const saved = {};
+  for (const k of keys) saved[k] = await db.getSetting(k, null);
+  const next = { id: 'sprint-next-test', title: 'Next One', open: '2030-01-05T17:00:00+05:30', close: '2030-01-05T17:20:00+05:30', durationMin: 20 };
+  // current Sprint still open: no switch
+  await db.setSetting('sprint_close', new Date(Date.now() + 3600000).toISOString());
+  sp.setScheduleForTest(next);
+  assert.notEqual((await sp.getSprint()).id, next.id);
+  // current Sprint closed: switch once
+  await db.setSetting('sprint_close', new Date(Date.now() - 60000).toISOString());
+  sp.setScheduleForTest(next);
+  const s = await sp.getSprint();
+  assert.equal(s.id, next.id);
+  assert.equal(s.title, 'Next One');
+  assert.equal(s.openMs, Date.parse(next.open));
+  assert.equal(s.closeMs, Date.parse(next.close));
+  assert.equal(s.durationMin, 20);
+  assert.ok(await db.one("SELECT 1 AS x FROM audit_log WHERE action = 'settings.next_sprint_applied' AND target = 'sprint-next-test'"));
+  // an admin changing the settings afterwards wins: the switch never runs again for that id
+  await db.setSetting('sprint_id', 'admin-choice');
+  await db.setSetting('sprint_close', new Date(Date.now() - 60000).toISOString());
+  sp.setScheduleForTest(next);
+  assert.equal((await sp.getSprint()).id, 'admin-choice');
+  sp.setScheduleForTest(null);
+  for (const k of keys) {
+    if (saved[k] === null) await db.run('DELETE FROM settings WHERE key = ?', k); else await db.setSetting(k, saved[k]);
+  }
+  db.clearSettingCache();
+
+  const boot = await A('GET', '/api/bootstrap');
+  const ns = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'next-sprint.json'), 'utf8'));
+  assert.deepEqual(boot.body.nextSprint, ns);
+  if (ns) assert.ok(ns.groups.every((g) => g.topics.every((x) => !x.includes('\u2014'))), 'no em dashes in the topic names');
 });
 
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {

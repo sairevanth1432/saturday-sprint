@@ -211,6 +211,23 @@ ${cards}
   console.log(`Units       → ${out.length} unit(s) from content/units.json (${mode === 'replace' ? 'replacing the original units' : 'after the original units'}); steps: watch → play → read`);
 }
 fs.writeFileSync(config.lessonsFile, JSON.stringify(lessonsOut, null, 2));
+
+// ---------- 1d. next Sprint: the scheduled switch (content/sprint.json "next") and its topics for the Learn page
+{
+  const cfg = fs.existsSync(sprintCfgFile) ? JSON.parse(fs.readFileSync(sprintCfgFile, 'utf8')) : {};
+  const n = cfg.next || null;
+  if (n) {
+    if (!/^[A-Za-z0-9._-]{2,60}$/.test(n.id || '')) throw new Error('content/sprint.json: next.id must be 2–60 letters, digits, dots, dashes or underscores.');
+    const o = Date.parse(n.open), c = Date.parse(n.close), d = Number(n.durationMin);
+    if (!(o < c) || !(d >= 1 && d <= 600)) throw new Error('content/sprint.json: next needs open < close and durationMin between 1 and 600.');
+    console.log(`Next Sprint → ${n.id}: ${new Date(o).toISOString()} – ${new Date(c).toISOString()}, ${d} min (applied once the current Sprint has closed)`);
+  }
+  fs.writeFileSync(path.join(ROOT, 'generated', 'sprint-schedule.json'), JSON.stringify(n));
+  const topicsFile = path.join(ROOT, 'content', 'next-sprint.json');
+  const t = fs.existsSync(topicsFile) ? JSON.parse(fs.readFileSync(topicsFile, 'utf8')) : null;
+  const topics = t && Array.isArray(t.groups) ? { title: String(t.title || 'Next Sprint topics'), groups: t.groups.map((g) => ({ name: String(g.name), topics: (g.topics || []).map(String) })) } : null;
+  fs.writeFileSync(path.join(ROOT, 'generated', 'next-sprint.json'), JSON.stringify(topics));
+}
 console.log(`Lessons     → ${path.relative(ROOT, config.lessonsFile)} (${lessonsOut.length} lessons in ${courses.length} courses)`);
 
 // Videos dropped in public/learning-bytes/<lessonId>.mp4 (manifest used on Vercel, where the folder is not readable at runtime)
@@ -423,6 +440,32 @@ replaceOnce('style="display: block; width: 100%; aspect-ratio: 16 / 9; border-ra
 replaceOnce('<a data-embed="slides" href="{{ wt.src }}"', '<a data-embed="slides" data-tall="{{ wt.tall }}" href="{{ wt.src }}"', 'embed height flag');
 replaceOnce("style: 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });",
   "style: props['data-tall'] ? 'display:block;width:100%;height:calc(100vh - 290px);min-height:560px;border:0;border-radius:12px;background:#0A0A0A' : 'display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000' });", 'embed sizing');
+
+// ---------- 4e. Learn: the topics of the next Sprint (content/next-sprint.json), above the lessons; can be folded away
+replaceOnce('<!-- ============ LEARN ============ -->\n<sc-if value="{{ show.learn }}" hint-placeholder-val="{{ false }}">\n<div style="display: flex; flex-direction: column; gap: 20px">',
+  (a) => a + `
+<sc-if value="{{ ss.next.on }}" hint-placeholder-val="{{ false }}">
+<section class="d3" aria-label="Next Sprint topics" style="background: #151515; border-radius: 18px; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+<span style="font-family: 'VT323', monospace; font-size: 19px; color: #FFE45C">~/next-sprint</span>
+<span style="font-size: 17px; font-weight: 800; color: #FFFFFF">{{ ss.next.title }}</span>
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #BDBDBD">{{ ss.next.when }}</span>
+<button class="k3" onClick="{{ ss.next.toggle }}" aria-expanded="{{ ss.next.open }}" style="flex-shrink: 0; min-height: 36px; padding: 0 14px; border: 2px solid #333333; border-radius: 10px; background: transparent; color: #EDEDED; font-size: 13px; font-weight: 800">{{ ss.next.toggleLabel }}</button>
+</div>
+<sc-if value="{{ ss.next.open }}" hint-placeholder-val="{{ true }}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px">
+<sc-for list="{{ ss.next.groups }}" as="ng" hint-placeholder-count="3">
+<div class="well" style="background: #050505; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 13px; font-weight: 800; color: #FFE45C">{{ ng.name }}</span>
+<sc-for list="{{ ng.topics }}" as="nt" hint-placeholder-count="3">
+<span style="display: flex; gap: 8px; font-size: 14px; line-height: 1.4; color: #EDEDED"><span aria-hidden="true" style="color: #5E5E5E">›</span><span>{{ nt.t }}</span></span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</section>
+</sc-if>`, 'next sprint topics');
 
 // A friendly "on its way" icon for topics and steps without content yet: a little smiling robot with a sparkle.
 function ICON_SOON(px) {
