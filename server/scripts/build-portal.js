@@ -85,7 +85,7 @@ function classArray(name) {
 {
   const parts = ['practice', 'ccbpQuiz', 'genaiQuiz'].map((n) => classArray(n) || []);
   const quiz = [].concat(...parts).map((q, gi) => ({ gi, course: q.course || '', sess: q.sess || '', q: q.q || '', o: q.o || [], c: q.c, multi: !!q.multi, code: q.code || '' }))
-    .filter((q) => q.sess && ['pf', 'genai'].includes(q.course)); // the courses and sessions the Practice tab shows
+    .filter((q) => q.sess && ['pf', 'genai', 'wad'].includes(q.course)); // the courses and sessions the Practice tab shows
   const code = (classArray('ccbpCoding') || []).map((c) => ({ id: c.id, topic: c.topic || '', title: c.title || c.id }));
   const total = parts.reduce((n, p) => n + p.length, 0); // admin-added MCQs follow these (gi = total + n)
   fs.writeFileSync(path.join(ROOT, 'generated', 'practice.json'), JSON.stringify({ quiz, code, total }));
@@ -626,6 +626,10 @@ replaceOnce('</section>\n\n<!-- right: editor + console -->',
 <div class="ss-split-bar" role="separator" aria-orientation="vertical" aria-label="Resize the problem and the code editor" aria-valuemin="20" aria-valuemax="75" aria-valuenow="{{ ss.split.n }}" tabindex="0" title="Drag to resize · double-click to reset" onPointerDown="{{ ss.split.down }}" onKeyDown="{{ ss.split.key }}" onDblClick="{{ ss.split.reset }}" style="flex: 0 0 12px; align-self: stretch; cursor: col-resize; touch-action: none; display: flex; align-items: center; justify-content: center"><span style="width: 4px; height: 48px; border-radius: 2px; background: #333333; transition: background 150ms ease, height 150ms ease"></span></div>
 
 <!-- right: editor + console -->`, 'split bar');
+
+// ---------- 4h. Practice: Web Application Development as a third course (built-in WAD quizzes + admin-added questions)
+replaceOnce("const pcNames = [['pf', 'Programming Foundations'], ['genai', 'Intro to GenAI']];",
+  "const pcNames = [['pf', 'Programming Foundations'], ['genai', 'Intro to GenAI'], ['wad', 'Web Application Development']];", 'practice WAD course');
 
 // ---------- 5. Sprint date/time/duration text follows Admin → Sprint settings (the HTML had them fixed)
 replaceOnce('<div style="font-size: 15px; color: #8A8A8A">Sat, 3 Oct · 11:00 – 11:30 AM IST</div>',

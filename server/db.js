@@ -260,6 +260,11 @@ CREATE TABLE IF NOT EXISTS request_photos (request_id BIGINT PRIMARY KEY, photo 
 CREATE TABLE IF NOT EXISTS practice_questions (
   id BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL, course TEXT NOT NULL, topic TEXT NOT NULL, data TEXT NOT NULL,
   archived INTEGER NOT NULL DEFAULT 0, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, updated_by TEXT);
+-- Imported questions: draft = incomplete (no options / answer / code / test cases yet), hidden until finished in the
+-- editor; src_id = the question_id in the content JSON, so importing the same file again updates instead of duplicating.
+ALTER TABLE practice_questions ADD COLUMN IF NOT EXISTS draft INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE practice_questions ADD COLUMN IF NOT EXISTS src_id TEXT;
+CREATE INDEX IF NOT EXISTS practice_questions_src ON practice_questions(src_id);
 
 -- Likes on the Watch videos: one per student per topic (unit).
 CREATE TABLE IF NOT EXISTS unit_likes (roll_no TEXT NOT NULL, unit_id TEXT NOT NULL, course TEXT NOT NULL, created_at BIGINT NOT NULL, PRIMARY KEY (roll_no, unit_id));

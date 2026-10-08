@@ -4,8 +4,9 @@
 // from Practice but keeps its slot), and new ones always go at the end.
 import { one, all, run, parseJSON } from './db.js';
 import * as kv from './kv.js';
+import { parseImport } from './practice-import.js';
 
-export const PRACTICE_COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+export const PRACTICE_COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI', wad: 'Web Application Development' };
 export class PracticeError extends Error {
   constructor(code, message, status = 400) { super(message); this.code = code; this.status = status; }
 }
@@ -43,20 +44,20 @@ const CACHE = 'practiceq:v1';
 export const clearPracticeCache = () => kv.invalidate(CACHE);
 // For the portal: every question in creation order (archived ones as placeholders that Practice never shows).
 export const practiceExtra = () => kv.cached(CACHE, 30, async () => {
-  const rows = await all('SELECT id, kind, course, topic, data, archived FROM practice_questions ORDER BY id');
+  const rows = await all('SELECT id, kind, course, topic, data, archived, draft FROM practice_questions ORDER BY id');
   const mcq = [], code = [];
   for (const r of rows) {
     const d = parseJSON(r.data, {}) || {};
-    if (r.kind === 'mcq') mcq.push(r.archived ? { course: '', sess: '', q: '', o: [], c: 0, why: '', xid: Number(r.id) }
+    if (r.kind === 'mcq') mcq.push(r.archived || r.draft ? { course: '', sess: '', q: '', o: [], c: 0, why: '', xid: Number(r.id) }
       : { course: r.course, sess: r.topic, q: d.q, code: d.code || undefined, o: d.o, c: d.c, why: d.why || '', xid: Number(r.id) });
-    else if (!r.archived) code.push({ id: 'x' + r.id, topic: r.topic, title: d.title, level: d.level, text: d.text, starter: d.starter || '', tests: d.tests });
+    else if (!r.archived && !r.draft) code.push({ id: 'x' + r.id, topic: r.topic, title: d.title, level: d.level, text: d.text, starter: d.starter || '', tests: d.tests });
   }
   return { mcq, code };
 }, { localMs: 10000 });
 
 export async function listPractice() {
   const rows = await all('SELECT * FROM practice_questions ORDER BY id DESC');
-  return rows.map((r) => ({ id: Number(r.id), kind: r.kind, course: r.course, topic: r.topic, archived: !!r.archived, data: parseJSON(r.data, {}),
+  return rows.map((r) => ({ id: Number(r.id), kind: r.kind, course: r.course, topic: r.topic, archived: !!r.archived, draft: !!r.draft, srcId: r.src_id || '', data: parseJSON(r.data, {}),
     createdAt: r.created_at, updatedAt: r.updated_at, by: r.updated_by }));
 }
 export async function addPractice(kind, b, by) {
@@ -71,11 +72,45 @@ export async function updatePractice(id, b, by) {
   const cur = await one('SELECT * FROM practice_questions WHERE id = ?', Number(id));
   if (!cur) throw new PracticeError('NOT_FOUND', 'Question not found.', 404);
   const v = cur.kind === 'mcq' ? checkMcq(b) : checkCode(b);
-  await run('UPDATE practice_questions SET course = ?, topic = ?, data = ?, updated_at = ?, updated_by = ? WHERE id = ?', v.course, v.topic, JSON.stringify(v.data), Date.now(), by || null, cur.id);
+  await run('UPDATE practice_questions SET course = ?, topic = ?, data = ?, draft = 0, updated_at = ?, updated_by = ? WHERE id = ?', v.course, v.topic, JSON.stringify(v.data), Date.now(), by || null, cur.id);
   await clearPracticeCache();
 }
 export async function setArchived(id, archived) {
   const r = await one('UPDATE practice_questions SET archived = ?, updated_at = ? WHERE id = ? RETURNING id', archived ? 1 : 0, Date.now(), Number(id));
   if (!r) throw new PracticeError('NOT_FOUND', 'Question not found.', 404);
   await clearPracticeCache();
+}
+
+// ---------- import from content JSON files (practice-import.js)
+// dry: only report what would happen. drafts: also bring in incomplete questions as hidden drafts.
+export async function importPractice(files, { dry = true, drafts = true } = {}, by) {
+  const r = parseImport(files);
+  const usable = r.items.filter((i) => !i.skip && i.course && i.topic && PRACTICE_COURSES[i.course]);
+  const existing = new Map((await all("SELECT id, src_id, archived FROM practice_questions WHERE src_id IS NOT NULL AND src_id <> ''")).map((x) => [x.src_id, x]));
+  const plan = usable.map((i) => {
+    let complete = !i.issues.length;
+    if (complete) { try { (i.kind === 'mcq' ? checkMcq : checkCode)({ ...i.data, course: i.course, topic: i.topic }); } catch (e) { complete = false; i.issues.push(e.message.replace(/\.$/, '').toLowerCase()); } }
+    const ex = i.srcId ? existing.get(i.srcId) : null;
+    const entry = { ...i, complete, action: ex ? 'update' : complete || drafts ? 'add' : 'skip', id: ex ? Number(ex.id) : null };
+    i._p = entry;
+    return entry;
+  });
+  const out = {
+    summary: { ...r.summary, add: plan.filter((p) => p.action === 'add').length, update: plan.filter((p) => p.action === 'update').length },
+    problems: r.problems,
+    items: r.items.map((i) => { const p = i._p || null;
+      return { file: i.file, kind: i.kind, course: i.course, topic: i.topic, type: i.type, title: i.kind === 'code' ? i.data.title : String(i.data.q || '').slice(0, 160),
+        status: i.skip ? 'skipped' : !i.course || !i.topic ? 'skipped' : p && p.complete ? 'ready' : 'draft', why: i.skip || (i.issues || []).join(', '), action: p ? p.action : 'skip' }; })
+  };
+  if (dry) return out;
+  const now = Date.now();
+  for (const p of plan) {
+    if (p.action === 'skip') continue;
+    const data = { ...p.data, srcId: p.srcId, issues: p.complete ? [] : p.issues };
+    if (p.action === 'update') await run('UPDATE practice_questions SET course = ?, topic = ?, data = ?, draft = ?, updated_at = ?, updated_by = ? WHERE id = ?', p.course, p.topic, JSON.stringify(data), p.complete ? 0 : 1, now, by || null, p.id);
+    else await run('INSERT INTO practice_questions (kind, course, topic, data, archived, draft, src_id, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)',
+      p.kind, p.course, p.topic, JSON.stringify(data), p.complete ? 0 : 1, p.srcId || null, now, now, by || null);
+  }
+  await clearPracticeCache();
+  return { ...out, imported: true };
 }

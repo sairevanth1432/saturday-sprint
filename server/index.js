@@ -29,7 +29,7 @@ import { recordActivity, recordStepEvents, businessMetrics, overview as analytic
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
-import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived } from './practiceq.js';
+import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, importPractice } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
 
@@ -546,6 +546,14 @@ adm.get('/practice-questions', async (req, res) => res.json({ rows: await listPr
 adm.post('/practice-questions', async (req, res) => {
   const r = await addPractice(String((req.body || {}).kind || ''), req.body || {}, req.admin.email);
   await audit(req, 'practice.question_added', String(r.id), { kind: (req.body || {}).kind, course: (req.body || {}).course, topic: (req.body || {}).topic });
+  res.json(r);
+});
+// Import content JSON files: { files: [{ name, json }], dry, drafts }. dry → a preview of what would be added/updated.
+adm.post('/practice-questions/import', async (req, res) => {
+  const b = req.body || {}, files = Array.isArray(b.files) ? b.files.slice(0, 50) : [];
+  if (!files.length) return res.status(400).json({ error: 'NO_FILES', message: 'Choose at least one JSON file.' });
+  const r = await importPractice(files, { dry: b.dry !== false, drafts: b.drafts !== false }, req.admin.email);
+  if (r.imported) await audit(req, 'practice.imported', files.map((f) => f.name).join(', ').slice(0, 300), r.summary);
   res.json(r);
 });
 adm.put('/practice-questions/:id', async (req, res) => {

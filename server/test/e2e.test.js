@@ -1187,6 +1187,66 @@ test('practice questions: admins add MCQ and coding by course and topic; the por
   assert.ok(JSON.stringify(pa.body).includes('RCAFT: what does T stand for?'), 'practice analytics lists the admin-added MCQ');
 });
 
+test('practice JSON import: stems come in as drafts, complete questions go live, re-import updates, finishing a draft publishes it', async () => {
+  // the content format as exported today: question text only
+  const stems = { track: 'Programming Foundations', course: 'Computer Programming', session: 'Logical Operators',
+    mcq_practice: [{ set_id: 's1', questions: [
+      { question_id: 'qa1', question_type: 'CODE_ANALYSIS_MULTIPLE_CHOICE', question_content: 'What will be the output of the given Python code?<br><br>' },
+      { question_id: 'qa2', question_type: 'CODE_ANALYSIS_TEXTUAL', question_content: 'Write the output' }] }],
+    coding_practice: [{ set_id: 'c1', questions: [{ question_id: 'qc1', question_type: 'CODING', question_short_text: 'Even or Odd', question_difficulty: 'EASY',
+      question_content: 'Read N and print Even or Odd.\r\n\r\n---\r\n\r\n#### Input\r\n\r\nAn integer.' }] }] };
+  // the same format with options, answers, code and test cases filled in
+  const full = { track: 'GenAI', course: 'Introduction to Generative AI', session: 'Prompting — Part - 2',
+    mcq_practice: [{ questions: [
+      { question_id: 'qb1', question_type: 'MULTIPLE_CHOICE', question_content: 'In RCAFT, what does <b>T</b> stand for?',
+        options: [{ option_id: 'o1', content: 'Task' }, { option_id: 'o2', content: 'Tone' }], correct_answer: [{ option_id: 'o2' }], explanation: 'Tone is the style.' },
+      { question_id: 'qb2', question_type: 'CODE_ANALYSIS_MULTIPLE_CHOICE', question_content: 'Output?\n```python\nprint(2 + 3)\n```', options: ['5', '23'], correct_answer: '5' }] }],
+    coding_practice: [] };
+  const fullPf = { track: 'Programming Foundations', session: 'Logical Operators', mcq_practice: [], coding_practice: [{ questions: [
+    { question_id: 'qc2', question_type: 'CODING', question_short_text: 'Both Positive', question_difficulty: 'MEDIUM', question_content: 'Read two numbers...',
+      test_cases: [{ input: '1\n2', output: 'True', is_hidden: false }, { input: '-1\n2', output: 'False', is_hidden: true }] }] }] };
+  const files = [{ name: 'stems.json', json: JSON.stringify(stems) }, { name: 'full.json', json: JSON.stringify(full) }, { name: 'pf.json', json: JSON.stringify(fullPf) }, { name: 'bad.json', json: '{oops' }];
+
+  const pre = await ADM('POST', '/api/admin/practice-questions/import', { files, dry: true });
+  assert.equal(pre.status, 200, JSON.stringify(pre.body));
+  assert.deepEqual(pre.body.summary, { total: 6, ready: 3, drafts: 2, skipped: 1, add: 5, update: 0 });
+  assert.equal(pre.body.problems[0].file, 'bad.json');
+  const why = (id) => pre.body.items.find((i) => i.title.startsWith(id));
+  assert.match(why('What will be the output').why, /no options/);
+  assert.match(why('What will be the output').why, /code snippet missing/);
+  assert.match(why('Even or Odd').why, /no test cases/);
+  assert.equal(pre.body.items.find((i) => i.type === 'CODE_ANALYSIS_TEXTUAL').status, 'skipped');
+  assert.equal(pre.body.items.find((i) => i.course === 'genai').topic, 'Prompting | Part 2', 'no em dashes; "Part - 2" tidied');
+  assert.equal((await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.srcId).length, 0, 'preview writes nothing');
+
+  const imp = await ADM('POST', '/api/admin/practice-questions/import', { files, dry: false });
+  assert.equal(imp.body.imported, true);
+  let list = (await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.srcId);
+  assert.equal(list.length, 5);
+  assert.deepEqual(list.filter((r) => r.draft).map((r) => r.srcId).sort(), ['qa1', 'qc1']);
+  const b1 = list.find((r) => r.srcId === 'qb1');
+  assert.deepEqual([b1.data.q, b1.data.o, b1.data.c, b1.data.why], ['In RCAFT, what does T stand for?', ['Task', 'Tone'], 1, 'Tone is the style.']);
+  assert.equal(list.find((r) => r.srcId === 'qb2').data.code, 'print(2 + 3)');
+  let boot = await A('GET', '/api/bootstrap');
+  assert.ok(boot.body.practiceExtra.mcq.some((q) => q.q === 'In RCAFT, what does T stand for?' && q.sess === 'Prompting | Part 2'));
+  assert.ok(!boot.body.practiceExtra.mcq.some((q) => /What will be the output/.test(q.q)), 'drafts stay hidden');
+  assert.ok(boot.body.practiceExtra.code.some((c) => c.title === 'Both Positive' && c.tests.length === 2));
+  assert.ok(!boot.body.practiceExtra.code.some((c) => c.title === 'Even or Odd'));
+
+  // importing again updates by question_id
+  const again = await ADM('POST', '/api/admin/practice-questions/import', { files: [files[1]], dry: false });
+  assert.equal(again.body.summary.update, 2);
+  assert.equal((await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.srcId).length, 5);
+
+  // finishing a draft in the editor publishes it
+  const d1 = list.find((r) => r.srcId === 'qa1');
+  assert.equal((await ADM('PUT', '/api/admin/practice-questions/' + d1.id, { course: 'pf', topic: 'Logical Operators', q: 'What will be the output?', code: 'print(not True)', o: ['True', 'False'], c: 1 })).status, 200);
+  list = (await ADM('GET', '/api/admin/practice-questions')).body.rows;
+  assert.equal(list.find((r) => r.id === d1.id).draft, false);
+  boot = await A('GET', '/api/bootstrap');
+  assert.ok(boot.body.practiceExtra.mcq.some((q) => q.code === 'print(not True)'));
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

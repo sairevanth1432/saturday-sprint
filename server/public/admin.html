@@ -1533,13 +1533,14 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ---------- practice questions added by admins (MCQ and coding, per course and topic)
   VIEWS.practiceq = function () {
-    var F = CACHE.pq = CACHE.pq || { course: '', topic: '', kind: '', archived: false };
+    var F = CACHE.pq = CACHE.pq || { course: '', topic: '', kind: '', status: 'live' };
     return api('GET', '/api/admin/practice-questions').then(function (d) {
       var C = d.courses, topics = {};
       d.rows.forEach(function (r) { (topics[r.course] = topics[r.course] || {})[r.topic] = 1; });
       var allTopics = Object.keys(topics).reduce(function (a, c) { return a.concat(Object.keys(topics[c])); }, []).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
       var rows = d.rows.filter(function (r) {
-        return (!F.course || r.course === F.course) && (!F.topic || r.topic === F.topic) && (!F.kind || r.kind === F.kind) && (F.archived ? r.archived : !r.archived);
+        var st = r.archived ? 'deleted' : r.draft ? 'draft' : 'live';
+        return (!F.course || r.course === F.course) && (!F.topic || r.topic === F.topic) && (!F.kind || r.kind === F.kind) && st === (F.status || 'live');
       });
       var set = function (k, v) { F[k] = v; refresh(); };
       var topicList = h('datalist', { id: 'pq-topics' }, allTopics.map(function (t) { return h('option', { value: t }); }));
@@ -1603,6 +1604,51 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           body,
           h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'submit' }, r ? 'Save' : 'Add question'), h('button', { class: 'btn', type: 'button', onclick: function () { dr.close(); } }, 'Cancel'))));
       };
+      // Import content JSON files (one per session): preview first, then import. Incomplete questions can come in as
+      // drafts (hidden from students until finished with Edit).
+      var importJson = function () {
+        var dr = drawer(), files = [], drafts = h('input', { type: 'checkbox', checked: true });
+        var out = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
+        var pick = h('input', { type: 'file', accept: '.json,application/json', multiple: true, onchange: function () {
+          var list = Array.prototype.slice.call(pick.files);
+          Promise.all(list.map(function (f) { return f.text().then(function (t) { return { name: f.name, json: t }; }); })).then(function (fs) { files = fs; run(true); });
+        } });
+        var STATUS = { ready: ['ready', 'ok'], draft: ['draft', 'warn'], skipped: ['skipped', ''] };
+        var run = function (dry) {
+          if (!files.length) return toast('Choose at least one JSON file.', true);
+          out.replaceChildren(h('div', { class: 'muted' }, dry ? 'Reading…' : 'Importing…'));
+          api('POST', '/api/admin/practice-questions/import', { files: files, dry: dry, drafts: drafts.checked }).then(function (r) {
+            if (!dry) { dr.close(); toast('Imported: ' + r.summary.add + ' added, ' + r.summary.update + ' updated. Drafts stay hidden until you finish them with Edit.'); F.status = 'live'; refresh(); return; }
+            var S = r.summary, byFile = {};
+            r.items.forEach(function (i) { (byFile[i.file] = byFile[i.file] || []).push(i); });
+            var kids = [
+              h('div', { class: 'row', style: 'gap:8px;justify-content:flex-start' }, pill(S.total + ' questions', ''), pill(S.ready + ' ready', 'ok'), pill(S.drafts + ' incomplete', S.drafts ? 'warn' : ''), pill(S.skipped + ' skipped', ''),
+                pill(S.add + ' to add', 'info'), S.update ? pill(S.update + ' to update (imported before)', 'info') : null),
+              r.problems.length ? h('div', { class: 'note warn' }, r.problems.map(function (p) { return h('div', null, p.file + ': ' + p.message); })) : null,
+              S.drafts ? h('div', { class: 'note' }, 'Incomplete questions are missing something students need: options and the correct answer, the code of a "what is the output" question, or test cases for coding. ' +
+                (drafts.checked ? 'They come in as drafts: hidden from students until you open them with Edit, fill in what is missing and save.' : 'They will be left out (tick the box above to bring them in as drafts).')) : null,
+              Object.keys(byFile).map(function (f) {
+                var its = byFile[f], n = function (s) { return its.filter(function (i) { return i.status === s; }).length; };
+                return h('details', { class: 'card', style: 'padding:10px 14px' },
+                  h('summary', { style: 'cursor:pointer' }, h('b', null, f), ' · ', (its[0].course || '?') + ' · ' + (its[0].topic || '?'), ' · ', n('ready') + ' ready, ' + n('draft') + ' incomplete, ' + n('skipped') + ' skipped'),
+                  h('div', { class: 'tablewrap', style: 'max-height:320px;margin-top:8px' }, h('table', null,
+                    h('thead', null, h('tr', null, ['Type', 'Question', 'Status', 'Missing / why'].map(function (t) { return h('th', null, t); }))),
+                    h('tbody', null, its.map(function (i) {
+                      return h('tr', null, h('td', null, pill(i.kind === 'mcq' ? 'MCQ' : 'Coding', i.kind === 'mcq' ? 'info' : 'ok')), h('td', { style: 'max-width:420px;font-size:13px' }, i.title || '–'),
+                        h('td', null, pill(STATUS[i.status][0], STATUS[i.status][1])), h('td', { class: 'muted', style: 'font-size:12px;max-width:260px' }, i.why || ''));
+                    })))));
+              }),
+              h('div', { class: 'row', style: 'justify-content:flex-start' }, h('button', { class: 'btn pri', type: 'button', disabled: S.add + S.update ? null : true, onclick: function () { run(false); } },
+                'Import ' + (S.add + S.update) + ' question' + (S.add + S.update === 1 ? '' : 's')), h('button', { class: 'btn', type: 'button', onclick: function () { dr.close(); } }, 'Cancel'))];
+            // replaceChildren takes nodes only: flatten the per-file list and drop the empty (null) parts
+            out.replaceChildren.apply(out, [].concat.apply([], kids).filter(Boolean));
+          }, function (e) { out.replaceChildren(h('div', { class: 'note warn' }, e.message)); });
+        };
+        dr.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+          header('~/admin/practice-questions/import', 'Import questions from JSON', 'Choose one or more content files (one per session: track, session, mcq_practice, coding_practice). The course comes from "track" and the topic from "session". Importing a file again updates its questions instead of adding them twice.'),
+          pick, h('label', { class: 'row', style: 'gap:6px;justify-content:flex-start' }, drafts, 'Bring in incomplete questions as drafts (hidden until finished)'),
+          h('button', { class: 'btn', type: 'button', style: 'align-self:flex-start', onclick: function () { run(true); } }, 'Preview again'), out));
+      };
       var archive = function (r, on) {
         if (on && !confirm('Delete this question from Practice? Students\' earlier answers are kept, and you can restore it from "Deleted".')) return;
         api('POST', '/api/admin/practice-questions/' + r.id + '/archive', { archived: on }).then(function () { toast(on ? 'Deleted.' : 'Restored.'); refresh(); }, fail);
@@ -1615,13 +1661,13 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('div', { style: 'white-space:pre-wrap;max-height:90px;overflow:hidden;margin-top:4px;font-size:13px' }, D.text));
       };
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
-        header('~/admin/practice-questions', 'Practice questions', 'Add MCQ and coding questions to the Practice tab, by course and topic. They come after the built-in questions. A new topic appears in Practice once it has at least one MCQ; coding questions show under that topic\'s Coding tab.',
-          [h('button', { class: 'btn pri', type: 'button', onclick: function () { form('mcq'); } }, '+ Add MCQ'), h('button', { class: 'btn pri', type: 'button', onclick: function () { form('code'); } }, '+ Add coding question')]),
+        header('~/admin/practice-questions', 'Practice questions', 'Add MCQ and coding questions to the Practice tab, by course and topic: import content JSON files or add them one by one. They come after the built-in questions. A new topic appears in Practice once it has at least one MCQ; coding questions show under that topic\'s Coding tab.',
+          [h('button', { class: 'btn pri', type: 'button', onclick: importJson }, 'Import JSON'), h('button', { class: 'btn', type: 'button', onclick: function () { form('mcq'); } }, '+ Add MCQ'), h('button', { class: 'btn', type: 'button', onclick: function () { form('code'); } }, '+ Add coding question')]),
         h('div', { class: 'toolbar' },
           h('select', { onchange: function (e) { set('course', e.target.value); } }, [['', 'All courses']].concat(Object.keys(C).map(function (k) { return [k, C[k]]; })).map(function (o) { return h('option', { value: o[0], selected: F.course === o[0] ? true : null }, o[1]); })),
           h('select', { onchange: function (e) { set('topic', e.target.value); } }, [['', 'All topics']].concat(allTopics.map(function (t) { return [t, t]; })).map(function (o) { return h('option', { value: o[0], selected: F.topic === o[0] ? true : null }, o[1]); })),
           h('select', { onchange: function (e) { set('kind', e.target.value); } }, [['', 'MCQ and coding'], ['mcq', 'MCQ'], ['code', 'Coding']].map(function (o) { return h('option', { value: o[0], selected: F.kind === o[0] ? true : null }, o[1]); })),
-          h('label', { class: 'row', style: 'gap:6px' }, h('input', { type: 'checkbox', checked: F.archived ? true : null, onchange: function (e) { set('archived', e.target.checked); } }), 'Deleted'),
+          h('select', { onchange: function (e) { set('status', e.target.value); } }, [['live', 'Live (students see them)'], ['draft', 'Drafts (incomplete, hidden)'], ['deleted', 'Deleted']].map(function (o) { return h('option', { value: o[0], selected: (F.status || 'live') === o[0] ? true : null }, o[1] + ' · ' + d.rows.filter(function (r) { return (r.archived ? 'deleted' : r.draft ? 'draft' : 'live') === o[0]; }).length); })),
           h('span', { class: 'grow' }), pill(rows.length + ' question' + (rows.length === 1 ? '' : 's'), '')),
         h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,
           h('thead', null, h('tr', null, ['Type', 'Course · Topic', 'Question', 'Added', ''].map(function (t) { return h('th', null, t); }))),
@@ -1631,8 +1677,9 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
               h('td', { style: 'max-width:560px;line-height:1.45' }, preview(r)),
               h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.createdAt), h('div', null, r.by || '')),
               h('td', null, h('div', { class: 'row', style: 'gap:6px' }, r.archived ? h('button', { class: 'btn sm', type: 'button', onclick: function () { archive(r, false); } }, 'Restore')
-                : [h('button', { class: 'btn sm', type: 'button', onclick: function () { form(r.kind, r); } }, 'Edit'), h('button', { class: 'btn sm bad', type: 'button', onclick: function () { archive(r, true); } }, 'Delete')])));
-          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, F.archived ? 'No deleted questions.' : 'No questions yet. Use "+ Add MCQ" or "+ Add coding question".'))))));
+                : [h('button', { class: 'btn sm' + (r.draft ? ' pri' : ''), type: 'button', onclick: function () { form(r.kind, r); } }, r.draft ? 'Finish' : 'Edit'), h('button', { class: 'btn sm bad', type: 'button', onclick: function () { archive(r, true); } }, 'Delete')]),
+                r.draft && r.data.issues && r.data.issues.length ? h('div', { class: 'muted', style: 'font-size:12px;margin-top:6px;max-width:220px' }, 'Missing: ' + r.data.issues.join(', ')) : null));
+          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, F.status === 'deleted' ? 'No deleted questions.' : F.status === 'draft' ? 'No drafts.' : 'No questions yet. Use "Import JSON", "+ Add MCQ" or "+ Add coding question".'))))));
     });
   };
 
