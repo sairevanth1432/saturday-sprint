@@ -159,9 +159,10 @@ api.post('/likes/:unitId', who, async (req, res) => {
 });
 // Coding practice Submit metrics for the honeypots (integrity.js). Always answers ok: students never see flags.
 api.post('/practice/submission', who, async (req, res) => {
-  if (req.who.kind !== 'student') return res.json({ ok: true });
-  if (!(await kv.rateLimit('psub:' + req.who.roll_no, 120, 3600000)).ok) return res.json({ ok: true });
-  await recordSubmission(req.who.roll_no, req.body || {});
+  // Admins testing in the portal preview are recorded as ADMIN-<id> (labelled in Admin → Integrity flags).
+  const roll = req.who.kind === 'student' ? req.who.roll_no : 'ADMIN-' + req.who.id;
+  if (!(await kv.rateLimit('psub:' + roll, 120, 3600000)).ok) return res.json({ ok: true });
+  await recordSubmission(roll, req.body || {});
   res.json({ ok: true });
 });
 
@@ -210,7 +211,7 @@ api.get('/bootstrap', who, async (req, res) => {
     courses: customCourses().map((c) => ({ id: c.id, name: c.name, color: c.color })),
     nextSprint: nextSprintTopics,
     likes: { counts: likeN, mine: liked },
-    integrity: w.kind === 'student' ? clientIntegrity() : { enabled: false }
+    integrity: clientIntegrity()
   });
 });
 

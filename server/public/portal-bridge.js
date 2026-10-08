@@ -742,11 +742,11 @@
     ssHoneypot(v) {
       var text = v.ws ? String(v.ws.text || '') : '', I = this.ss.integrity || {}, U = this.ss.user;
       var q = this.state.tab === 'code' ? this.ssCurQuestion() : null;
-      if (!q || !I.enabled || U.kind !== 'student') return { a: text, trap: '', b: '' };
+      if (!q || !I.enabled) return { a: text, trap: '', b: '' };
       this._hpQid = q.id;
       var M = this.ssHpMetrics(q.id);
       if (!M.openedAt) M.openedAt = Date.now();
-      var wm = I.watermark ? zwEncode(U.rollNo) : '';
+      var wm = I.watermark ? zwEncode(U.kind === 'student' ? U.rollNo : 'ADMIN-' + (U.email || '')) : '';
       var i = text.indexOf('\n\n'), cut = i > 0 ? i : (text.indexOf('. ') > 0 ? text.indexOf('. ') + 1 : text.length);
       var a = text.slice(0, cut), b = text.slice(cut), sp = a.indexOf(' ');
       if (wm && sp > 0) a = a.slice(0, sp) + wm + a.slice(sp);
@@ -982,7 +982,7 @@
         });
       }
 
-      if (v.ws && typeof v.ws.submit === 'function' && (this.ss.integrity || {}).enabled && U.kind === 'student') {
+      if (v.ws && typeof v.ws.submit === 'function' && (this.ss.integrity || {}).enabled) {
         var q0 = this.state.tab === 'code' ? this.ssCurQuestion() : null, baseSubmit = v.ws.submit;
         if (q0) v.ws.submit = function () {
           var el = document.getElementById('ws-code');

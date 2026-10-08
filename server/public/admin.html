@@ -1592,7 +1592,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var leak = h('textarea', { rows: 4, placeholder: 'Paste the leaked question text…', style: 'width:100%', oninput: function () {
         var ids = zwDecode(leak.value);
         decoded.replaceChildren(ids.length ? h('div', { class: 'row', style: 'gap:8px;justify-content:flex-start' }, h('b', null, 'Watermark found:'),
-          ids.map(function (id) { return h('button', { class: 'btn sm pri', type: 'button', onclick: function () { openStudent(id); } }, id); }))
+          ids.map(function (id) { return /^ADMIN-/.test(id) ? pill(id + ' (admin preview)', 'info') : h('button', { class: 'btn sm pri', type: 'button', onclick: function () { openStudent(id); } }, id); }))
           : h('span', { class: 'muted' }, leak.value ? 'No watermark in this text (it may have been retyped or cleaned).' : 'Paste text here: the NIAT ID hidden in it appears below.'));
       } });
       var count = function (t) { var c = (d.counts || []).find(function (x) { return x.flag_type === t; }); return c ? Number(c.n) : 0; };
@@ -1610,7 +1610,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('thead', null, h('tr', null, ['When', 'Student', 'Question', 'Flag', 'Evidence'].map(function (t) { return h('th', null, t); }))),
           h('tbody', null, d.rows.length ? d.rows.map(function (r) {
             return h('tr', null, h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.created_at)),
-              h('td', null, h('a', { href: '#', onclick: function (e) { e.preventDefault(); openStudent(r.roll_no); } }, r.name || r.roll_no), h('div', { class: 'muted mono' }, r.roll_no + (r.batch ? ' · ' + r.batch : ''))),
+              h('td', null, /^ADMIN-/.test(r.roll_no) ? [pill('admin preview', 'info'), h('div', { class: 'muted mono' }, r.roll_no)]
+                : [h('a', { href: '#', onclick: function (e) { e.preventDefault(); openStudent(r.roll_no); } }, r.name || r.roll_no), h('div', { class: 'muted mono' }, r.roll_no + (r.batch ? ' · ' + r.batch : ''))]),
               h('td', { class: 'mono' }, r.question_id), h('td', null, pill(FLAG_INFO[r.flag_type] ? FLAG_INFO[r.flag_type][0] : r.flag_type, FLAG_INFO[r.flag_type] ? FLAG_INFO[r.flag_type][1] : '')),
               h('td', { style: 'max-width:520px;line-height:1.45;font-size:13px' }, evText(r)));
           }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, 'No flags for these filters.'))))),

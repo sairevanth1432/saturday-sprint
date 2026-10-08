@@ -55,7 +55,7 @@ export async function recordSubmission(roll, b) {
     flags.push(['PASTE_HEAVY', { pasteMax: m.pasteMax, pasteTotal: m.pasteTotal, pasteCount: m.pasteCount, codeLen: m.codeLen, share: m.codeLen ? +(m.pasteTotal / m.codeLen).toFixed(2) : null }]);
   if (m.correct && m.timeMs > 0) {
     const r = await one(`SELECT COUNT(*) AS n, percentile_cont(0.5) WITHIN GROUP (ORDER BY time_ms) AS med
-      FROM practice_submissions WHERE question_id = ? AND correct = 1 AND roll_no <> ? AND time_ms > 0`, qid, roll);
+      FROM practice_submissions WHERE question_id = ? AND correct = 1 AND roll_no <> ? AND roll_no NOT LIKE 'ADMIN-%' AND time_ms > 0`, qid, roll);
     const n = Number(r && r.n) || 0, med = Number(r && r.med) || 0;
     if (n >= T.fastSolveMinSamples && med > 0 && m.timeMs < T.fastSolveShare * med)
       flags.push(['FAST_SOLVE', { timeMs: m.timeMs, medianMs: Math.round(med), samples: n }]);

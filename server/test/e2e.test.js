@@ -1114,6 +1114,11 @@ test('coding practice honeypots: AI trap, heavy paste, fast solve and bot field 
   assert.equal((await ADM('GET', '/api/admin/integrity?roll=NOBODY1')).body.rows.length, 0);
   assert.equal((await ADM('GET', '/api/admin/integrity?from=' + (now + 864e5))).body.rows.length, 0);
   assert.equal((await A('GET', '/api/admin/integrity')).status, 401);
+  // admins testing in the portal preview get the traps too; their flags are labelled ADMIN-<id>
+  assert.equal((await ADM('GET', '/api/bootstrap')).body.integrity.enabled, true);
+  await ADM('POST', '/api/practice/submission', { qid: 'q-admin', correct: true, timeMs: 1000, code: 'zeta_count = 1' });
+  const adm = (await ADM('GET', '/api/admin/integrity?type=AI_TRAP')).body.rows.find((r) => r.question_id === 'q-admin');
+  assert.match(adm.roll_no, /^ADMIN-\d+$/);
 });
 
 test('downloads: uploaded Play/Read HTML downloads as a file with ?download=1', async () => {
