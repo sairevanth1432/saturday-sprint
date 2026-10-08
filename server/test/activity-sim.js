@@ -13,7 +13,7 @@ export function loadPortalClass(source) {
     Date: FakeDate, Math, JSON, Object, Array, String, Number, Promise, Error, isFinite, console,
     setInterval: () => 0, clearInterval: () => {}, setTimeout: (f, ms) => { if (!ms) f(); return 0; }, clearTimeout: () => {},
     window: listeners({}), document: listeners({}), location: {}, navigator: { userAgent: 'sim' }, screen: {},
-    fetch: () => Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ serverNow: env.now, sprint: {} }) }),
+    fetch: () => Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ serverNow: env.now, sprint: {}, user: { kind: 'student', photoAt: 1 } }) }),
     Component: class { constructor() { this.state = {}; } componentDidMount() {} renderVals() { return {}; } courseList() { return []; } },
     bootPortal: (c) => { Cls = c; }
   };
