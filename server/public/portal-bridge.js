@@ -731,6 +731,13 @@
           try { el.currentTime = t; } catch (e) {}
         };
         el.addEventListener('loadedmetadata', cover, { once: true });
+        // the real shape of the video, for the reel box (and the like button on it)
+        el.addEventListener('loadedmetadata', function () {
+          if (el._src !== src || !el.videoWidth || !el.videoHeight) return;
+          var ar = el.videoWidth / el.videoHeight;
+          if (Math.abs(((self.state.ssVidAr || {})[src] || 0) - ar) < 0.001) return;
+          self.setState(function (s) { var m = Object.assign({}, s.ssVidAr); m[src] = ar; return { ssVidAr: m }; });
+        }, { once: true });
         if (!el._ssActHook) { el._ssActHook = true; self.ssActVideo(el, src); }
         if (!el._ssPlayHook) {
           el._ssPlayHook = true;
@@ -1008,9 +1015,18 @@
       var CO = this.courseList()[S.course], mod = CO && CO.modules[S.mod], les = mod && mod.lessons[S.les];
       var w = les && les.watch && typeof les.watch === 'object' ? les.watch : {};
       var portrait = w.orientation === 'portrait';
-      // the reel box: the video's own size (width capped so its height fits 78% of the window)
-      var reelW = portrait ? 'min(100%, 440px, calc(78vh * 0.5625))' : 'min(100%, calc(78vh * 1.7778))', reelAr = portrait ? '0.5625' : '1.7778';
-      if (v.wt) { v.wt.vw = portrait ? 'min(100%, 440px)' : '100%'; v.wt.aspect = portrait ? '9 / 16' : '16 / 9'; v.wt.tall = !!w.tall; v.wt.boxW = reelW; v.wt.ar = reelAr; }
+      // the reel box: the video's own size (width capped so its height fits 78% of the window). Its shape comes from
+      // the video file itself once its metadata has loaded, so the like button sits on the picture, never on black bars;
+      // until then the topic's orientation is the guess.
+      var reelSize = function (vsrc) {
+        var ar = vsrc && (S.ssVidAr || {})[vsrc];
+        if (ar) portrait = ar < 1;
+        else ar = portrait ? 0.5625 : 1.7778;
+        var a = ar.toFixed(4);
+        return { ar: a, aspect: a + ' / 1', boxW: portrait ? 'min(100%, 440px, calc(78vh * ' + a + '))' : 'min(100%, calc(78vh * ' + a + '))' };
+      };
+      var reel = reelSize(w.src), reelW = reel.boxW, reelAr = reel.ar;
+      if (v.wt) { v.wt.vw = portrait ? 'min(100%, 440px)' : '100%'; v.wt.aspect = reel.aspect; v.wt.tall = !!w.tall; v.wt.boxW = reelW; v.wt.ar = reelAr; }
       var unitsPrev = null;
       // Topic list: a tick when every lesson of the topic is done (a unit is done once its last step, Read, is finished).
       if (Array.isArray(v.lgroups)) {
@@ -1064,8 +1080,9 @@
         v.xpShow = false; v.recShow = true; v.recAvail = false;
         if (tab === 'watch') {
           if (src.watch) { this._ssVidUnit = this._ssVidUnit || {}; this._ssVidUnit[src.watch] = les.id; }
+          var rs = reelSize(src.watch);
           v.wt = Object.assign({}, v.wt, { isVideo: !!src.watch, isSlides: false, src: src.watch, title: les.title, groups: [], tall: false,
-            vw: portrait ? 'min(100%, 440px)' : '100%', aspect: portrait ? '9 / 16' : '16 / 9', boxW: reelW, ar: reelAr, ref: src.watch ? this.ssVideoRef(src.watch) : null });
+            vw: portrait ? 'min(100%, 440px)' : '100%', aspect: rs.aspect, boxW: rs.boxW, ar: rs.ar, ref: src.watch ? this.ssVideoRef(src.watch) : null });
         } else {
           v.wt = Object.assign({}, v.wt, { isVideo: false, isSlides: !!src[tab], src: src[tab], title: les.title, groups: [], tall: true, ref: null });
         }
