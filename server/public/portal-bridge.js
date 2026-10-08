@@ -876,10 +876,11 @@
       return res;
     }
 
-    // Post-test feedback: two required questions on AI use. Answers go with the feedback (saveFeedback below).
+    // Feedback (post-test pop-up and the Feedback button): two required questions on AI use. Answers go with the
+    // feedback (saveFeedback below).
     ssAiFeedback(v) {
       var S = this.state, self = this, fb = v.fb || {};
-      var on = !!fb.modal && fb.kicker === 'Test submitted';
+      var on = !!fb.modal; // the post-test pop-up and the Feedback button
       if (!on) return { on: false, req: 'Both questions are required.', sprint: { opts: [], err: false }, practice: { opts: [], err: false } };
       var tried = !!S.fbTried;
       var group = function (key) {
@@ -1181,7 +1182,7 @@
   // Feedback goes to the server (the portal also keeps its local copy).
   var baseSave = Component.prototype.saveFeedback;
   SprintPortal.prototype.saveFeedback = function (rec) {
-    if (this._ssAiAnswer && rec && rec.kind === 'sprint-test') { rec = Object.assign({}, rec, this._ssAiAnswer); this._ssAiAnswer = null; }
+    if (this._ssAiAnswer && rec) { rec = Object.assign({}, rec, this._ssAiAnswer); this._ssAiAnswer = null; }
     api('POST', '/api/feedback', rec).catch(function () {});
     try { return baseSave.call(this, rec); } catch (e) { return undefined; }
   };
