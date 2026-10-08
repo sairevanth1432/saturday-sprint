@@ -717,7 +717,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ---------- student analytics (super admin): time, clicks, units, videos, logins per student
   var AREA_NAMES = { home: 'Home', learn: 'Learn', practice: 'Practice', code: 'Write code', test: 'Sprint test', board: 'Leaderboard' };
-  var TIME_NOTE = 'Time on units = Learn (Watch, Play, Read) + Practice (quiz and Write code) + Sprint test. Time on portal = time on units + Home + Leaderboard. Sprint time is the test clock, from start to submit.';
+  var TIME_NOTE = 'Time on units = Learn (Watch, Play, Read) + Practice (quiz and Write code) + Sprint test. Time on portal = time on units + Home + Leaderboard. Sprint time is the test clock, from start to submit. Only time the student is present counts: a click, key, scroll or mouse move at least every 1–3 minutes, or a video playing. A tab left open, or a window behind another app, adds nothing.';
   // the areas that make up time spent, for the "Where the time goes" bars
   function spentAreas(areas) { return areas.filter(function (a) { return a.counted; }).map(function (a) { return { label: AREA_NAMES[a.area] || a.area, value: a.ms, text: dur(a.ms) }; }); }
   var COURSE_NAMES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };

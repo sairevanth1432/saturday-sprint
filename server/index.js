@@ -288,8 +288,16 @@ api.get('/content/:unitId/:slot', async (req, res) => {
     'Cache-Control': req.query.v ? 'public, max-age=300, s-maxage=31536000, immutable' : 'public, max-age=60, s-maxage=60',
     'X-Frame-Options': 'SAMEORIGIN'
   });
-  res.send(r.body);
+  res.send(withActivityPing(r.body));
 });
+// The sandboxed page tells the portal when the student clicks, types, scrolls or moves the mouse inside it
+// (Student analytics counts only time the student is present; the portal cannot see inputs in a sandboxed frame).
+const ACTIVITY_PING = '<script>(function(){var t=0;function p(){var n=Date.now();if(n-t<3000)return;t=n;try{parent.postMessage({ssAct:1},"*")}catch(e){}}' +
+  '["pointerdown","keydown","wheel","touchstart","scroll","mousemove"].forEach(function(e){addEventListener(e,p,{passive:true,capture:true})})})();</script>';
+function withActivityPing(html) {
+  const s = String(html), i = s.toLowerCase().lastIndexOf('</body>');
+  return i < 0 ? s + ACTIVITY_PING : s.slice(0, i) + ACTIVITY_PING + s.slice(i);
+}
 
 // Vercel Cron (vercel.json) calls this every minute with "Authorization: Bearer $CRON_SECRET".
 api.get('/cron/finalize', async (req, res) => {
