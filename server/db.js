@@ -255,6 +255,12 @@ CREATE TABLE IF NOT EXISTS content_units (
 CREATE TABLE IF NOT EXISTS student_photos (roll_no TEXT PRIMARY KEY, photo TEXT NOT NULL, updated_at BIGINT NOT NULL);
 CREATE TABLE IF NOT EXISTS request_photos (request_id BIGINT PRIMARY KEY, photo TEXT NOT NULL, created_at BIGINT NOT NULL);
 
+-- Practice questions added in Admin → Practice questions (practiceq.js). Never deleted, only archived: the portal
+-- stores MCQ answers by position.
+CREATE TABLE IF NOT EXISTS practice_questions (
+  id BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL, course TEXT NOT NULL, topic TEXT NOT NULL, data TEXT NOT NULL,
+  archived INTEGER NOT NULL DEFAULT 0, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, updated_by TEXT);
+
 -- Likes on the Watch videos: one per student per topic (unit).
 CREATE TABLE IF NOT EXISTS unit_likes (roll_no TEXT NOT NULL, unit_id TEXT NOT NULL, course TEXT NOT NULL, created_at BIGINT NOT NULL, PRIMARY KEY (roll_no, unit_id));
 CREATE INDEX IF NOT EXISTS unit_likes_unit ON unit_likes(unit_id);

@@ -87,7 +87,8 @@ function classArray(name) {
   const quiz = [].concat(...parts).map((q, gi) => ({ gi, course: q.course || '', sess: q.sess || '', q: q.q || '', o: q.o || [], c: q.c, multi: !!q.multi, code: q.code || '' }))
     .filter((q) => q.sess && ['pf', 'genai'].includes(q.course)); // the courses and sessions the Practice tab shows
   const code = (classArray('ccbpCoding') || []).map((c) => ({ id: c.id, topic: c.topic || '', title: c.title || c.id }));
-  fs.writeFileSync(path.join(ROOT, 'generated', 'practice.json'), JSON.stringify({ quiz, code }));
+  const total = parts.reduce((n, p) => n + p.length, 0); // admin-added MCQs follow these (gi = total + n)
+  fs.writeFileSync(path.join(ROOT, 'generated', 'practice.json'), JSON.stringify({ quiz, code, total }));
   console.log('Practice catalogue → generated/practice.json (' + quiz.length + ' quiz, ' + code.length + ' coding)');
 }
 
@@ -535,22 +536,22 @@ replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px
   '<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">', 'learn media width');
 replaceOnce('<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F; max-width: 1040px">',
   '<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">', 'learn bottom bar width');
-// Toolbar above the step's media: Download (Watch, Play, Read) and Full screen (Play, Read)
+// Toolbar above the step's media: a full-screen icon button (Watch, Play, Read)
 replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">\n<sc-if value="{{ wt.isVideo }}" hint-placeholder-val="{{ true }}">',
   (a) => a.split('\n')[0] + `
 <sc-if value="{{ ss.tools.on }}" hint-placeholder-val="{{ false }}">
 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
 <span style="flex-grow: 1; font-family: 'VT323', monospace; font-size: 19px; color: #8A8A8A">{{ ss.tools.hint }}</span>
-<sc-if value="{{ ss.tools.dl }}" hint-placeholder-val="{{ true }}"><a class="k3" href="{{ ss.tools.dlHref }}" download="{{ ss.tools.dlName }}" target="_blank" rel="noopener" aria-label="{{ ss.tools.dlLabel }}" title="{{ ss.tools.dlLabel }}" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid #333333; border-radius: 12px; color: #FFFFFF; font-size: 14px; font-weight: 800; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg><span>{{ ss.tools.dlLabel }}</span></a></sc-if>
-<sc-if value="{{ ss.tools.fs }}" hint-placeholder-val="{{ false }}"><button class="k3" onClick="{{ ss.tools.fsGo }}" aria-label="Full screen" title="Full screen" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 14px; font-weight: 800"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M20 9V4h-5"></path><path d="M4 15v5h5"></path><path d="M20 15v5h-5"></path></svg><span>Full screen</span></button></sc-if>
+<sc-if value="{{ ss.tools.fs }}" hint-placeholder-val="{{ false }}"><button class="k3" onClick="{{ ss.tools.fsGo }}" aria-label="Full screen" title="Full screen" style="flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 2px solid #333333; border-radius: 12px; background: #151515; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M20 9V4h-5"></path><path d="M4 15v5h5"></path><path d="M20 15v5h-5"></path></svg></button></sc-if>
 </div>
 </sc-if>
 ` + a.split('\n')[1], 'step toolbar');
 
 // Watch: a like button pinned on the right side of the video, like a reel
 replaceOnce('<video ref="{{ wt.ref }}" controls playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: {{ wt.vw }}; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; margin: 0 auto; border-radius: 12px; background: #000000"></video>',
-  `<div id="ss-reel" class="{{ ss.reel.cls }}" style="position: relative; width: {{ wt.vw }}; max-width: 100%; margin: 0 auto">
-<video ref="{{ wt.ref }}" onDblClick="{{ ss.like.dbl }}" controls controlslist="nofullscreen" playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: 100%; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; border-radius: 12px; background: #000000"></video>
+  `<div id="ss-reel" class="{{ ss.reel.cls }}" style="position: relative; width: 100%; margin: 0 auto">
+<div class="ss-reel-box" style="position: relative; width: {{ wt.boxW }}; aspect-ratio: {{ wt.aspect }}; margin: 0 auto; --ar: {{ wt.ar }}">
+<video ref="{{ wt.ref }}" onDblClick="{{ ss.like.dbl }}" controls controlslist="nofullscreen" playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background: #000000"></video>
 <sc-if value="{{ ss.like.on }}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; right: 10px; bottom: 76px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px">
 <button class="ss-like-btn" onClick="{{ ss.like.toggle }}" aria-pressed="{{ ss.like.liked }}" aria-label="{{ ss.like.label }}" title="{{ ss.like.label }}" style="width: 48px; height: 48px; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg class="{{ ss.like.cls }}" width="32" height="32" viewBox="0 0 24 24" fill="{{ ss.like.fill }}" stroke="{{ ss.like.stroke }}" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true" style="filter: drop-shadow(0 1px 3px rgba(0,0,0,.55))"><path d="M12 21s-7.6-4.6-9.6-9.4C.9 8 3.1 4.3 6.8 4.3c2.2 0 3.8 1.2 5.2 3.1 1.4-1.9 3-3.1 5.2-3.1 3.7 0 5.9 3.7 4.4 7.3-2 4.8-9.6 9.4-9.6 9.4z"></path></svg></button>
@@ -559,18 +560,25 @@ replaceOnce('<video ref="{{ wt.ref }}" controls playsinline preload="metadata" a
 <sc-if value="{{ ss.like.burst }}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; pointer-events: none"><svg class="ss-like-burst" width="110" height="110" viewBox="0 0 24 24" fill="#FFFFFF" style="filter: drop-shadow(0 4px 14px rgba(0,0,0,.45))"><path d="M12 21s-7.6-4.6-9.6-9.4C.9 8 3.1 4.3 6.8 4.3c2.2 0 3.8 1.2 5.2 3.1 1.4-1.9 3-3.1 5.2-3.1 3.7 0 5.9 3.7 4.4 7.3-2 4.8-9.6 9.4-9.6 9.4z"></path></svg></div></sc-if>
 </sc-if>
 <sc-if value="{{ ss.reel.max }}" hint-placeholder-val="{{ false }}"><button onClick="{{ ss.reel.close }}" aria-label="Leave full screen" title="Leave full screen" style="position: absolute; right: 12px; top: 12px; z-index: 3; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: rgba(5,5,5,.6); color: #FFFFFF; font-size: 22px; font-weight: 800; cursor: pointer">✕</button></sc-if>
+</div>
 </div>`, 'video like button');
 // Full screen for the reel takes the video AND its like button (the video's own full screen would hide the heart).
 // .ss-reel-max is the in-page fallback for browsers that cannot put a box in full screen (iPhone).
 replaceOnce('</head>', `<style>
-#ss-reel:fullscreen, #ss-reel.ss-reel-max { display: flex; align-items: center; justify-content: center; width: 100vw !important; max-width: none !important; height: 100vh; margin: 0 !important; background: #000; }
-#ss-reel:-webkit-full-screen { display: flex; align-items: center; justify-content: center; width: 100vw !important; max-width: none !important; height: 100vh; margin: 0 !important; background: #000; }
+#ss-reel:fullscreen, #ss-reel.ss-reel-max { display: flex; align-items: center; justify-content: center; width: 100vw !important; height: 100vh; margin: 0 !important; background: #000; }
+#ss-reel:-webkit-full-screen { display: flex; align-items: center; justify-content: center; width: 100vw !important; height: 100vh; margin: 0 !important; background: #000; }
 #ss-reel.ss-reel-max { position: fixed; inset: 0; z-index: 90; height: 100dvh; }
-#ss-reel:fullscreen video, #ss-reel.ss-reel-max video { width: auto !important; height: 100% !important; max-height: 100% !important; max-width: 100%; border-radius: 0 !important; }
-#ss-reel:-webkit-full-screen video { width: auto !important; height: 100% !important; max-height: 100% !important; max-width: 100%; border-radius: 0 !important; }
+/* the box is exactly the video's size, so the like button stays at the video's bottom-right in full screen too */
+#ss-reel:fullscreen .ss-reel-box { width: min(100vw, calc(100vh * var(--ar))) !important; }
+#ss-reel:-webkit-full-screen .ss-reel-box { width: min(100vw, calc(100vh * var(--ar))) !important; }
+#ss-reel.ss-reel-max .ss-reel-box { width: min(100vw, calc(100dvh * var(--ar))) !important; }
+#ss-reel:fullscreen video, #ss-reel.ss-reel-max video { border-radius: 0 !important; }
+#ss-reel:-webkit-full-screen video { border-radius: 0 !important; }
 .ss-like-btn:active svg { transform: scale(0.88); }
 .ss-like-btn svg { transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ss-like-pop { animation: ss-like-pop 420ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ss-split-bar:hover span, .ss-split-bar:focus-visible span, .ss-split-bar.on span { background: #FFE45C !important; height: 72px !important; }
+.ss-split-bar:focus-visible { outline: none; }
 @keyframes ss-like-pop { 0% { transform: scale(0.6); } 45% { transform: scale(1.25); } 100% { transform: scale(1); } }
 .ss-like-burst { animation: ss-like-burst 800ms cubic-bezier(0.23, 1, 0.32, 1) forwards; }
 @keyframes ss-like-burst { 0% { opacity: 0; transform: scale(0.4); } 18% { opacity: .95; transform: scale(1.1); } 32% { transform: scale(0.95); } 70% { opacity: .95; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05) translateY(-18px); } }
@@ -590,32 +598,34 @@ replaceOnce('<sc-if value="{{ ws.canSubmit }}" hint-placeholder-val="{{ true }}"
 replaceOnce("return h('iframe', { src: props.href, title: 'Class slides', allowfullscreen: true, loading: 'lazy',",
   "return h('iframe', { id: 'ss-embed', src: props.href, title: 'Class slides', allowfullscreen: true, allow: 'fullscreen', loading: 'lazy',", 'embed id');
 
-// ---------- 4f. Post-test feedback: two required questions on AI use (Sprint and Practice), before the comment box
+// ---------- 4f. Feedback: one required question on AI use (Sprint/practice), before the comment box
 replaceOnce('<span style="font-size: 14px; color: #8A8A8A">Both questions are required.</span>', '<span style="font-size: 14px; color: #8A8A8A">{{ ss.ai.req }}</span>', 'feedback required note');
 replaceOnce('<div style="display: flex; flex-direction: column; gap: 8px">\n<label for="fb-text"', `<sc-if value="{{ ss.ai.on }}" hint-placeholder-val="{{ false }}">
 <div style="display: flex; flex-direction: column; gap: 8px">
-<span id="ss-ai-sprint" style="font-size: 15px; font-weight: 800; color: #FFFFFF">To what extent did you use AI tools while completing the Sprint? <span style="color: #FF7A7A">*</span></span>
-<div role="radiogroup" aria-labelledby="ss-ai-sprint" style="display: flex; flex-direction: column; gap: 6px">
-<sc-for list="{{ ss.ai.sprint.opts }}" as="aos" hint-placeholder-count="5">
-<button role="radio" onClick="{{ aos.pick }}" aria-checked="{{ aos.on }}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 2px solid {{ aos.ring }}; border-radius: 10px; background: {{ aos.bg }}; color: {{ aos.fg }}; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer"><span aria-hidden="true" style="width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; border: 2px solid {{ aos.ring }}; background: {{ aos.dot }}"></span><span>{{ aos.t }}</span></button>
+<span id="ss-ai-use" style="font-size: 15px; font-weight: 800; color: #FFFFFF">To what extent did you use AI tools while completing the Sprint/practice questions? <span style="color: #FF7A7A">*</span></span>
+<div role="radiogroup" aria-labelledby="ss-ai-use" style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{ ss.ai.use.opts }}" as="aou" hint-placeholder-count="5">
+<button role="radio" onClick="{{ aou.pick }}" aria-checked="{{ aou.on }}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 2px solid {{ aou.ring }}; border-radius: 10px; background: {{ aou.bg }}; color: {{ aou.fg }}; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer"><span aria-hidden="true" style="width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; border: 2px solid {{ aou.ring }}; background: {{ aou.dot }}"></span><span>{{ aou.t }}</span></button>
 </sc-for>
 </div>
-<sc-if value="{{ ss.ai.sprint.err }}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #FF7A7A">Choose one option.</span></sc-if>
-</div>
-<div style="display: flex; flex-direction: column; gap: 8px">
-<span id="ss-ai-practice" style="font-size: 15px; font-weight: 800; color: #FFFFFF">To what extent did you use AI tools while solving the Practice questions? <span style="color: #FF7A7A">*</span></span>
-<div role="radiogroup" aria-labelledby="ss-ai-practice" style="display: flex; flex-direction: column; gap: 6px">
-<sc-for list="{{ ss.ai.practice.opts }}" as="aop" hint-placeholder-count="5">
-<button role="radio" onClick="{{ aop.pick }}" aria-checked="{{ aop.on }}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 2px solid {{ aop.ring }}; border-radius: 10px; background: {{ aop.bg }}; color: {{ aop.fg }}; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer"><span aria-hidden="true" style="width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; border: 2px solid {{ aop.ring }}; background: {{ aop.dot }}"></span><span>{{ aop.t }}</span></button>
-</sc-for>
-</div>
-<sc-if value="{{ ss.ai.practice.err }}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #FF7A7A">Choose one option.</span></sc-if>
+<sc-if value="{{ ss.ai.use.err }}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #FF7A7A">Choose one option.</span></sc-if>
 </div>
 </sc-if>
 <div style="display: flex; flex-direction: column; gap: 8px">
 <label for="fb-text"`, 'feedback AI questions');
 replaceOnce('<div class="d3 pop" style="width: 560px; max-width: 100%; box-sizing: border-box; padding: 28px 30px;',
   '<div class="d3 pop" style="width: 560px; max-width: 100%; max-height: calc(100vh - 48px); overflow-y: auto; box-sizing: border-box; padding: 28px 30px;', 'feedback modal scroll');
+
+// ---------- 4g. Code editor: drag the bar between the problem and the editor to resize them (keyboard: arrows; double-click resets)
+replaceOnce('<div style="flex-grow: 1; min-height: 0; display: flex; gap: 10px">\n<!-- left: problem -->',
+  '<div id="ss-split" style="flex-grow: 1; min-height: 0; display: flex; --ss-left: {{ ss.split.w }}">\n<!-- left: problem -->', 'split container');
+replaceOnce('<section class="d3" style="flex: 0 0 42%; min-width: 0; display: flex; flex-direction: column; border-radius: 14px; background: #151515; overflow: hidden">',
+  '<section class="d3" style="flex: 0 0 var(--ss-left, 42%); min-width: 0; display: flex; flex-direction: column; border-radius: 14px; background: #151515; overflow: hidden">', 'split left panel');
+replaceOnce('</section>\n\n<!-- right: editor + console -->',
+  `</section>
+<div class="ss-split-bar" role="separator" aria-orientation="vertical" aria-label="Resize the problem and the code editor" aria-valuemin="20" aria-valuemax="75" aria-valuenow="{{ ss.split.n }}" tabindex="0" title="Drag to resize · double-click to reset" onPointerDown="{{ ss.split.down }}" onKeyDown="{{ ss.split.key }}" onDblClick="{{ ss.split.reset }}" style="flex: 0 0 12px; align-self: stretch; cursor: col-resize; touch-action: none; display: flex; align-items: center; justify-content: center"><span style="width: 4px; height: 48px; border-radius: 2px; background: #333333; transition: background 150ms ease, height 150ms ease"></span></div>
+
+<!-- right: editor + console -->`, 'split bar');
 
 // ---------- 5. Sprint date/time/duration text follows Admin → Sprint settings (the HTML had them fixed)
 replaceOnce('<div style="font-size: 15px; color: #8A8A8A">Sat, 3 Oct · 11:00 – 11:30 AM IST</div>',

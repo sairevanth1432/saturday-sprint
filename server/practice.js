@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, config } from './config.js';
 import { all, parseJSON } from './db.js';
+import { practiceExtra } from './practiceq.js';
 import * as kv from './kv.js';
 
 const FILE = path.join(ROOT, 'generated', 'practice.json');
@@ -24,8 +25,15 @@ const sameAnswer = (q, k) => k !== undefined && k !== null &&
 const STUDENTS = `SELECT pr.roll_no, pr.data FROM progress pr JOIN students_master m ON m.roll_no = pr.roll_no
   WHERE m.active = 1 AND pr.roll_no NOT LIKE 'ADMIN-%' AND m.batch <> 'TEST'`; // TEST accounts never count
 
+// Built-in questions plus the ones admins added (they come after: gi = total + position; archived ones keep their slot).
+async function fullCatalogue() {
+  const base = loadCatalogue(), extra = await practiceExtra();
+  return { quiz: base.quiz.concat(extra.mcq.map((q, i) => ({ gi: (base.total || 0) + i, course: q.course, sess: q.sess, q: q.q, o: q.o, c: q.c, multi: false, code: q.code || '' }))
+    .filter((q) => q.sess)), code: base.code.concat(extra.code.map((c) => ({ id: c.id, topic: c.topic, title: c.title }))) };
+}
+
 async function compute() {
-  const cat = loadCatalogue();
+  const cat = await fullCatalogue();
   const rows = await all(STUDENTS);
   const quiz = cat.quiz.map((q) => ({ ...q, attempted: 0, correct: 0, picks: q.o.map(() => 0) }));
   const byGi = new Map(quiz.map((q) => [q.gi, q]));
@@ -79,7 +87,7 @@ export async function practiceAnalytics({ fresh = false } = {}) {
 
 // One question: who picked what (for the drill-down list).
 export async function practiceQuestion(gi) {
-  const q = loadCatalogue().quiz.find((x) => x.gi === gi);
+  const q = (await fullCatalogue()).quiz.find((x) => x.gi === gi);
   if (!q) return null;
   const rows = await all(STUDENTS.replace('SELECT pr.roll_no, pr.data', 'SELECT pr.roll_no, pr.data, m.name, m.batch'));
   const students = [];

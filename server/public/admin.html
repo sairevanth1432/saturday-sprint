@@ -245,7 +245,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ------------------------------------------------------------------ layout
   var NAV = [
-    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'], ['likes', 'Video likes'], ['integrity', 'Integrity flags'],
+    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practiceq', 'Practice questions'], ['practice', 'Practice analytics'], ['likes', 'Video likes'], ['integrity', 'Integrity flags'],
     ['media', 'Courses & topics'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
@@ -1531,6 +1531,111 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     });
   };
 
+  // ---------- practice questions added by admins (MCQ and coding, per course and topic)
+  VIEWS.practiceq = function () {
+    var F = CACHE.pq = CACHE.pq || { course: '', topic: '', kind: '', archived: false };
+    return api('GET', '/api/admin/practice-questions').then(function (d) {
+      var C = d.courses, topics = {};
+      d.rows.forEach(function (r) { (topics[r.course] = topics[r.course] || {})[r.topic] = 1; });
+      var allTopics = Object.keys(topics).reduce(function (a, c) { return a.concat(Object.keys(topics[c])); }, []).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
+      var rows = d.rows.filter(function (r) {
+        return (!F.course || r.course === F.course) && (!F.topic || r.topic === F.topic) && (!F.kind || r.kind === F.kind) && (F.archived ? r.archived : !r.archived);
+      });
+      var set = function (k, v) { F[k] = v; refresh(); };
+      var topicList = h('datalist', { id: 'pq-topics' }, allTopics.map(function (t) { return h('option', { value: t }); }));
+      var form = function (kind, r) {
+        var dr = drawer(), D = (r && r.data) || {};
+        var course = h('select', null, Object.keys(C).map(function (k) { return h('option', { value: k, selected: (r ? r.course : F.course || 'pf') === k ? true : null }, C[k]); }));
+        var topic = h('input', { type: 'text', list: 'pq-topics', maxlength: 120, value: r ? r.topic : F.topic || '', placeholder: 'e.g. Logical Operators', required: true });
+        var body, collect;
+        if (kind === 'mcq') {
+          var q = h('textarea', { rows: 3, maxlength: 2000, placeholder: 'The question' }, D.q || '');
+          var code = h('textarea', { rows: 4, maxlength: 5000, class: 'mono', placeholder: 'Optional code snippet shown with the question' }, D.code || '');
+          var opts = [], optBox = h('div', { style: 'display:flex;flex-direction:column;gap:6px' }), correct = D.c || 0;
+          var why = h('textarea', { rows: 2, maxlength: 2000, placeholder: 'Optional: why the answer is right (shown after answering)' }, D.why || '');
+          var drawOpts = function () {
+            optBox.replaceChildren.apply(optBox, opts.map(function (o, i) {
+              return h('div', { class: 'row', style: 'gap:6px;justify-content:flex-start;flex-wrap:nowrap' },
+                h('input', { type: 'radio', name: 'pq-correct', checked: i === correct ? true : null, title: 'Correct answer', onchange: function () { correct = i; } }),
+                o.el, opts.length > 2 ? h('button', { class: 'btn sm', type: 'button', title: 'Remove option', onclick: function () { opts.splice(i, 1); if (correct >= opts.length) correct = 0; drawOpts(); } }, '✕') : null);
+            }).concat(opts.length < 6 ? [h('button', { class: 'btn sm', type: 'button', style: 'align-self:flex-start', onclick: function () { addOpt(''); drawOpts(); } }, '+ Option')] : []));
+          };
+          var addOpt = function (t) { opts.push({ el: h('input', { type: 'text', maxlength: 500, value: t, placeholder: 'Option ' + (opts.length + 1), style: 'flex-grow:1' }) }); };
+          (D.o && D.o.length ? D.o : ['', '', '', '']).forEach(addOpt); drawOpts();
+          body = [h('div', { class: 'field' }, h('label', null, 'Question'), q), h('div', { class: 'field' }, h('label', null, 'Code (optional)'), code),
+            h('div', { class: 'field' }, h('label', null, 'Options (select the correct one)'), optBox), h('div', { class: 'field' }, h('label', null, 'Explanation (optional)'), why)];
+          collect = function () { return { q: q.value, code: code.value, o: opts.map(function (o) { return o.el.value; }), c: correct, why: why.value }; };
+        } else {
+          var title = h('input', { type: 'text', maxlength: 160, value: D.title || '', placeholder: 'e.g. Even or Odd' });
+          var level = h('select', null, ['easy', 'medium', 'hard'].map(function (l) { return h('option', { value: l, selected: (D.level || 'medium') === l ? true : null }, l); }));
+          var text = h('textarea', { rows: 8, maxlength: 20000, placeholder: 'Problem statement: what to read (Input), what to print (Output), and an example' }, D.text || '');
+          var starter = h('textarea', { rows: 3, maxlength: 5000, class: 'mono', placeholder: 'Optional starter code' }, D.starter || '');
+          var tests = [], testBox = h('div', { style: 'display:flex;flex-direction:column;gap:8px' });
+          var addTest = function (t) {
+            tests.push({ i: h('textarea', { rows: 2, class: 'mono', placeholder: 'Input (one value per line)' }, t ? t[0] : ''),
+              o: h('textarea', { rows: 2, class: 'mono', placeholder: 'Expected output' }, t ? t[1] : ''), hid: h('input', { type: 'checkbox', checked: t && t[2] ? true : null }) });
+          };
+          var drawTests = function () {
+            testBox.replaceChildren.apply(testBox, tests.map(function (t, i) {
+              return h('div', { class: 'card', style: 'padding:10px;display:flex;flex-direction:column;gap:6px' },
+                h('div', { class: 'row' }, h('b', null, 'Test ' + (i + 1)), h('label', { class: 'row', style: 'gap:6px' }, t.hid, 'hidden (students see only pass/fail)'),
+                  tests.length > 1 ? h('button', { class: 'btn sm', type: 'button', onclick: function () { tests.splice(i, 1); drawTests(); } }, 'Remove') : null),
+                h('div', { class: 'grid g2' }, t.i, t.o));
+            }).concat([h('button', { class: 'btn sm', type: 'button', style: 'align-self:flex-start', onclick: function () { addTest(null); drawTests(); } }, '+ Test case')]));
+          };
+          (D.tests && D.tests.length ? D.tests : [null, null]).forEach(addTest); drawTests();
+          body = [h('div', { class: 'grid g2' }, h('div', { class: 'field' }, h('label', null, 'Title'), title), h('div', { class: 'field' }, h('label', null, 'Difficulty'), level)),
+            h('div', { class: 'field' }, h('label', null, 'Problem statement'), text), h('div', { class: 'field' }, h('label', null, 'Starter code (optional)'), starter),
+            h('div', { class: 'field' }, h('label', null, 'Test cases (Submit runs all; Run uses the visible ones)'), testBox)];
+          collect = function () { return { title: title.value, level: level.value, text: text.value, starter: starter.value,
+            tests: tests.map(function (t) { return { input: t.i.value, output: t.o.value, hidden: t.hid.checked }; }) }; };
+        }
+        dr.set(h('form', { style: 'display:flex;flex-direction:column;gap:14px', onsubmit: function (e) {
+          e.preventDefault();
+          var payload = Object.assign({ kind: kind, course: course.value, topic: topic.value }, collect());
+          (r ? api('PUT', '/api/admin/practice-questions/' + r.id, payload) : api('POST', '/api/admin/practice-questions', payload)).then(function () {
+            dr.close(); F.course = payload.course; F.topic = payload.topic.trim(); toast(r ? 'Question updated.' : 'Question added. Students see it in Practice after reloading.'); refresh();
+          }, fail);
+        } },
+          header('~/admin/practice-questions', (r ? 'Edit ' : 'Add ') + (kind === 'mcq' ? 'MCQ' : 'coding question'), kind === 'mcq' ? 'Shown in Practice → the course → the topic, after the existing questions.' : 'Shown in Practice → the topic → Coding, and opens in the code editor.'),
+          topicList,
+          h('div', { class: 'grid g2' }, h('div', { class: 'field' }, h('label', null, 'Course'), course), h('div', { class: 'field' }, h('label', null, 'Topic'), topic)),
+          body,
+          h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'submit' }, r ? 'Save' : 'Add question'), h('button', { class: 'btn', type: 'button', onclick: function () { dr.close(); } }, 'Cancel'))));
+      };
+      var archive = function (r, on) {
+        if (on && !confirm('Delete this question from Practice? Students\' earlier answers are kept, and you can restore it from "Deleted".')) return;
+        api('POST', '/api/admin/practice-questions/' + r.id + '/archive', { archived: on }).then(function () { toast(on ? 'Deleted.' : 'Restored.'); refresh(); }, fail);
+      };
+      var preview = function (r) {
+        var D = r.data;
+        if (r.kind === 'mcq') return h('div', null, h('div', { style: 'white-space:pre-wrap' }, D.q), D.code ? h('pre', { class: 'code', style: 'margin-top:6px' }, D.code) : null,
+          h('ol', { style: 'margin:6px 0 0;padding-left:20px' }, D.o.map(function (o, i) { return h('li', { style: i === D.c ? 'color:var(--good);font-weight:800' : '' }, o + (i === D.c ? ' ✓' : '')); })));
+        return h('div', null, h('b', null, D.title), ' ', pill(D.level, ''), h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, D.tests.length + ' test case(s), ' + D.tests.filter(function (t) { return t[2]; }).length + ' hidden'),
+          h('div', { style: 'white-space:pre-wrap;max-height:90px;overflow:hidden;margin-top:4px;font-size:13px' }, D.text));
+      };
+      return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+        header('~/admin/practice-questions', 'Practice questions', 'Add MCQ and coding questions to the Practice tab, by course and topic. They come after the built-in questions. A new topic appears in Practice once it has at least one MCQ; coding questions show under that topic\'s Coding tab.',
+          [h('button', { class: 'btn pri', type: 'button', onclick: function () { form('mcq'); } }, '+ Add MCQ'), h('button', { class: 'btn pri', type: 'button', onclick: function () { form('code'); } }, '+ Add coding question')]),
+        h('div', { class: 'toolbar' },
+          h('select', { onchange: function (e) { set('course', e.target.value); } }, [['', 'All courses']].concat(Object.keys(C).map(function (k) { return [k, C[k]]; })).map(function (o) { return h('option', { value: o[0], selected: F.course === o[0] ? true : null }, o[1]); })),
+          h('select', { onchange: function (e) { set('topic', e.target.value); } }, [['', 'All topics']].concat(allTopics.map(function (t) { return [t, t]; })).map(function (o) { return h('option', { value: o[0], selected: F.topic === o[0] ? true : null }, o[1]); })),
+          h('select', { onchange: function (e) { set('kind', e.target.value); } }, [['', 'MCQ and coding'], ['mcq', 'MCQ'], ['code', 'Coding']].map(function (o) { return h('option', { value: o[0], selected: F.kind === o[0] ? true : null }, o[1]); })),
+          h('label', { class: 'row', style: 'gap:6px' }, h('input', { type: 'checkbox', checked: F.archived ? true : null, onchange: function (e) { set('archived', e.target.checked); } }), 'Deleted'),
+          h('span', { class: 'grow' }), pill(rows.length + ' question' + (rows.length === 1 ? '' : 's'), '')),
+        h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,
+          h('thead', null, h('tr', null, ['Type', 'Course · Topic', 'Question', 'Added', ''].map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, rows.length ? rows.map(function (r) {
+            return h('tr', null, h('td', null, pill(r.kind === 'mcq' ? 'MCQ' : 'Coding', r.kind === 'mcq' ? 'info' : 'ok')),
+              h('td', null, h('b', null, C[r.course] || r.course), h('div', { class: 'muted' }, r.topic)),
+              h('td', { style: 'max-width:560px;line-height:1.45' }, preview(r)),
+              h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.createdAt), h('div', null, r.by || '')),
+              h('td', null, h('div', { class: 'row', style: 'gap:6px' }, r.archived ? h('button', { class: 'btn sm', type: 'button', onclick: function () { archive(r, false); } }, 'Restore')
+                : [h('button', { class: 'btn sm', type: 'button', onclick: function () { form(r.kind, r); } }, 'Edit'), h('button', { class: 'btn sm bad', type: 'button', onclick: function () { archive(r, true); } }, 'Delete')])));
+          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, F.archived ? 'No deleted questions.' : 'No questions yet. Use "+ Add MCQ" or "+ Add coding question".'))))));
+    });
+  };
+
   // ---------- video likes: per topic and per course
   VIEWS.likes = function () {
     return api('GET', '/api/admin/likes').then(function (d) {
@@ -1628,21 +1733,20 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   VIEWS.feedback = function () {
     return api('GET', '/api/admin/feedback').then(function (d) {
       var avg = d.rows.length ? d.rows.reduce(function (s, r) { return s + (r.rating || 0); }, 0) / d.rows.length : null;
-      var aiCard = d.aiStudents ? h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, 'AI use (post-test feedback, ' + d.aiStudents + ' student' + (d.aiStudents === 1 ? '' : 's') + ')'),
+      var aiCard = d.aiStudents ? h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, 'To what extent did you use AI tools while completing the Sprint/practice questions? (' + d.aiStudents + ' student' + (d.aiStudents === 1 ? '' : 's') + ', latest answer each)'),
         h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,
-          h('thead', null, h('tr', null, ['Answer', 'Sprint', 'Practice'].map(function (t) { return h('th', null, t); }))),
+          h('thead', null, h('tr', null, ['Answer', 'Students'].map(function (t) { return h('th', null, t); }))),
           h('tbody', null, d.aiSummary.map(function (a) {
-            var pc = function (n) { return n + ' (' + Math.round(n * 100 / d.aiStudents) + '%)'; };
-            return h('tr', null, h('td', null, a.level), h('td', { class: 'mono' }, pc(a.sprint)), h('td', { class: 'mono' }, pc(a.practice)));
+            return h('tr', null, h('td', null, a.level), h('td', { class: 'mono' }, a.count + ' (' + Math.round(a.count * 100 / d.aiStudents) + '%)'));
           }))))) : null;
       return h('div', null, header('~/admin/feedback', 'Feedback', d.rows.length + ' responses' + (avg ? ' · average ' + avg.toFixed(2) + ' ★' : ''),
         [h('button', { class: 'btn', onclick: function () { download('/api/admin/export/feedback.csv'); } }, 'Export CSV')]),
         aiCard,
-        h('div', { class: 'tablewrap' }, h('table', null, h('thead', null, h('tr', null, ['When', 'Student', 'Kind', 'Rating', 'AI use: Sprint / Practice', 'Feedback'].map(function (t) { return h('th', null, t); }))),
+        h('div', { class: 'tablewrap' }, h('table', null, h('thead', null, h('tr', null, ['When', 'Student', 'Kind', 'Rating', 'AI use', 'Feedback'].map(function (t) { return h('th', null, t); }))),
           h('tbody', null, d.rows.length ? d.rows.map(function (r) {
             return h('tr', null, h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.created_at)), h('td', null, r.name || '–', h('div', { class: 'muted mono' }, r.roll_no)), h('td', null, pill(r.kind)),
               h('td', { class: 'mono', style: 'color:var(--accent);white-space:nowrap' }, '★'.repeat(r.rating || 0)),
-              h('td', { style: 'max-width:260px;font-size:12px;line-height:1.4' }, r.ai_sprint || r.ai_practice ? [h('div', null, h('b', null, 'Sprint: '), r.ai_sprint || '–'), h('div', null, h('b', null, 'Practice: '), r.ai_practice || '–')] : h('span', { class: 'muted' }, '–')),
+              h('td', { style: 'max-width:260px;font-size:12px;line-height:1.4' }, r.ai_use ? r.ai_use : r.ai_sprint || r.ai_practice ? [h('div', null, h('b', null, 'Sprint: '), r.ai_sprint || '–'), h('div', null, h('b', null, 'Practice: '), r.ai_practice || '–')] : h('span', { class: 'muted' }, '–')),
               h('td', { style: 'max-width:520px;line-height:1.45' }, r.text));
           }) : h('tr', null, h('td', { colspan: 6, class: 'muted' }, 'No feedback yet.'))))));
     });

@@ -54,12 +54,6 @@
       }).join('\u200B');
     });
   };
-  // Download links: same-site files take the download attribute; Vercel Blob and /api/content need ?download=1.
-  var downloadUrl = function (u) {
-    if (!u) return '';
-    var add = /\/api\/content\//.test(u) || /\.blob\.vercel-storage\.com\//.test(u);
-    return add ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'download=1' : u;
-  };
   var fmtScore = function (x) { return x == null ? '–' : String(Math.round(Number(x) * 100) / 100); };
 
   function placeholders(types) {
@@ -147,6 +141,12 @@
       PROGRESS_KEYS.forEach(function (k) { if (p[k] !== undefined && (k !== 'done' || sameContent)) S[k] = p[k]; });
       if (moved) { S.course = 0; S.mod = 0; S.les = 0; }
       if (p.code) S.code = Object.assign({}, S.code, p.code);
+      // Practice questions added in Admin → Practice questions, after the built-in ones. MCQ answers are stored by
+      // position (practice ++ ccbpQuiz ++ genaiQuiz), so they always go at the very end and archived ones stay as
+      // placeholders that Practice never shows (no course).
+      var PX = B.practiceExtra || {};
+      if (Array.isArray(PX.mcq) && PX.mcq.length) this.genaiQuiz = this.genaiQuiz.concat(PX.mcq);
+      if (Array.isArray(PX.code) && PX.code.length) this.ccbpCoding = this.ccbpCoding.concat(PX.code);
       // Video likes: my likes and the counts per topic.
       var LK = B.likes || {};
       S.ssLiked = {}; (LK.mine || []).forEach(function (id) { S.ssLiked[id] = true; });
@@ -748,6 +748,43 @@
       try { var p = rq.call(el); if (p && p.catch) p.catch(fake); } catch (e) { fake(); }
     }
 
+    // Code editor: the problem panel's share of the width (20–75%), dragged with the bar between the panels.
+    // Saved per browser (localStorage), so it stays the same across problems and visits.
+    ssSplitVals() {
+      var self = this, S = this.state;
+      var pct = S.ssSplit;
+      if (pct === undefined) { try { pct = Number(localStorage.getItem('ss:split')) || 42; } catch (e) { pct = 42; } }
+      pct = Math.max(20, Math.min(75, pct));
+      var save = function (n) {
+        n = Math.round(Math.max(20, Math.min(75, n)));
+        try { localStorage.setItem('ss:split', String(n)); } catch (e) {}
+        self.setState({ ssSplit: n });
+      };
+      return { w: pct + '%', n: String(Math.round(pct)),
+        down: function (e) {
+          var box = document.getElementById('ss-split'), bar = e.currentTarget;
+          if (!box) return;
+          e.preventDefault();
+          var r = box.getBoundingClientRect(), last = pct;
+          bar.classList.add('on'); document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize';
+          var move = function (ev) {
+            last = Math.max(20, Math.min(75, ((ev.clientX - r.left) / r.width) * 100));
+            box.style.setProperty('--ss-left', last + '%'); // live, without re-rendering the editor
+          };
+          var up = function () {
+            window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+            bar.classList.remove('on'); document.body.style.userSelect = ''; document.body.style.cursor = '';
+            save(last);
+          };
+          window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+        },
+        key: function (e) {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); save(pct + (e.key === 'ArrowLeft' ? -3 : 3)); }
+          else if (e.key === 'Home') { e.preventDefault(); save(20); } else if (e.key === 'End') { e.preventDefault(); save(75); }
+        },
+        reset: function () { save(42); } };
+    }
+
     // ---------- coding practice honeypots (server/integrity.js): flag only, students see no difference
     // The question being shown in the code editor (same choice as the portal's wsBuild).
     ssCurQuestion() {
@@ -876,12 +913,12 @@
       return res;
     }
 
-    // Feedback (post-test pop-up and the Feedback button): two required questions on AI use. Answers go with the
-    // feedback (saveFeedback below).
+    // Feedback (post-test pop-up and the Feedback button): one required question on AI use in the Sprint/practice
+    // questions. The answer goes with the feedback (saveFeedback below).
     ssAiFeedback(v) {
       var S = this.state, self = this, fb = v.fb || {};
       var on = !!fb.modal; // the post-test pop-up and the Feedback button
-      if (!on) return { on: false, req: 'Both questions are required.', sprint: { opts: [], err: false }, practice: { opts: [], err: false } };
+      if (!on) return { on: false, req: 'Both questions are required.', use: { opts: [], err: false } };
       var tried = !!S.fbTried;
       var group = function (key) {
         var cur = (S.ssAi || {})[key];
@@ -891,16 +928,16 @@
             pick: function () { self.setState(function (s) { var a = Object.assign({}, s.ssAi); a[key] = i; return { ssAi: a }; }); } };
         }) };
       };
-      var a = S.ssAi || {}, both = a.sprint !== undefined && a.practice !== undefined;
+      var a = S.ssAi || {}, both = a.use !== undefined;
       var base = fb.submit;
       fb.submit = function () {
         if (!both) { self.setState({ fbTried: true }); return; }
-        self._ssAiAnswer = { aiSprint: AI_LEVELS[a.sprint], aiPractice: AI_LEVELS[a.practice] };
+        self._ssAiAnswer = { aiUse: AI_LEVELS[a.use] };
         base.apply(this, arguments);
         self.setState({ ssAi: {} });
       };
       if (!both) { fb.notReady = true; fb.subCls = ''; fb.subBg = '#262626'; fb.subFg = '#8A8A8A'; }
-      return { on: true, req: 'All questions are required.', sprint: group('sprint'), practice: group('practice') };
+      return { on: true, req: 'All questions are required.', use: group('use') };
     }
 
     // Built-in courses, then the courses admins added that have at least one topic.
@@ -959,7 +996,9 @@
       var CO = this.courseList()[S.course], mod = CO && CO.modules[S.mod], les = mod && mod.lessons[S.les];
       var w = les && les.watch && typeof les.watch === 'object' ? les.watch : {};
       var portrait = w.orientation === 'portrait';
-      if (v.wt) { v.wt.vw = portrait ? 'min(100%, 440px)' : '100%'; v.wt.aspect = portrait ? '9 / 16' : '16 / 9'; v.wt.tall = !!w.tall; }
+      // the reel box: the video's own size (width capped so its height fits 78% of the window)
+      var reelW = portrait ? 'min(100%, 440px, calc(78vh * 0.5625))' : 'min(100%, calc(78vh * 1.7778))', reelAr = portrait ? '0.5625' : '1.7778';
+      if (v.wt) { v.wt.vw = portrait ? 'min(100%, 440px)' : '100%'; v.wt.aspect = portrait ? '9 / 16' : '16 / 9'; v.wt.tall = !!w.tall; v.wt.boxW = reelW; v.wt.ar = reelAr; }
       var unitsPrev = null;
       // Topic list: a tick when every lesson of the topic is done (a unit is done once its last step, Read, is finished).
       if (Array.isArray(v.lgroups)) {
@@ -1014,7 +1053,7 @@
         if (tab === 'watch') {
           if (src.watch) { this._ssVidUnit = this._ssVidUnit || {}; this._ssVidUnit[src.watch] = les.id; }
           v.wt = Object.assign({}, v.wt, { isVideo: !!src.watch, isSlides: false, src: src.watch, title: les.title, groups: [], tall: false,
-            vw: portrait ? 'min(100%, 440px)' : '100%', aspect: portrait ? '9 / 16' : '16 / 9', ref: src.watch ? this.ssVideoRef(src.watch) : null });
+            vw: portrait ? 'min(100%, 440px)' : '100%', aspect: portrait ? '9 / 16' : '16 / 9', boxW: reelW, ar: reelAr, ref: src.watch ? this.ssVideoRef(src.watch) : null });
         } else {
           v.wt = Object.assign({}, v.wt, { isVideo: false, isSlides: !!src[tab], src: src[tab], title: les.title, groups: [], tall: true, ref: null });
         }
@@ -1025,13 +1064,11 @@
             text: (tab === 'watch' ? 'The video' : tab === 'play' ? 'The game' : 'The reading material') + ' for this topic is on its way.' +
               (other.length ? ' For now, ' + other.join(' and ') + '.' : ' Check back soon!') };
         }
-        // Toolbar above the media: Download for every step with a file; Full screen for Play and Read (the game or
-        // notes frame only; browsers without it get a new tab).
+        // Toolbar above the media: a full-screen icon button (Watch: the reel with its like button; Play and Read: the
+        // game or notes frame; browsers without it get a new tab).
         if (src[tab]) {
           var fsUrl = src[tab], isPR = tab === 'play' || tab === 'read';
           v.ss_tools = { on: true, hint: tab === 'play' ? 'Press Esc to leave full screen' : tab === 'read' ? 'Read in full screen · Esc to leave' : '',
-            dl: true, dlHref: downloadUrl(src[tab]), dlName: les.id + '-' + tab + (tab === 'watch' ? '.mp4' : '.html'),
-            dlLabel: tab === 'watch' ? 'Download video' : tab === 'play' ? 'Download game' : 'Download notes',
             fs: true, fsGo: function () {
               if (tab === 'watch') return self.ssReelFull();
               var el = document.getElementById('ss-embed');
@@ -1131,8 +1168,9 @@
             toggle: function () { self.setState(function (s) { return { ssNextFolded: !s.ssNextFolded }; }); },
             groups: N.groups.map(function (g) { return { name: g.name, topics: g.topics.map(function (t) { return { t: t }; }) }; }) };
         })(),
-        tools: v.ss_tools || { on: false, hint: '', dl: false, dlHref: '', dlName: '', dlLabel: '', fs: false, fsGo: null },
+        tools: v.ss_tools || { on: false, hint: '', fs: false, fsGo: null },
         like: v.ss_like || { on: false },
+        split: this.ssSplitVals(),
         reel: { max: !!S.ssReelMax, cls: S.ssReelMax ? 'ss-reel-max' : '', close: function () { self.setState({ ssReelMax: false }); } },
         hp: this.ssHoneypot(v),
         hpc: this.ssHoneypotCard(v),

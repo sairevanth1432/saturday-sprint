@@ -1139,20 +1139,52 @@ test('downloads: uploaded Play/Read HTML downloads as a file with ?download=1', 
   await ADM('DELETE', '/api/admin/media/tp-strings/read');
 });
 
-test('post-test feedback: the two AI-use answers are stored, summarised for admins and exported', async () => {
-  const r = await A('POST', '/api/feedback', { kind: 'sprint-test', rating: 4, text: 'Good sprint, tough questions', aiSprint: 'I did not use AI', aiPractice: 'I used AI for some questions' });
+test('feedback: the AI-use answer is stored, summarised for admins and exported', async () => {
+  const r = await A('POST', '/api/feedback', { kind: 'sprint-test', rating: 4, text: 'Good sprint, tough questions', aiUse: 'I used AI for some questions' });
   assert.equal(r.status, 200);
-  await A('POST', '/api/feedback', { kind: 'portal', rating: 5, text: 'nice portal overall', aiSprint: 'made up answer' });
+  await A('POST', '/api/feedback', { kind: 'portal', rating: 5, text: 'nice portal overall', aiUse: 'made up answer' });
   const fb = await ADM('GET', '/api/admin/feedback');
-  const mine = fb.body.rows.find((x) => x.text === 'Good sprint, tough questions');
-  assert.equal(mine.ai_sprint, 'I did not use AI');
-  assert.equal(mine.ai_practice, 'I used AI for some questions');
-  assert.equal(fb.body.rows.find((x) => x.text === 'nice portal overall').ai_sprint, '', 'only the five answers are accepted');
+  assert.equal(fb.body.rows.find((x) => x.text === 'Good sprint, tough questions').ai_use, 'I used AI for some questions');
+  assert.equal(fb.body.rows.find((x) => x.text === 'nice portal overall').ai_use, '', 'only the five answers are accepted');
   assert.equal(fb.body.aiSummary.length, 5);
-  assert.equal(fb.body.aiSummary.find((a) => a.level === 'I did not use AI').sprint >= 1, true);
+  assert.equal(fb.body.aiSummary.find((a) => a.level === 'I used AI for some questions').count, 1);
   const csv = await (await fetch(base + '/api/admin/export/feedback.csv', { headers: { cookie: ADM.cookie() } })).text();
-  assert.match(csv.split('\n')[0], /ai_sprint,ai_practice/);
+  assert.match(csv.split('\n')[0], /,ai_use,/);
   assert.match(csv, /I used AI for some questions/);
+});
+
+test('practice questions: admins add MCQ and coding by course and topic; the portal gets them after the built-in ones; delete keeps the slot', async () => {
+  assert.equal((await A('POST', '/api/admin/practice-questions', { kind: 'mcq' })).status, 401, 'students cannot add questions');
+  const bad = await ADM('POST', '/api/admin/practice-questions', { kind: 'mcq', course: 'pf', topic: 'Logical Operators', q: 'Which?', o: ['a', 'a'], c: 0 });
+  assert.equal(bad.body.error, 'BAD_OPTIONS');
+  const m1 = await ADM('POST', '/api/admin/practice-questions', { kind: 'mcq', course: 'pf', topic: 'Logical Operators', q: 'What is printed?', code: 'print(True and False)', o: ['True', 'False'], c: 1, why: 'and needs both' });
+  assert.equal(m1.status, 200, JSON.stringify(m1.body));
+  const m2 = await ADM('POST', '/api/admin/practice-questions', { kind: 'mcq', course: 'genai', topic: 'Prompting Basics', q: 'RCAFT: what is T?', o: ['Tone', 'Task'], c: 0 });
+  assert.equal(m2.status, 200);
+  assert.equal((await ADM('POST', '/api/admin/practice-questions', { kind: 'code', course: 'pf', topic: 'Logical Operators', title: 'Both', text: 'Read two words...', tests: [{ input: '1', output: '2', hidden: true }] })).body.error, 'BAD_TESTS', 'needs a visible sample');
+  const c1 = await ADM('POST', '/api/admin/practice-questions', { kind: 'code', course: 'pf', topic: 'Logical Operators', title: 'Both Positive', level: 'easy',
+    text: 'Read two integers and print True if both are positive.', tests: [{ input: '1\n2', output: 'True' }, { input: '-1\n2', output: 'False', hidden: true }] });
+  assert.equal(c1.status, 200);
+  let boot = await A('GET', '/api/bootstrap');
+  const px = boot.body.practiceExtra;
+  assert.deepEqual(px.mcq.map((q) => q.sess), ['Logical Operators', 'Prompting Basics']);
+  assert.equal(px.mcq[0].c, 1);
+  assert.equal(px.code[0].id, 'x' + c1.body.id);
+  assert.deepEqual(px.code[0].tests, [['1\n2', 'True', false], ['-1\n2', 'False', true]]);
+  // delete = archive: the slot stays (answers are stored by position) but it has no course, so Practice hides it
+  assert.equal((await ADM('POST', '/api/admin/practice-questions/' + m1.body.id + '/archive', { archived: true })).status, 200);
+  boot = await A('GET', '/api/bootstrap');
+  assert.equal(boot.body.practiceExtra.mcq.length, 2);
+  assert.equal(boot.body.practiceExtra.mcq[0].course, '');
+  assert.equal(boot.body.practiceExtra.mcq[1].sess, 'Prompting Basics');
+  assert.equal((await ADM('PUT', '/api/admin/practice-questions/' + m2.body.id, { course: 'genai', topic: 'Prompting Basics', q: 'RCAFT: what does T stand for?', o: ['Tone', 'Task', 'Topic'], c: 0 })).status, 200);
+  const list = await ADM('GET', '/api/admin/practice-questions');
+  assert.equal(list.body.rows.find((r) => r.id === m2.body.id).data.o.length, 3);
+  assert.equal(list.body.rows.find((r) => r.id === m1.body.id).archived, true);
+  // practice analytics knows them (gi after the built-in ones)
+  const pa = await ADM('GET', '/api/admin/practice?fresh=1');
+  assert.equal(pa.status, 200);
+  assert.ok(JSON.stringify(pa.body).includes('RCAFT: what does T stand for?'), 'practice analytics lists the admin-added MCQ');
 });
 
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {

@@ -29,6 +29,7 @@ import { recordActivity, recordStepEvents, businessMetrics, overview as analytic
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
+import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
 
@@ -186,7 +187,7 @@ api.get('/info', async (req, res) => {
 api.get('/bootstrap', who, async (req, res) => {
   noStore(res);
   const w = req.who, sprint = await sprintFor(w);
-  const [a, prog, fb, bytes, proctor, photoAt, likeN, liked] = await Promise.all([
+  const [a, prog, fb, bytes, proctor, photoAt, likeN, liked, extra] = await Promise.all([
     getAttempt(w, sprint),
     w.kind === 'student' ? one('SELECT data FROM progress WHERE roll_no = ?', w.roll_no) : null,
     w.kind === 'student' ? one("SELECT 1 AS x FROM feedback WHERE roll_no = ? AND kind = 'sprint-test' LIMIT 1", w.roll_no) : null,
@@ -194,7 +195,8 @@ api.get('/bootstrap', who, async (req, res) => {
     proctorSettings(),
     w.kind === 'student' ? photoStamp(w.roll_no) : 0,
     likeCounts(),
-    w.kind === 'student' ? myLikes(w.roll_no) : []
+    w.kind === 'student' ? myLikes(w.roll_no) : [],
+    practiceExtra()
   ]);
   res.json({
     serverNow: Date.now(),
@@ -211,6 +213,7 @@ api.get('/bootstrap', who, async (req, res) => {
     courses: customCourses().map((c) => ({ id: c.id, name: c.name, color: c.color })),
     nextSprint: nextSprintTopics,
     likes: { counts: likeN, mine: liked },
+    practiceExtra: extra,
     integrity: clientIntegrity()
   });
 });
@@ -288,7 +291,8 @@ api.put('/progress', who, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Post-test feedback: "To what extent did you use AI tools…" for the Sprint and for Practice (portal-bridge.js AI_LEVELS).
+// Feedback: "To what extent did you use AI tools while completing the Sprint/practice questions?" (portal-bridge.js
+// AI_LEVELS). aiSprint / aiPractice are the two questions asked before; older feedback keeps them.
 const AI_LEVELS = ['I did not use AI', 'I used AI for minor help/hints', 'I used AI for some questions', 'I used AI for most questions', 'I relied heavily on AI to complete the Sprint'];
 api.post('/feedback', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.json({ ok: true, skipped: true });
@@ -297,7 +301,7 @@ api.post('/feedback', who, async (req, res) => {
   const ai = (x) => (AI_LEVELS.includes(x) ? x : undefined);
   await run('INSERT INTO feedback (roll_no, kind, rating, text, data, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     req.who.roll_no, String(b.kind || 'portal').slice(0, 40), Math.max(0, Math.min(5, Number(b.rating) || 0)), String(b.text || '').slice(0, 5000),
-    JSON.stringify({ tab: b.tab, course: b.course, aiSprint: ai(b.aiSprint), aiPractice: ai(b.aiPractice) }), Date.now());
+    JSON.stringify({ tab: b.tab, course: b.course, aiUse: ai(b.aiUse), aiSprint: ai(b.aiSprint), aiPractice: ai(b.aiPractice) }), Date.now());
   res.json({ ok: true });
 });
 
@@ -534,6 +538,25 @@ adm.post('/users/:roll/status', async (req, res) => {
   forgetSessions();
   await clearBoardCache();
   await audit(req, status === 'disabled' ? 'user.disabled' : 'user.enabled', roll);
+  res.json({ ok: true });
+});
+
+// ---------- practice questions added by admins (MCQ and coding, per course and topic)
+adm.get('/practice-questions', async (req, res) => res.json({ rows: await listPractice(), courses: PRACTICE_COURSES }));
+adm.post('/practice-questions', async (req, res) => {
+  const r = await addPractice(String((req.body || {}).kind || ''), req.body || {}, req.admin.email);
+  await audit(req, 'practice.question_added', String(r.id), { kind: (req.body || {}).kind, course: (req.body || {}).course, topic: (req.body || {}).topic });
+  res.json(r);
+});
+adm.put('/practice-questions/:id', async (req, res) => {
+  await updatePractice(req.params.id, req.body || {}, req.admin.email);
+  await audit(req, 'practice.question_updated', req.params.id, null);
+  res.json({ ok: true });
+});
+adm.post('/practice-questions/:id/archive', async (req, res) => {
+  const on = (req.body || {}).archived !== false;
+  await setArchived(req.params.id, on);
+  await audit(req, on ? 'practice.question_deleted' : 'practice.question_restored', req.params.id, null);
   res.json({ ok: true });
 });
 
@@ -886,11 +909,11 @@ adm.delete('/media/:unitId/:slot', async (req, res) => {
 // ---------- feedback, audit
 adm.get('/feedback', async (req, res) => {
   const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id DESC LIMIT 1000'))
-    .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
+    .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, ai_use: d.aiUse || '', ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
   // how many students picked each answer (latest answer per student)
   const latest = new Map();
-  for (const r of rows) if ((r.ai_sprint || r.ai_practice) && !latest.has(r.roll_no)) latest.set(r.roll_no, r);
-  const aiSummary = AI_LEVELS.map((t) => ({ level: t, sprint: [...latest.values()].filter((r) => r.ai_sprint === t).length, practice: [...latest.values()].filter((r) => r.ai_practice === t).length }));
+  for (const r of rows) if (r.ai_use && !latest.has(r.roll_no)) latest.set(r.roll_no, r);
+  const aiSummary = AI_LEVELS.map((t) => ({ level: t, count: [...latest.values()].filter((r) => r.ai_use === t).length }));
   res.json({ rows, aiSummary, aiStudents: latest.size });
 });
 adm.get('/audit', async (req, res) => {
@@ -925,9 +948,9 @@ adm.get('/export/:what', async (req, res) => {
     body = toCSV(['roll_no', 'lms_id', 'name', 'phone', 'batch', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
   } else if (req.params.what === 'feedback.csv') {
     const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id'))
-      .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, at: iso(r.created_at), ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
+      .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, at: iso(r.created_at), ai_use: d.aiUse || '', ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
     name = 'feedback.csv';
-    body = toCSV(['at', 'roll_no', 'name', 'kind', 'rating', 'ai_sprint', 'ai_practice', 'text'], rows);
+    body = toCSV(['at', 'roll_no', 'name', 'kind', 'rating', 'ai_use', 'ai_sprint', 'ai_practice', 'text'], rows);
   } else if (req.params.what === 'activity.csv') {
     if (req.admin.role !== 'super_admin') return res.status(403).json({ error: 'FORBIDDEN', message: 'Super admins only.' });
     const d = await studentRows({ days: daysOf(req), limit: 100000 });
@@ -1028,7 +1051,7 @@ adm.patch('/admins/:id', requireSuper, async (req, res) => {
 // ===================================================================== errors
 api.use((req, res) => res.status(404).json({ error: 'NOT_FOUND', message: 'No such API route.' }));
 app.use((err, req, res, next) => {
-  if (err instanceof AuthError || err instanceof SprintError || err instanceof ContentError || err instanceof PhotoError) {
+  if (err instanceof AuthError || err instanceof SprintError || err instanceof ContentError || err instanceof PhotoError || err instanceof PracticeError) {
     return res.status(err.status).json({ error: err.code, message: err.message, ...(err.extra || {}) });
   }
   if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'BAD_JSON', message: 'Invalid JSON.' });
