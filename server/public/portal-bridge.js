@@ -360,6 +360,7 @@
         var n = Date.now();
         if (e && e.type === 'mousemove' && n - lastPoke < 5000) return;
         lastPoke = n;
+        self.ssActTick(); // take the time up to this input first
         if (n - A.lastInput < self.ssActIdleMs(A.key || 'home||')) self.ssActCommit(); else A.pend = {};
         A.lastInput = n;
       };

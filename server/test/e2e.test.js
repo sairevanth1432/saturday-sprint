@@ -366,7 +366,9 @@ test('unit content: admin uploads Watch (MP4), Play and Read (HTML) per unit; re
   const range = await fetch(base + c.watch, { headers: { range: 'bytes=0-99' } });
   assert.equal(range.status, 206, 'video supports seeking');
   const page = await fetch(base + c.read);
-  assert.match(await page.text(), /Nested notes/);
+  const served = await page.text();
+  assert.match(served, /Nested notes/);
+  assert.match(served, /ssAct:1[\s\S]*<\/script><\/body>/, 'the page reports inputs to the portal (Student analytics time)');
   assert.match(page.headers.get('content-security-policy') || '', /sandbox allow-scripts/, 'uploaded HTML is sandboxed');
 
   assert.equal((await ADM('DELETE', '/api/admin/media/' + unit.id + '/read')).status, 200);
