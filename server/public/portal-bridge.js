@@ -765,6 +765,18 @@
       }
       return this.ssTrapText(text, q);
     }
+    // Copy guard "decoy": the problem a copied question is swapped for. Another problem of the same topic (any topic
+    // when it has no other), the same one for a student every time, so repeated copies agree.
+    ssDecoyFor(qid) {
+      var P = this.ccbpCoding || [], q = P.find(function (p) { return p.id === qid; });
+      if (!q) return null;
+      var pool = P.filter(function (p) { return p.id !== qid && p.topic === q.topic; });
+      if (!pool.length) pool = P.filter(function (p) { return p.id !== qid; });
+      if (!pool.length) return null;
+      var seed = String((this.ss.user || {}).rollNo || '') + qid, h = 0;
+      for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+      return pool[h % pool.length];
+    }
     // The Practice tab's coding card (pq.ckText): the same hidden line, for the question it shows.
     ssHoneypotCard(v) {
       var pq = v.pq || {}, text = String(pq.ckText || '');
@@ -773,12 +785,12 @@
     }
     ssTrapText(text, q) {
       var I = this.ss.integrity || {}, U = this.ss.user;
-      if (!q || !I.enabled || !text) return { a: text, trap: '', b: '' };
+      if (!q || !I.enabled || !text) return { a: text, trap: '', b: '', qid: '' };
       var wm = I.watermark ? zwEncode(U.kind === 'student' ? U.rollNo : 'ADMIN-' + (U.email || '')) : '';
       var i = text.indexOf('\n\n'), cut = i > 0 ? i : (text.indexOf('. ') > 0 ? text.indexOf('. ') + 1 : text.length);
       var a = text.slice(0, cut), b = text.slice(cut), sp = a.indexOf(' ');
       if (wm && sp > 0) a = a.slice(0, sp) + wm + a.slice(sp);
-      return { a: a, trap: ' ' + ((I.questions || {})[q.id] || I.trap || '') + wm + ' ', b: b };
+      return { a: a, trap: ' ' + ((I.questions || {})[q.id] || I.trap || '') + wm + ' ', b: b, qid: q.id };
     }
     ssHpMetrics(qid) {
       this._hp = this._hp || {};
@@ -794,7 +806,7 @@
       // letters. The hidden trap line and watermark are kept readable at the start and end. The page is unchanged.
       document.addEventListener('copy', function (e) {
         var I = self.ss.integrity || {};
-        if (!I.enabled || I.scrambleCopy === false || !e.clipboardData) return;
+        if (!I.enabled || I.copyGuard === 'off' || !e.clipboardData) return;
         var tg = e.target, tn = tg && tg.tagName;
         if (tn === 'TEXTAREA' || tn === 'INPUT' || (tg && tg.isContentEditable)) return; // the code editor and inputs copy normally
         var sel = window.getSelection && window.getSelection();
@@ -811,7 +823,19 @@
         var trap = hid ? hid.textContent.replace(/^\s+|\s+$/g, '') : '';
         var text = sel.toString();
         if (trap) text = text.split(trap).join(' ');
-        e.clipboardData.setData('text/plain', (trap ? trap + '\n' : '') + scrambleText(text) + (trap ? '\n' + trap : ''));
+        var mode = I.copyGuard || (I.scrambleCopy === false ? 'off' : 'decoy');
+        var out = null, qid = box.getAttribute('data-ssq');
+        if (mode === 'decoy') {
+          // a different, real problem: the AI solves the wrong task; Submit then flags DECOY if the code passes its tests
+          var d = self.ssDecoyFor(qid);
+          if (d) {
+            self._hpDecoy = self._hpDecoy || {}; self._hpDecoy[qid] = d.id;
+            out = d.title + '\n\n' + String(d.text || '').replace(/`/g, '');
+          }
+        }
+        if (out === null && mode !== 'off') out = scrambleText(text);
+        if (out === null) return;
+        e.clipboardData.setData('text/plain', (trap ? trap + '\n' : '') + out + (trap ? '\n' + trap : ''));
         e.preventDefault();
       }, true);
       document.addEventListener('paste', function (e) {
@@ -833,8 +857,16 @@
       if (pend && pend.code === code) {
         this._hpPending = null;
         Promise.resolve(res).then(function (r) {
-          var M = self.ssHpMetrics(pend.qid), f = document.getElementById('ss-hp-field');
-          api('POST', '/api/practice/submission', { qid: pend.qid, topic: pend.topic, code: code, correct: Array.isArray(r) && r.length > 0 && r.every(function (x) { return x.pass; }),
+          var ok = Array.isArray(r) && r.length > 0 && r.every(function (x) { return x.pass; });
+          var did = (self._hpDecoy || {})[pend.qid], dq = did && (self.ccbpCoding || []).find(function (p) { return p.id === did; });
+          if (ok || !dq || !(dq.tests || []).length) return { r: r, ok: ok, decoy: null };
+          return Promise.resolve(Component.prototype.checkTests.call(self, code, dq.tests)).then(function (dr) {
+            return { r: r, ok: ok, decoy: { id: did, passed: Array.isArray(dr) && dr.length > 0 && dr.every(function (x) { return x.pass; }) } };
+          }, function () { return { r: r, ok: ok, decoy: null }; });
+        }).then(function (o) {
+          var r = o.r, M = self.ssHpMetrics(pend.qid), f = document.getElementById('ss-hp-field');
+          api('POST', '/api/practice/submission', { qid: pend.qid, topic: pend.topic, code: code, correct: o.ok,
+            decoyId: o.decoy ? o.decoy.id : '', decoyPassed: !!(o.decoy && o.decoy.passed),
             pasteMax: M.pasteMax, pasteTotal: M.pasteTotal, pasteCount: M.pasteCount, blurs: M.blurs, awayMs: M.awayMs,
             timeMs: M.openedAt ? Date.now() - M.openedAt : 0, bot: f ? f.value : '' }).catch(function () {});
         }, function () {});

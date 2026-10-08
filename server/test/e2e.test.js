@@ -1114,6 +1114,12 @@ test('coding practice honeypots: AI trap, heavy paste, fast solve and bot field 
   assert.equal((await ADM('GET', '/api/admin/integrity?roll=NOBODY1')).body.rows.length, 0);
   assert.equal((await ADM('GET', '/api/admin/integrity?from=' + (now + 864e5))).body.rows.length, 0);
   assert.equal((await A('GET', '/api/admin/integrity')).status, 401);
+  // decoy: the code fails the question but solves the decoy problem the clipboard got
+  await A('POST', '/api/practice/submission', { qid: 'q-decoy', correct: false, timeMs: 90000, code: 'print(3)', decoyId: 'q-other', decoyPassed: true });
+  const dec = (await ADM('GET', '/api/admin/integrity?type=DECOY')).body.rows;
+  assert.equal(dec.length, 1);
+  assert.equal(dec[0].evidence.decoyId, 'q-other');
+  assert.equal((await A('GET', '/api/bootstrap')).body.integrity.copyGuard, 'decoy');
   // admins testing in the portal preview get the traps too; their flags are labelled ADMIN-<id>
   assert.equal((await ADM('GET', '/api/bootstrap')).body.integrity.enabled, true);
   await ADM('POST', '/api/practice/submission', { qid: 'q-admin', correct: true, timeMs: 1000, code: 'zeta_count = 1' });

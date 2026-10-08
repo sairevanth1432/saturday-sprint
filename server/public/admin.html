@@ -1569,6 +1569,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   }
   var FLAG_INFO = {
     AI_TRAP: ['AI trap', 'bad', 'The code contains a token from the hidden instruction in the question text.'],
+    DECOY: ['Decoy solved', 'bad', 'The student copied the question (the clipboard got a different problem) and submitted code that solves that other problem.'],
     PASTE_HEAVY: ['Paste heavy', 'warn', 'A large single paste, or most of the final code was pasted.'],
     FAST_SOLVE: ['Fast solve', 'warn', 'Correct much faster than the usual solve time for this question.'],
     BOT: ['Bot field', 'bad', 'The invisible form field was filled in.']
@@ -1585,6 +1586,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         if (r.flag_type === 'PASTE_HEAVY') bits.push('largest paste ' + e.pasteMax + ' chars', 'pasted ' + e.pasteTotal + ' of ' + e.codeLen + ' chars (' + Math.round((e.share || 0) * 100) + '%)', e.pasteCount + ' paste(s)');
         if (r.flag_type === 'FAST_SOLVE') bits.push('solved in ' + Math.round(e.timeMs / 1000) + 's', 'median ' + Math.round(e.medianMs / 1000) + 's (' + e.samples + ' solves)');
         if (r.flag_type === 'BOT') bits.push('field value: ' + e.value);
+        if (r.flag_type === 'DECOY') bits.push('solves decoy ' + e.decoyId + ' instead of ' + r.question_id);
         bits.push(e.correct ? 'correct' : 'not correct', 'left the page ' + (e.blurs || 0) + '×' + (e.awayMs ? ' (' + Math.round(e.awayMs / 1000) + 's away)' : ''), 'open → submit ' + Math.round((e.timeMs || 0) / 1000) + 's');
         return bits.filter(Boolean).join(' · ');
       };

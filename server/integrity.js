@@ -31,7 +31,7 @@ export function clientIntegrity() {
   if (!c.enabled) return { enabled: false };
   const q = {};
   for (const [id, t] of Object.entries(c.questions || {})) q[id] = t.instruction || '';
-  return { enabled: true, watermark: !!c.watermark, scrambleCopy: c.scrambleCopy !== false, trap: c.trap.instruction || '', questions: q };
+  return { enabled: true, watermark: !!c.watermark, copyGuard: ['decoy', 'scramble', 'off'].includes(c.copyGuard) ? c.copyGuard : 'decoy', trap: c.trap.instruction || '', questions: q };
 }
 
 const int = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
@@ -61,6 +61,8 @@ export async function recordSubmission(roll, b) {
       flags.push(['FAST_SOLVE', { timeMs: m.timeMs, medianMs: Math.round(med), samples: n }]);
   }
   if (typeof b.bot === 'string' && b.bot.trim()) flags.push(['BOT', { value: b.bot.slice(0, 120) }]);
+  // The student copied this question (the clipboard got a decoy problem) and the code solves the decoy instead.
+  if (b.decoyPassed && b.decoyId) flags.push(['DECOY', { decoyId: String(b.decoyId).slice(0, 80) }]);
 
   const now = Date.now();
   await run(`INSERT INTO practice_submissions (roll_no, question_id, topic, correct, time_ms, paste_max, paste_total, paste_count, code_len, blurs, away_ms, created_at)
@@ -74,7 +76,7 @@ export async function recordSubmission(roll, b) {
   return { ok: true, flags: flags.length };
 }
 
-export const FLAG_TYPES = ['AI_TRAP', 'PASTE_HEAVY', 'FAST_SOLVE', 'BOT'];
+export const FLAG_TYPES = ['AI_TRAP', 'DECOY', 'PASTE_HEAVY', 'FAST_SOLVE', 'BOT'];
 export async function listFlags({ type, from, to, roll } = {}) {
   const where = [], p = [];
   if (FLAG_TYPES.includes(type)) { where.push('f.flag_type = ?'); p.push(type); }
