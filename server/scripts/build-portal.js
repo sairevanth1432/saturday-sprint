@@ -582,6 +582,33 @@ replaceOnce('<sc-if value="{{ ws.canSubmit }}" hint-placeholder-val="{{ true }}"
 replaceOnce("return h('iframe', { src: props.href, title: 'Class slides', allowfullscreen: true, loading: 'lazy',",
   "return h('iframe', { id: 'ss-embed', src: props.href, title: 'Class slides', allowfullscreen: true, allow: 'fullscreen', loading: 'lazy',", 'embed id');
 
+// ---------- 4f. Post-test feedback: two required questions on AI use (Sprint and Practice), before the comment box
+replaceOnce('<span style="font-size: 14px; color: #8A8A8A">Both questions are required.</span>', '<span style="font-size: 14px; color: #8A8A8A">{{ ss.ai.req }}</span>', 'feedback required note');
+replaceOnce('<div style="display: flex; flex-direction: column; gap: 8px">\n<label for="fb-text"', `<sc-if value="{{ ss.ai.on }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span id="ss-ai-sprint" style="font-size: 15px; font-weight: 800; color: #FFFFFF">To what extent did you use AI tools while completing the Sprint? <span style="color: #FF7A7A">*</span></span>
+<div role="radiogroup" aria-labelledby="ss-ai-sprint" style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{ ss.ai.sprint.opts }}" as="aos" hint-placeholder-count="5">
+<button role="radio" onClick="{{ aos.pick }}" aria-checked="{{ aos.on }}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 2px solid {{ aos.ring }}; border-radius: 10px; background: {{ aos.bg }}; color: {{ aos.fg }}; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer"><span aria-hidden="true" style="width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; border: 2px solid {{ aos.ring }}; background: {{ aos.dot }}"></span><span>{{ aos.t }}</span></button>
+</sc-for>
+</div>
+<sc-if value="{{ ss.ai.sprint.err }}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #FF7A7A">Choose one option.</span></sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span id="ss-ai-practice" style="font-size: 15px; font-weight: 800; color: #FFFFFF">To what extent did you use AI tools while solving the Practice questions? <span style="color: #FF7A7A">*</span></span>
+<div role="radiogroup" aria-labelledby="ss-ai-practice" style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{ ss.ai.practice.opts }}" as="aop" hint-placeholder-count="5">
+<button role="radio" onClick="{{ aop.pick }}" aria-checked="{{ aop.on }}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 2px solid {{ aop.ring }}; border-radius: 10px; background: {{ aop.bg }}; color: {{ aop.fg }}; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer"><span aria-hidden="true" style="width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; border: 2px solid {{ aop.ring }}; background: {{ aop.dot }}"></span><span>{{ aop.t }}</span></button>
+</sc-for>
+</div>
+<sc-if value="{{ ss.ai.practice.err }}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #FF7A7A">Choose one option.</span></sc-if>
+</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="fb-text"`, 'feedback AI questions');
+replaceOnce('<div class="d3 pop" style="width: 560px; max-width: 100%; box-sizing: border-box; padding: 28px 30px;',
+  '<div class="d3 pop" style="width: 560px; max-width: 100%; max-height: calc(100vh - 48px); overflow-y: auto; box-sizing: border-box; padding: 28px 30px;', 'feedback modal scroll');
+
 // ---------- 5. Sprint date/time/duration text follows Admin → Sprint settings (the HTML had them fixed)
 replaceOnce('<div style="font-size: 15px; color: #8A8A8A">Sat, 3 Oct · 11:00 – 11:30 AM IST</div>',
   '<div style="font-size: 15px; color: #8A8A8A">{{ ss.when.line }}</div>', 'home date line');

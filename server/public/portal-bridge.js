@@ -29,6 +29,8 @@
   }
 
   var toLocal = function (serverMs) { return serverMs - clock.offset; };
+  // Answers to the post-test questions on AI use (same list on the server: index.js AI_LEVELS).
+  var AI_LEVELS = ['I did not use AI', 'I used AI for minor help/hints', 'I used AI for some questions', 'I used AI for most questions', 'I relied heavily on AI to complete the Sprint'];
   // Watermark: the NIAT ID as zero-width characters (8 bits per character, U+200B = 0, U+200C = 1) between two
   // U+2060 markers. Admin → Integrity flags decodes it from leaked text.
   var zwEncode = function (s) {
@@ -874,6 +876,32 @@
       return res;
     }
 
+    // Post-test feedback: two required questions on AI use. Answers go with the feedback (saveFeedback below).
+    ssAiFeedback(v) {
+      var S = this.state, self = this, fb = v.fb || {};
+      var on = !!fb.modal && fb.kicker === 'Test submitted';
+      if (!on) return { on: false, req: 'Both questions are required.', sprint: { opts: [], err: false }, practice: { opts: [], err: false } };
+      var tried = !!S.fbTried;
+      var group = function (key) {
+        var cur = (S.ssAi || {})[key];
+        return { err: tried && cur === undefined, opts: AI_LEVELS.map(function (t, i) {
+          var picked = cur === i;
+          return { t: t, on: picked, ring: picked ? '#FFE45C' : '#333333', bg: picked ? 'rgba(255,228,92,.10)' : 'transparent', fg: picked ? '#FFFFFF' : '#BDBDBD', dot: picked ? '#FFE45C' : 'transparent',
+            pick: function () { self.setState(function (s) { var a = Object.assign({}, s.ssAi); a[key] = i; return { ssAi: a }; }); } };
+        }) };
+      };
+      var a = S.ssAi || {}, both = a.sprint !== undefined && a.practice !== undefined;
+      var base = fb.submit;
+      fb.submit = function () {
+        if (!both) { self.setState({ fbTried: true }); return; }
+        self._ssAiAnswer = { aiSprint: AI_LEVELS[a.sprint], aiPractice: AI_LEVELS[a.practice] };
+        base.apply(this, arguments);
+        self.setState({ ssAi: {} });
+      };
+      if (!both) { fb.notReady = true; fb.subCls = ''; fb.subBg = '#262626'; fb.subFg = '#8A8A8A'; }
+      return { on: true, req: 'All questions are required.', sprint: group('sprint'), practice: group('practice') };
+    }
+
     // Built-in courses, then the courses admins added that have at least one topic.
     courseList() {
       // Built-in courses an admin removed, or left without topics, are not shown.
@@ -1084,6 +1112,7 @@
         when: when,
         prev: unitsPrev || { on: false, label: '', go: null },
         soon: v.ss_soon || { on: false, kicker: '', text: '' },
+        ai: this.ssAiFeedback(v),
         next: (function () {
           var N = self.ss.nextSprint, open = !S.ssNextFolded;
           if (!N || !Array.isArray(N.groups) || !N.groups.length) return { on: false };
@@ -1152,6 +1181,7 @@
   // Feedback goes to the server (the portal also keeps its local copy).
   var baseSave = Component.prototype.saveFeedback;
   SprintPortal.prototype.saveFeedback = function (rec) {
+    if (this._ssAiAnswer && rec && rec.kind === 'sprint-test') { rec = Object.assign({}, rec, this._ssAiAnswer); this._ssAiAnswer = null; }
     api('POST', '/api/feedback', rec).catch(function () {});
     try { return baseSave.call(this, rec); } catch (e) { return undefined; }
   };

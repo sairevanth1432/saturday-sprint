@@ -1139,6 +1139,22 @@ test('downloads: uploaded Play/Read HTML downloads as a file with ?download=1', 
   await ADM('DELETE', '/api/admin/media/tp-strings/read');
 });
 
+test('post-test feedback: the two AI-use answers are stored, summarised for admins and exported', async () => {
+  const r = await A('POST', '/api/feedback', { kind: 'sprint-test', rating: 4, text: 'Good sprint, tough questions', aiSprint: 'I did not use AI', aiPractice: 'I used AI for some questions' });
+  assert.equal(r.status, 200);
+  await A('POST', '/api/feedback', { kind: 'portal', rating: 5, text: 'nice portal overall', aiSprint: 'made up answer' });
+  const fb = await ADM('GET', '/api/admin/feedback');
+  const mine = fb.body.rows.find((x) => x.text === 'Good sprint, tough questions');
+  assert.equal(mine.ai_sprint, 'I did not use AI');
+  assert.equal(mine.ai_practice, 'I used AI for some questions');
+  assert.equal(fb.body.rows.find((x) => x.text === 'nice portal overall').ai_sprint, '', 'only the five answers are accepted');
+  assert.equal(fb.body.aiSummary.length, 5);
+  assert.equal(fb.body.aiSummary.find((a) => a.level === 'I did not use AI').sprint >= 1, true);
+  const csv = await (await fetch(base + '/api/admin/export/feedback.csv', { headers: { cookie: ADM.cookie() } })).text();
+  assert.match(csv.split('\n')[0], /ai_sprint,ai_practice/);
+  assert.match(csv, /I used AI for some questions/);
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

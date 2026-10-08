@@ -1628,13 +1628,23 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   VIEWS.feedback = function () {
     return api('GET', '/api/admin/feedback').then(function (d) {
       var avg = d.rows.length ? d.rows.reduce(function (s, r) { return s + (r.rating || 0); }, 0) / d.rows.length : null;
+      var aiCard = d.aiStudents ? h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, 'AI use (post-test feedback, ' + d.aiStudents + ' student' + (d.aiStudents === 1 ? '' : 's') + ')'),
+        h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,
+          h('thead', null, h('tr', null, ['Answer', 'Sprint', 'Practice'].map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, d.aiSummary.map(function (a) {
+            var pc = function (n) { return n + ' (' + Math.round(n * 100 / d.aiStudents) + '%)'; };
+            return h('tr', null, h('td', null, a.level), h('td', { class: 'mono' }, pc(a.sprint)), h('td', { class: 'mono' }, pc(a.practice)));
+          }))))) : null;
       return h('div', null, header('~/admin/feedback', 'Feedback', d.rows.length + ' responses' + (avg ? ' · average ' + avg.toFixed(2) + ' ★' : ''),
         [h('button', { class: 'btn', onclick: function () { download('/api/admin/export/feedback.csv'); } }, 'Export CSV')]),
-        h('div', { class: 'tablewrap' }, h('table', null, h('thead', null, h('tr', null, ['When', 'Student', 'Kind', 'Rating', 'Feedback'].map(function (t) { return h('th', null, t); }))),
+        aiCard,
+        h('div', { class: 'tablewrap' }, h('table', null, h('thead', null, h('tr', null, ['When', 'Student', 'Kind', 'Rating', 'AI use: Sprint / Practice', 'Feedback'].map(function (t) { return h('th', null, t); }))),
           h('tbody', null, d.rows.length ? d.rows.map(function (r) {
             return h('tr', null, h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.created_at)), h('td', null, r.name || '–', h('div', { class: 'muted mono' }, r.roll_no)), h('td', null, pill(r.kind)),
-              h('td', { class: 'mono', style: 'color:var(--accent);white-space:nowrap' }, '★'.repeat(r.rating || 0)), h('td', { style: 'max-width:520px;line-height:1.45' }, r.text));
-          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, 'No feedback yet.'))))));
+              h('td', { class: 'mono', style: 'color:var(--accent);white-space:nowrap' }, '★'.repeat(r.rating || 0)),
+              h('td', { style: 'max-width:260px;font-size:12px;line-height:1.4' }, r.ai_sprint || r.ai_practice ? [h('div', null, h('b', null, 'Sprint: '), r.ai_sprint || '–'), h('div', null, h('b', null, 'Practice: '), r.ai_practice || '–')] : h('span', { class: 'muted' }, '–')),
+              h('td', { style: 'max-width:520px;line-height:1.45' }, r.text));
+          }) : h('tr', null, h('td', { colspan: 6, class: 'muted' }, 'No feedback yet.'))))));
     });
   };
 

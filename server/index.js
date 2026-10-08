@@ -288,13 +288,16 @@ api.put('/progress', who, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Post-test feedback: "To what extent did you use AI tools…" for the Sprint and for Practice (portal-bridge.js AI_LEVELS).
+const AI_LEVELS = ['I did not use AI', 'I used AI for minor help/hints', 'I used AI for some questions', 'I used AI for most questions', 'I relied heavily on AI to complete the Sprint'];
 api.post('/feedback', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.json({ ok: true, skipped: true });
   if (!(await kv.rateLimit('fb:' + req.who.roll_no, 20, 3600000)).ok) throw new SprintError('RATE_LIMITED', 'Too much feedback at once.', 429);
   const b = req.body || {};
+  const ai = (x) => (AI_LEVELS.includes(x) ? x : undefined);
   await run('INSERT INTO feedback (roll_no, kind, rating, text, data, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     req.who.roll_no, String(b.kind || 'portal').slice(0, 40), Math.max(0, Math.min(5, Number(b.rating) || 0)), String(b.text || '').slice(0, 5000),
-    JSON.stringify({ tab: b.tab, course: b.course }), Date.now());
+    JSON.stringify({ tab: b.tab, course: b.course, aiSprint: ai(b.aiSprint), aiPractice: ai(b.aiPractice) }), Date.now());
   res.json({ ok: true });
 });
 
@@ -882,7 +885,13 @@ adm.delete('/media/:unitId/:slot', async (req, res) => {
 
 // ---------- feedback, audit
 adm.get('/feedback', async (req, res) => {
-  res.json({ rows: await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id DESC LIMIT 1000') });
+  const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id DESC LIMIT 1000'))
+    .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
+  // how many students picked each answer (latest answer per student)
+  const latest = new Map();
+  for (const r of rows) if ((r.ai_sprint || r.ai_practice) && !latest.has(r.roll_no)) latest.set(r.roll_no, r);
+  const aiSummary = AI_LEVELS.map((t) => ({ level: t, sprint: [...latest.values()].filter((r) => r.ai_sprint === t).length, practice: [...latest.values()].filter((r) => r.ai_practice === t).length }));
+  res.json({ rows, aiSummary, aiStudents: latest.size });
 });
 adm.get('/audit', async (req, res) => {
   res.json({ rows: (await all('SELECT * FROM audit_log ORDER BY id DESC LIMIT 500')).map((r) => ({ ...r, detail: parseJSON(r.detail) })) });
@@ -915,9 +924,10 @@ adm.get('/export/:what', async (req, res) => {
     name = 'students.csv';
     body = toCSV(['roll_no', 'lms_id', 'name', 'phone', 'batch', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
   } else if (req.params.what === 'feedback.csv') {
-    const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id')).map((r) => ({ ...r, at: iso(r.created_at) }));
+    const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id'))
+      .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, at: iso(r.created_at), ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
     name = 'feedback.csv';
-    body = toCSV(['at', 'roll_no', 'name', 'kind', 'rating', 'text'], rows);
+    body = toCSV(['at', 'roll_no', 'name', 'kind', 'rating', 'ai_sprint', 'ai_practice', 'text'], rows);
   } else if (req.params.what === 'activity.csv') {
     if (req.admin.role !== 'super_admin') return res.status(403).json({ error: 'FORBIDDEN', message: 'Super admins only.' });
     const d = await studentRows({ days: daysOf(req), limit: 100000 });
