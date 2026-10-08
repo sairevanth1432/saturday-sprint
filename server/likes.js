@@ -2,7 +2,7 @@
 // are shown to students on the video and to admins in Admin → Video likes.
 import { all, run } from './db.js';
 import * as kv from './kv.js';
-import { packUnits, courseNames } from './media.js';
+import { packUnits, unitRegistry } from './media.js';
 
 const COUNTS = 'likes:counts:v1';
 export const likeCounts = () => kv.cached(COUNTS, 30, async () => {
@@ -24,16 +24,15 @@ export async function setLike(roll, unitId, liked) {
 
 // Admin: likes per topic (with how many students opened the topic, for a like rate) and per course.
 export async function likesAnalytics() {
-  const names = courseNames();
   const [likes, opened] = await Promise.all([
     all(`SELECT l.unit_id, COUNT(*) AS n, MAX(l.created_at) AS last FROM unit_likes l
          JOIN students_master m ON m.roll_no = l.roll_no WHERE m.batch IS DISTINCT FROM 'TEST' GROUP BY l.unit_id`),
     all("SELECT unit_id, COUNT(DISTINCT roll_no) AS n FROM unit_events WHERE kind IN ('start', 'watch') GROUP BY unit_id")
   ]);
   const L = new Map(likes.map((r) => [r.unit_id, r])), O = new Map(opened.map((r) => [r.unit_id, Number(r.n)]));
-  const topics = (packUnits().units || []).map((u) => {
+  const topics = unitRegistry().map((u) => {
     const l = L.get(u.id), n = l ? Number(l.n) : 0, o = O.get(u.id) || 0;
-    return { id: u.id, title: u.name || u.title || u.id, course: u.course, courseName: names[u.course] || u.course, likes: n, opened: o,
+    return { id: u.id, title: u.title, course: u.course, courseName: u.courseName, removed: u.removed, likes: n, opened: o,
       rate: o ? Math.round((n / o) * 1000) / 10 : null, lastAt: l ? Number(l.last) : null };
   });
   const byCourse = {};

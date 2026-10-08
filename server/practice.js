@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, config } from './config.js';
 import { all, parseJSON } from './db.js';
-import { practiceExtra } from './practiceq.js';
+import { all as allRows } from './db.js';
 import * as kv from './kv.js';
 
 const FILE = path.join(ROOT, 'generated', 'practice.json');
@@ -27,9 +27,15 @@ const STUDENTS = `SELECT pr.roll_no, pr.data FROM progress pr JOIN students_mast
 
 // Built-in questions plus the ones admins added (they come after: gi = total + position; archived ones keep their slot).
 async function fullCatalogue() {
-  const base = loadCatalogue(), extra = await practiceExtra();
-  return { quiz: base.quiz.concat(extra.mcq.map((q, i) => ({ gi: (base.total || 0) + i, course: q.course, sess: q.sess, q: q.q, o: q.o, c: q.c, multi: false, code: q.code || '' }))
-    .filter((q) => q.sess)), code: base.code.concat(extra.code.map((c) => ({ id: c.id, topic: c.topic, title: c.title }))) };
+  // read straight from the table (not the portal's list) so deleted and draft questions keep their answers here
+  const base = loadCatalogue(), rows = await allRows('SELECT id, kind, course, topic, data, archived, draft FROM practice_questions ORDER BY id');
+  const mcq = rows.filter((r) => r.kind === 'mcq'), code = rows.filter((r) => r.kind === 'code');
+  const d = (r) => parseJSON(r.data, {}) || {};
+  return {
+    quiz: base.quiz.concat(mcq.map((r, i) => ({ gi: (base.total || 0) + i, course: r.course, sess: r.topic, q: d(r).q || '', o: d(r).o || [], c: d(r).c, multi: false, code: d(r).code || '',
+      removed: !!r.archived, draft: !!r.draft })).filter((q) => q.o.length || q.removed || q.draft)),
+    code: base.code.concat(code.map((r) => ({ id: 'x' + r.id, topic: r.topic, title: d(r).title || '', removed: !!r.archived, draft: !!r.draft })))
+  };
 }
 
 async function compute() {

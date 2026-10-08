@@ -804,7 +804,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var pc = function (x) { return x == null ? '–' : x + '%'; };
       var unitRows = B.units.map(function (u) {
         return h('tr', { class: 'click', onclick: function () { openUnit(u, B); } },
-          h('td', null, u.title, h('div', { class: 'muted' }, u.courseTitle)),
+          h('td', null, u.title, u.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted' }, u.courseTitle)),
           h('td', { class: 'num mono' }, u.started, h('div', { class: 'muted' }, pc(u.startedPct) + ' of activated')),
           h('td', { class: 'num mono' }, u.done.watch + ' · ' + u.done.play + ' · ' + u.done.read),
           h('td', { class: 'num mono', style: 'color:var(--good)' }, u.completed, h('div', { class: 'muted' }, pc(u.completionRate))),
@@ -962,7 +962,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('thead', null, h('tr', null, ['Unit', 'Clicks', 'Watch', 'Video played', 'Video watched', 'Play', 'Read'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
           h('tbody', null, x.units.map(function (u) {
             var w = u.steps.watch, p = u.steps.play, r = u.steps.read;
-            return h('tr', null, h('td', null, u.title, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)), h('td', { class: 'num mono' }, u.opens),
+            return h('tr', null, h('td', null, u.title, u.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)), h('td', { class: 'num mono' }, u.opens),
               h('td', { class: 'num mono' }, dur(w.ms), tick(w.done)), h('td', { class: 'num mono' }, dur(w.videoMs)), h('td', { class: 'num mono' }, w.videoPct ? w.videoPct + '%' : '–'),
               h('td', { class: 'num mono' }, dur(p.ms), tick(p.done)), h('td', { class: 'num mono' }, dur(r.ms), tick(r.done)));
           }))))),
@@ -1704,7 +1704,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           })))),
         h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null, th(['Topic', 'Course', 'Likes', 'Opened by', 'Like rate', 'Last like']),
           h('tbody', null, topics.length ? topics.map(function (t) {
-            return h('tr', null, h('td', null, h('b', null, t.title), h('div', { class: 'muted mono' }, t.id)), h('td', null, t.courseName),
+            return h('tr', null, h('td', null, h('b', null, t.title), t.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted mono' }, t.id)), h('td', null, t.courseName),
               h('td', { class: 'mono', style: 'color:var(--accent)' }, t.likes), h('td', { class: 'mono' }, t.opened),
               h('td', { class: 'mono' }, t.rate == null ? '–' : t.rate + '%'), h('td', { class: 'muted' }, t.lastAt ? dt(t.lastAt) : '–'));
           }) : h('tr', null, h('td', { colspan: 6, class: 'muted' }, 'No topics yet.'))))));

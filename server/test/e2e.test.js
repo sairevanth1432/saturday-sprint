@@ -1254,6 +1254,57 @@ test('practice JSON import: stems come in as drafts, complete questions go live,
   assert.ok(boot.body.practiceExtra.mcq.some((q) => q.code === 'print(not True)'));
 });
 
+test('admin data survives content changes: removed topics keep steps, time and likes; deleted questions keep their answers', async () => {
+  // a student finished Watch on For Loop (by position and by id) and on a topic that no longer exists
+  const prog = (await A('GET', '/api/bootstrap')).body.progress || {};
+  const pfIdx = (await A('GET', '/api/bootstrap')).body.units.units.filter((u) => u.course === 'pf').findIndex((u) => u.id === 'tp-forloop');
+  const data = { ...prog, stepDone: { ...(prog.stepDone || {}), ['pf-' + pfIdx + '-0:watch']: true }, stepDoneById: { ...(prog.stepDoneById || {}), 'tp-forloop:watch': true, 'u-gone-topic:read': true } };
+  assert.equal((await A('PUT', '/api/progress', { data })).status, 200);
+  await A('POST', '/api/likes/tp-forloop', { liked: true });
+
+  // a super admin removes the For Loop topic from the portal
+  assert.equal((await ADM('DELETE', '/api/admin/content/builtin/units/tp-forloop')).status, 200);
+  const det = await ADM('GET', '/api/admin/analytics/students/NIAT24001');
+  assert.equal(det.status, 200, JSON.stringify(det.body));
+  const fl = det.body.units.find((u) => u.id === 'tp-forloop');
+  assert.ok(fl, 'the removed topic is still listed for the student');
+  assert.equal(fl.removed, true);
+  assert.equal(fl.steps.watch.done, true, 'its finished step is still shown');
+  const likes = (await ADM('GET', '/api/admin/likes')).body.topics.find((u) => u.id === 'tp-forloop');
+  assert.equal(likes.likes, 1, 'its likes are still counted');
+  assert.equal(likes.removed, true);
+  const ov = await ADM('GET', '/api/admin/analytics/overview');
+  if (ov.status === 200 && ov.body.units) assert.ok(ov.body.units.some((u) => u.id === 'tp-forloop'));
+  assert.equal((await ADM('POST', '/api/admin/content/builtin/units/tp-forloop/restore')).status, 200);
+  await A('POST', '/api/likes/tp-forloop', { liked: false });
+
+  // an added topic that is deleted keeps its name in the analytics, and its id is never reused
+  await ADM('POST', '/api/admin/content/units', { course: 'pf', title: 'Temporary Topic' });
+  await A('POST', '/api/likes/u-temporary-topic', { liked: true });
+  assert.equal((await ADM('DELETE', '/api/admin/content/units/u-temporary-topic')).status, 200);
+  const gone = (await ADM('GET', '/api/admin/likes')).body.topics.find((u) => u.id === 'u-temporary-topic');
+  assert.deepEqual([gone.title, gone.likes, gone.removed], ['Temporary Topic', 1, true]);
+  assert.equal((await ADM('POST', '/api/admin/content/units', { course: 'pf', title: 'Temporary Topic' })).body.id, 'u-temporary-topic-2');
+  await ADM('DELETE', '/api/admin/content/units/u-temporary-topic-2');
+
+  // a deleted practice question keeps the students' answers in Practice analytics
+  const q = await ADM('POST', '/api/admin/practice-questions', { kind: 'mcq', course: 'pf', topic: 'Keep Data', q: 'Kept question?', o: ['Yes', 'No'], c: 0 });
+  const boot = await A('GET', '/api/bootstrap');
+  const builtTotal = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'practice.json'), 'utf8')).total;
+  const gi = builtTotal + boot.body.practiceExtra.mcq.findIndex((x) => x.xid === q.body.id);
+  const p2 = (await A('GET', '/api/bootstrap')).body.progress || {};
+  await A('PUT', '/api/progress', { data: { ...p2, pPick: { ...(p2.pPick || {}), [gi]: 0 } } });
+  // a save without the by-id record (an old page) does not erase it
+  await A('PUT', '/api/progress', { data: { ...p2, stepDoneById: undefined, pPick: { ...(p2.pPick || {}), [gi]: 0 } } });
+  assert.equal((await db.one('SELECT data FROM progress WHERE roll_no = ?', 'NIAT24001')).data.includes('u-gone-topic:read'), true);
+  await ADM('POST', '/api/admin/practice-questions/' + q.body.id + '/archive', { archived: true });
+  const pa = (await ADM('GET', '/api/admin/practice?fresh=1')).body;
+  const kq = pa.quiz.find((x) => x.q === 'Kept question?');
+  assert.ok(kq, 'deleted question still in Practice analytics');
+  assert.equal(kq.removed, true);
+  assert.ok(kq.attempted >= 1 && kq.correct >= 1, 'with the answers');
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

@@ -3,7 +3,7 @@
 import { one, all, run, getSetting, parseJSON } from './db.js';
 import * as kv from './kv.js';
 import { getSprint, getQuestions } from './sprint.js';
-import { packUnits } from './media.js';
+import { packUnits, unitRegistry } from './media.js';
 import { practiceCatalogue } from './practice.js';
 
 export const AREAS = ['home', 'learn', 'practice', 'code', 'test', 'board'];
@@ -22,7 +22,7 @@ const attemptMs = (a, now) => (a.status === 'submitted' ? Number(a.used_ms) || 0
 // IST calendar day for a timestamp
 export const istDay = (ms) => new Date(ms + 5.5 * 3600000).toISOString().slice(0, 10);
 
-const COURSE_TITLES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+const COURSE_TITLES = { pf: 'Programming Foundations', genai: 'Intro to GenAI', wad: 'Web Application Development' };
 const SESSION_ID = /^[a-z0-9-]{6,40}$/;
 
 // body: { session: { id, startedAt }, items: [{ area, item, step, ms, opens, videoMs, videoPct, firstAt }] }
@@ -65,10 +65,17 @@ export async function recordActivity(who, body) {
 
 // ---------- helpers
 // Each unit is one lesson; its id is the lesson id (the one the portal reports activity under).
+// For lists in the admin console: every topic that ever existed (removed ones flagged), so their data stays visible.
+const unitListAll = () => unitRegistry().map((u) => ({ id: u.id, course: u.course, title: u.title, practiceTopic: u.practiceTopic || '', removed: !!u.removed }));
 const unitList = () => (packUnits().units || []).map((u) => ({ id: u.id || (u.lessons && u.lessons[0] && u.lessons[0].id), course: u.course, title: u.name || u.title || u.id, practiceTopic: u.practiceTopic || '' }));
 // The portal stores finished steps by position ("pf-0-0:watch" = course pf, unit 1, lesson 1); map them to unit ids.
 export function stepsDoneByUnit(progressData) {
   const d = parseJSON(progressData, {}) || {}, sd = d.stepDone || {}, out = {};
+  // by lesson id: kept by the portal even after a topic is moved or removed
+  for (const [k, v] of Object.entries(d.stepDoneById || {})) {
+    const m = /^(.+):(watch|play|read)$/.exec(k);
+    if (v && m) (out[m[1]] = out[m[1]] || new Set()).add(m[2]);
+  }
   const byCourse = {};
   for (const u of unitList()) (byCourse[u.course] = byCourse[u.course] || []).push(u);
   for (const k of Object.keys(sd)) {
@@ -127,7 +134,7 @@ export async function overview({ days = 30 } = {}) {
     // the Sprint test row uses the attempts' own clock; its clicks still come from portal activity
     areas: AREAS.map((a) => { const r = areas.find((x) => x.area === a) || {}; return { area: a, ms: a === 'test' ? sprintMs : Number(r.ms) || 0, opens: Number(r.opens) || 0,
       students: a === 'test' ? Number(sprint && sprint.students) || 0 : Number(r.students) || 0, counted: a === 'test' || STUDY_AREAS.includes(a) }; }),
-    units: unitList().map((u) => ({ ...u, ms: per[u.id] ? per[u.id].ms : 0, opens: per[u.id] ? per[u.id].opens : 0, students: spu[u.id] || 0,
+    units: unitListAll().map((u) => ({ ...u, ms: per[u.id] ? per[u.id].ms : 0, opens: per[u.id] ? per[u.id].opens : 0, students: spu[u.id] || 0,
       steps: (per[u.id] || {}).steps || {}, done: done[u.id] || { watch: 0, play: 0, read: 0, all3: 0 } }))
   };
 }
@@ -193,7 +200,7 @@ export async function studentDetail(roll, { days = 30 } = {}) {
   const now = Date.now(), fromMs = Date.parse(from + 'T00:00:00+05:30');
   const sprints = attempts.filter((a) => Number(a.started_at) >= fromMs).map((a) => ({ day: istDay(Number(a.started_at)), ms: attemptMs(a, now) }));
   const done = stepsDoneByUnit(pr && pr.data);
-  const units = unitList().map((x) => {
+  const units = unitListAll().map((x) => {
     const rows = act.filter((a) => a.area === 'learn' && a.item === x.id), step = (s) => rows.filter((a) => (a.step || 'watch') === s);
     const sum = (rs, k) => rs.reduce((n, a) => n + (Number(a[k]) || 0), 0);
     return { ...x, opens: sum(rows, 'opens'), ms: sum(rows, 'ms'),
@@ -265,7 +272,7 @@ export async function businessMetrics({ sprintId, fresh = false } = {}) {
 
 async function computeBusiness(sprintIdParam) {
   const now = Date.now(), today = istDay(now);
-  const units = unitList(), unitIds = units.map((u) => u.id);
+  const units = unitListAll(), unitIds = units.map((u) => u.id);
   const J = (t) => `JOIN students_master m ON m.roll_no = ${t}.roll_no WHERE ${STUDENTS_WHERE}`;
   const cur = await getSprint();
   const sprintId = sprintIdParam || cur.id;
@@ -465,7 +472,7 @@ async function computeBusiness(sprintIdParam) {
     const uRight = uq.reduce((s, q) => s + q.right, 0);
     const ttc = starters.map((r) => ttcOf(r, u.id)).filter((x) => x != null);
     return {
-      id: u.id, title: u.title, course: u.course, courseTitle: COURSE_TITLES[u.course] || u.course,
+      id: u.id, title: u.title, removed: !!u.removed, course: u.course, courseTitle: COURSE_TITLES[u.course] || u.course,
       started: starters.length, startedPct: pct(starters.length, activated.size),
       done: { watch: stepDone('watch'), play: stepDone('play'), read: stepDone('read') }, completed, completionRate: pct(completed, starters.length),
       time: { watch: stepTime('watch'), play: stepTime('play'), read: stepTime('read') },

@@ -249,6 +249,9 @@ CREATE TABLE IF NOT EXISTS content_units (
   id TEXT PRIMARY KEY, course TEXT NOT NULL, title TEXT NOT NULL, goal TEXT NOT NULL DEFAULT '', concept TEXT NOT NULL DEFAULT '',
   orientation TEXT NOT NULL DEFAULT 'landscape', practice_topic TEXT NOT NULL DEFAULT '', sort INTEGER NOT NULL DEFAULT 0,
   created_at BIGINT NOT NULL, created_by TEXT);
+-- Deleting an added course or topic only marks it: Admin analytics keep its name and data.
+ALTER TABLE content_courses ADD COLUMN IF NOT EXISTS deleted_at BIGINT;
+ALTER TABLE content_units ADD COLUMN IF NOT EXISTS deleted_at BIGINT;
 
 -- Student photographs (small JPEG data URLs, resized in the browser). Kept out of users/registration_requests
 -- so the session and approval queries stay small.

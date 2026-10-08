@@ -281,10 +281,15 @@ api.get('/leaderboard', who, async (req, res) => {
 
 api.put('/progress', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.json({ ok: true, skipped: true });
-  const data = JSON.stringify((req.body && req.body.data) || {});
-  if (data.length > 500000) return res.status(413).json({ error: 'TOO_LARGE', message: 'Progress too large.' });
-  // Record steps that just got their ✓ (for time-to-completion). Reads the old progress only; the progress below is stored exactly as sent.
+  const body = (req.body && req.body.data) || {};
   const before = await one('SELECT data FROM progress WHERE roll_no = ?', req.who.roll_no);
+  // Finished steps by topic id are only ever added to (Admin analytics keep them after content changes), even if a
+  // page from before this record existed saves without it.
+  const old = before ? parseJSON(before.data, {}) || {} : {};
+  if (old.stepDoneById || body.stepDoneById) body.stepDoneById = { ...(old.stepDoneById || {}), ...(body.stepDoneById || {}) };
+  const data = JSON.stringify(body);
+  if (data.length > 500000) return res.status(413).json({ error: 'TOO_LARGE', message: 'Progress too large.' });
+  // Record steps that just got their ✓ (for time-to-completion). Reads the old progress only.
   await recordStepEvents(req.who.roll_no, before ? before.data : null, (req.body && req.body.data) || {}).catch((e) => console.error('[progress] step events', e.message));
   await run('INSERT INTO progress (roll_no, data, updated_at) VALUES (?, ?, ?) ON CONFLICT (roll_no) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at',
     req.who.roll_no, data, Date.now());

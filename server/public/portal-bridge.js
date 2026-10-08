@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   var clock = { offset: 0 }; // serverNow - Date.now()
-  var PROGRESS_KEYS = ['done', 'solved', 'pPick', 'pSel', 'course', 'pc', 'pcSet', 'ssTab', 'stepDone'];
+  var PROGRESS_KEYS = ['done', 'solved', 'pPick', 'pSel', 'course', 'pc', 'pcSet', 'ssTab', 'stepDone', 'stepDoneById'];
 
   function api(method, url, body, opts) {
     var init = { method: method, credentials: 'same-origin', headers: {} };
@@ -127,15 +127,18 @@
         };
         var oldPos = posOf(p.cv), newPos = {}, cur = posOf(this._ssContentV);
         Object.keys(cur).forEach(function (k) { newPos[cur[k]] = k; });
-        var remap = function (obj) {
+        // steps of lessons that were removed are kept by lesson id (stepDoneById), never dropped (Admin analytics)
+        var kept = Object.assign({}, p.stepDoneById);
+        var remap = function (obj, isStep) {
           var out = {};
           Object.keys(obj || {}).forEach(function (k) {
-            var m = /^([^:]+)(:.*)?$/.exec(k), at = m && oldPos[m[1]] && newPos[oldPos[m[1]]];
+            var m = /^([^:]+)(:.*)?$/.exec(k), was = m && oldPos[m[1]], at = was && newPos[was];
             if (at && obj[k]) out[at + (m[2] || '')] = obj[k];
+            else if (!at && was && obj[k] && isStep && m[2]) kept[was.split('/')[1] + m[2]] = true;
           });
           return out;
         };
-        p = Object.assign({}, p, { done: remap(p.done), stepDone: remap(p.stepDone) });
+        p = Object.assign({}, p, { done: remap(p.done), stepDone: remap(p.stepDone, true), stepDoneById: kept });
         sameContent = true;
       }
       PROGRESS_KEYS.forEach(function (k) { if (p[k] !== undefined && (k !== 'done' || sameContent)) S[k] = p[k]; });
@@ -192,6 +195,15 @@
       var S = this.state, out = {};
       PROGRESS_KEYS.forEach(function (k) { if (S[k] !== undefined) out[k] = S[k]; });
       out.cv = this._ssContentV;
+      // finished steps by lesson id ("tp-forloop:watch"), merged and never trimmed: survives topics being moved or removed
+      var byId = Object.assign({}, S.stepDoneById), CLp = this.courseList();
+      Object.keys(S.stepDone || {}).forEach(function (k) {
+        var m = /^([a-z]+)-(\d+)-(\d+):(\w+)$/.exec(k);
+        if (!m || !S.stepDone[k]) return;
+        var c = CLp.find(function (x) { return x.id === m[1]; }), mod = c && c.modules[Number(m[2])], l = mod && mod.lessons[Number(m[3])];
+        if (l) byId[l.id + ':' + m[4]] = true;
+      });
+      out.stepDoneById = byId;
       out.code = {};
       Object.keys(S.code || {}).forEach(function (k) { if (!/^t\d+$/.test(k)) out.code[k] = S.code[k]; });
       return out;

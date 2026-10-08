@@ -164,17 +164,20 @@ export function packUnits() {
 // Kept in a per-instance snapshot so packUnits()/lessons() stay synchronous; syncContent() refreshes it
 // (cached 30 s across instances, 5 s per instance) and runs before every /api request.
 export const BUILTIN_COURSES = [{ id: 'pf', name: 'Programming Foundations' }, { id: 'genai', name: 'Intro to GenAI' }];
-let custom = { courses: [], units: [], hidden: { courses: [], units: [] } };
+let custom = { courses: [], units: [], deletedCourses: [], deletedUnits: [], hidden: { courses: [], units: [] } };
 export async function syncContent() {
   const c = await kv.cached('content:v1', 30, async () => {
     const h = await one("SELECT value FROM settings WHERE key = 'content_hidden'");
     return {
-      courses: await all('SELECT id, name, color, sort, created_at FROM content_courses ORDER BY sort, created_at'),
-      units: await all('SELECT id, course, title, goal, concept, orientation, practice_topic, sort, created_at FROM content_units ORDER BY sort, created_at'),
+      courses: await all('SELECT id, name, color, sort, created_at, deleted_at FROM content_courses ORDER BY sort, created_at'),
+      units: await all('SELECT id, course, title, goal, concept, orientation, practice_topic, sort, created_at, deleted_at FROM content_units ORDER BY sort, created_at'),
       hidden: parseJSON(h && h.value, null) || { courses: [], units: [] }
     };
   }, { localMs: 5000 });
-  custom = { ...c, hidden: { courses: (c.hidden && c.hidden.courses) || [], units: (c.hidden && c.hidden.units) || [] } };
+  // deleted ones are kept aside for the admin analytics (unitRegistry); the portal never sees them
+  const live = (x) => !x.deleted_at;
+  custom = { courses: c.courses.filter(live), units: c.units.filter(live), deletedCourses: c.courses.filter((x) => !live(x)), deletedUnits: c.units.filter((x) => !live(x)),
+    hidden: { courses: (c.hidden && c.hidden.courses) || [], units: (c.hidden && c.hidden.units) || [] } };
   return custom;
 }
 // A built-in unit is hidden when it, or its whole built-in course, was removed by an admin.
@@ -215,7 +218,7 @@ export async function addCourse({ name }, by) {
   await syncContent();
   // Course ids are letters only: progress keys and analytics read them as "<course>-<topic>-<lesson>".
   const base = (n.toLowerCase().replace(/[^a-z]/g, '') || 'course').slice(0, 20);
-  const taken = new Set([...RESERVED_COURSES, ...custom.courses.map((c) => c.id)]);
+  const taken = new Set([...RESERVED_COURSES, ...custom.courses.map((c) => c.id), ...(custom.deletedCourses || []).map((c) => c.id)]); // deleted ids stay taken
   let id = base;
   for (let i = 0; taken.has(id); i++) id = base + 'abcdefghijklmnopqrstuvwxyz'[i % 26].repeat(1 + Math.floor(i / 26));
   const sort = custom.courses.reduce((m, c) => Math.max(m, c.sort), 0) + 1;
@@ -233,9 +236,9 @@ export async function updateCourse(id, { name }) {
 }
 
 export async function deleteCourse(id) {
-  if (!(await one('SELECT id FROM content_courses WHERE id = ?', id))) throw new ContentError('NOT_FOUND', 'Only courses added here can be deleted.', 404);
-  if (await one('SELECT id FROM content_units WHERE course = ? LIMIT 1', id)) throw new ContentError('NOT_EMPTY', 'Delete the topics of this course first.', 409);
-  await run('DELETE FROM content_courses WHERE id = ?', id);
+  if (!(await one('SELECT id FROM content_courses WHERE id = ? AND deleted_at IS NULL', id))) throw new ContentError('NOT_FOUND', 'Only courses added here can be deleted.', 404);
+  if (await one('SELECT id FROM content_units WHERE course = ? AND deleted_at IS NULL LIMIT 1', id)) throw new ContentError('NOT_EMPTY', 'Delete the topics of this course first.', 409);
+  await run('UPDATE content_courses SET deleted_at = ? WHERE id = ?', Date.now(), id); // kept for the admin analytics
   await clearCustomCache();
 }
 
@@ -255,7 +258,8 @@ export async function addUnit(b, by) {
   if (!courseNames()[course]) throw new ContentError('BAD_COURSE', 'Pick a course for the topic.');
   const f = unitFields(b, false);
   const base = 'u-' + (f.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'topic');
-  const taken = new Set(lessons().map((l) => l.id));
+  // ids of hidden and deleted topics stay taken: their students' data is still filed under them
+  const taken = new Set(lessons().map((l) => l.id).concat(unitRegistry().map((u) => u.id)));
   let id = base;
   for (let i = 2; taken.has(id); i++) id = base + '-' + i;
   const sort = custom.units.filter((u) => u.course === course).reduce((m, u) => Math.max(m, u.sort), 0) + 1;
@@ -287,13 +291,13 @@ export async function moveUnit(id, dir) {
 }
 
 export async function deleteUnit(id) {
-  if (!(await one('SELECT id FROM content_units WHERE id = ?', id))) throw new ContentError('NOT_FOUND', 'Only topics added here can be deleted.', 404);
+  if (!(await one('SELECT id FROM content_units WHERE id = ? AND deleted_at IS NULL', id))) throw new ContentError('NOT_FOUND', 'Only topics added here can be deleted.', 404);
   await syncContent();
   const before = custom.units;
   custom = { ...custom, units: before.filter((u) => u.id !== id) };
   try { leavesSomething(hiddenState()); } finally { custom = { ...custom, units: before }; }
   for (const slot of SLOTS) await removeContent(id, slot);
-  await run('DELETE FROM content_units WHERE id = ?', id);
+  await run('UPDATE content_units SET deleted_at = ? WHERE id = ?', Date.now(), id); // kept for the admin analytics
   await clearCustomCache();
 }
 
@@ -335,4 +339,16 @@ export async function restoreBuiltin(kind, id) {
   if (!h[key].includes(id)) throw new ContentError('NOT_FOUND', 'Nothing to restore.', 404);
   h[key] = h[key].filter((x) => x !== id);
   await saveHidden(h);
+}
+
+// Every topic that ever existed, for the admin analytics: the portal's current topics first, then the ones that were
+// hidden or deleted (removed: true), so students' time, steps and likes on them stay visible after content changes.
+export function unitRegistry() {
+  const names = Object.fromEntries(BUILTIN_COURSES.concat(custom.courses, custom.deletedCourses || []).map((c) => [c.id, c.name]));
+  const current = (packUnits().units || []).map((u) => ({ id: u.id, course: u.course, courseName: names[u.course] || u.course, title: u.name || u.title || u.id, practiceTopic: u.practiceTopic || '', removed: false }));
+  const seen = new Set(current.map((u) => u.id));
+  const removed = [];
+  for (const u of builtUnits().units || []) if (!seen.has(u.id)) { seen.add(u.id); removed.push({ id: u.id, course: u.course, courseName: names[u.course] || u.course, title: u.name || u.id, practiceTopic: u.practiceTopic || '', removed: true }); }
+  for (const u of custom.units.concat(custom.deletedUnits || [])) if (!seen.has(u.id)) { seen.add(u.id); removed.push({ id: u.id, course: u.course, courseName: names[u.course] || u.course, title: u.title, practiceTopic: u.practice_topic || '', removed: true }); }
+  return current.concat(removed);
 }
