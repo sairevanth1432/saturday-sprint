@@ -717,6 +717,19 @@
       setTimeout(function () { if (self.state.ssToast && self.state.ssToast.at === at) self.setState({ ssToast: null }); }, 4500);
     }
 
+    // Watch: full screen for the whole reel (video + like button). Browsers that cannot put a box in full screen
+    // (iPhone) get an in-page full-window view with a close button; Esc closes it too.
+    ssReelFull() {
+      var el = document.getElementById('ss-reel'), self = this;
+      var fake = function () {
+        self.setState({ ssReelMax: true });
+        if (!self._reelEsc) { self._reelEsc = true; document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && self.state.ssReelMax) self.setState({ ssReelMax: false }); }); }
+      };
+      var rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
+      if (!rq) return fake();
+      try { var p = rq.call(el); if (p && p.catch) p.catch(fake); } catch (e) { fake(); }
+    }
+
     // ---------- coding practice honeypots (server/integrity.js): flag only, students see no difference
     // The question being shown in the code editor (same choice as the portal's wsBuild).
     ssCurQuestion() {
@@ -905,7 +918,8 @@
           v.ss_tools = { on: true, hint: tab === 'play' ? 'Press Esc to leave full screen' : tab === 'read' ? 'Read in full screen · Esc to leave' : '',
             dl: true, dlHref: downloadUrl(src[tab]), dlName: les.id + '-' + tab + (tab === 'watch' ? '.mp4' : '.html'),
             dlLabel: tab === 'watch' ? 'Download video' : tab === 'play' ? 'Download game' : 'Download notes',
-            fs: isPR, fsGo: function () {
+            fs: true, fsGo: function () {
+              if (tab === 'watch') return self.ssReelFull();
               var el = document.getElementById('ss-embed');
               var rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
               var tab2 = function () { window.open(fsUrl, '_blank', 'noopener'); };
@@ -994,6 +1008,7 @@
         })(),
         tools: v.ss_tools || { on: false, hint: '', dl: false, dlHref: '', dlName: '', dlLabel: '', fs: false, fsGo: null },
         like: v.ss_like || { on: false },
+        reel: { max: !!S.ssReelMax, cls: S.ssReelMax ? 'ss-reel-max' : '', close: function () { self.setState({ ssReelMax: false }); } },
         hp: this.ssHoneypot(v),
         user: {
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),

@@ -549,15 +549,26 @@ replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">\n<
 
 // Watch: a like button pinned on the right side of the video, like a reel
 replaceOnce('<video ref="{{ wt.ref }}" controls playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: {{ wt.vw }}; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; margin: 0 auto; border-radius: 12px; background: #000000"></video>',
-  `<div style="position: relative; width: {{ wt.vw }}; max-width: 100%; margin: 0 auto">
-<video ref="{{ wt.ref }}" controls playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: 100%; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; border-radius: 12px; background: #000000"></video>
+  `<div id="ss-reel" class="{{ ss.reel.cls }}" style="position: relative; width: {{ wt.vw }}; max-width: 100%; margin: 0 auto">
+<video ref="{{ wt.ref }}" controls controlslist="nofullscreen" playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: 100%; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; border-radius: 12px; background: #000000"></video>
 <sc-if value="{{ ss.like.on }}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 4px">
 <button onClick="{{ ss.like.toggle }}" aria-pressed="{{ ss.like.liked }}" aria-label="{{ ss.like.label }}" title="{{ ss.like.label }}" style="width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: rgba(5,5,5,.6); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.5); transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1)"><svg width="28" height="28" viewBox="0 0 24 24" fill="{{ ss.like.fill }}" stroke="{{ ss.like.stroke }}" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.4-9.3-9.2C1.4 7.8 3.6 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.3 4.3 6.8-1.8 4.8-9.3 9.2-9.3 9.2z"></path></svg></button>
 <span style="min-width: 30px; padding: 1px 8px; border-radius: 999px; background: rgba(5,5,5,.6); color: #FFFFFF; font-size: 13px; font-weight: 800; text-align: center">{{ ss.like.count }}</span>
 </div>
 </sc-if>
+<sc-if value="{{ ss.reel.max }}" hint-placeholder-val="{{ false }}"><button onClick="{{ ss.reel.close }}" aria-label="Leave full screen" title="Leave full screen" style="position: absolute; right: 12px; top: 12px; z-index: 3; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: rgba(5,5,5,.6); color: #FFFFFF; font-size: 22px; font-weight: 800; cursor: pointer">✕</button></sc-if>
 </div>`, 'video like button');
+// Full screen for the reel takes the video AND its like button (the video's own full screen would hide the heart).
+// .ss-reel-max is the in-page fallback for browsers that cannot put a box in full screen (iPhone).
+replaceOnce('</head>', `<style>
+#ss-reel:fullscreen, #ss-reel.ss-reel-max { display: flex; align-items: center; justify-content: center; width: 100vw !important; max-width: none !important; height: 100vh; margin: 0 !important; background: #000; }
+#ss-reel:-webkit-full-screen { display: flex; align-items: center; justify-content: center; width: 100vw !important; max-width: none !important; height: 100vh; margin: 0 !important; background: #000; }
+#ss-reel.ss-reel-max { position: fixed; inset: 0; z-index: 90; height: 100dvh; }
+#ss-reel:fullscreen video, #ss-reel.ss-reel-max video { width: auto !important; height: 100% !important; max-height: 100% !important; max-width: 100%; border-radius: 0 !important; }
+#ss-reel:-webkit-full-screen video { width: auto !important; height: 100% !important; max-height: 100% !important; max-width: 100%; border-radius: 0 !important; }
+</style>
+</head>`, 'reel full screen styles');
 
 // Coding practice honeypots: hidden trap line and watermark in the question text, invisible bot field by Submit
 replaceOnce('<div style="font-size: 15px; line-height: 1.6; color: #DADADA; white-space: pre-wrap">{{ ws.text }}</div>',
