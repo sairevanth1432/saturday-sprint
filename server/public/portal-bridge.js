@@ -36,6 +36,22 @@
     String(s || '').split('').forEach(function (ch) { var b = ch.charCodeAt(0) & 255; for (var i = 7; i >= 0; i--) out += (b >> i) & 1 ? '\u200C' : '\u200B'; });
     return out + '\u2060';
   };
+  // Scrambles copied question text so AI models cannot read it reliably (see the 'copy' listener in ssHpListen).
+  var HOMO = { a: '\u0430', c: '\u0441', e: '\u0435', i: '\u0456', o: '\u043E', p: '\u0440', x: '\u0445', y: '\u0443', A: '\u0410', B: '\u0412', C: '\u0421', E: '\u0415', H: '\u041D', K: '\u041A', M: '\u041C', O: '\u041E', P: '\u0420', T: '\u0422', X: '\u0425' };
+  var scrambleText = function (text) {
+    return String(text || '').replace(/[A-Za-z0-9]+/g, function (w) {
+      var ch = w.split('');
+      if (ch.length > 3) { // shuffle the inside letters
+        var mid = ch.slice(1, -1);
+        for (var i = mid.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = mid[i]; mid[i] = mid[j]; mid[j] = t; }
+        ch = [ch[0]].concat(mid, [ch[ch.length - 1]]);
+      }
+      return ch.map(function (c) {
+        if (/[0-9]/.test(c)) return String((Number(c) + 3 + Math.floor(Math.random() * 6)) % 10); // numbers change too
+        return HOMO[c] && Math.random() < 0.6 ? HOMO[c] : c;
+      }).join('\u200B');
+    });
+  };
   // Download links: same-site files take the download attribute; Vercel Blob and /api/content need ?download=1.
   var downloadUrl = function (u) {
     if (!u) return '';
@@ -773,6 +789,31 @@
       this._hpOn = true;
       var self = this;
       var active = function () { return self.state.tab === 'code' && self._hpQid && (self.ss.integrity || {}).enabled; };
+      // Copying the question text (marked data-ssq) puts a scrambled version in the clipboard that AI models cannot
+      // read reliably: letters shuffled inside words, look-alike Cyrillic letters, invisible characters between
+      // letters. The hidden trap line and watermark are kept readable at the start and end. The page is unchanged.
+      document.addEventListener('copy', function (e) {
+        var I = self.ss.integrity || {};
+        if (!I.enabled || I.scrambleCopy === false || !e.clipboardData) return;
+        var tg = e.target, tn = tg && tg.tagName;
+        if (tn === 'TEXTAREA' || tn === 'INPUT' || (tg && tg.isContentEditable)) return; // the code editor and inputs copy normally
+        var sel = window.getSelection && window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+        var node = sel.getRangeAt(0).commonAncestorContainer;
+        var el = node && (node.nodeType === 1 ? node : node.parentElement);
+        var box = el && el.closest ? el.closest('[data-ssq]') : null;
+        if (!box) { // a selection that spans more than the question (e.g. Ctrl+A): scramble if it touches one
+          var qs = document.querySelectorAll('[data-ssq]');
+          for (var k = 0; k < qs.length && !box; k++) if (sel.containsNode(qs[k], true)) box = qs[k];
+        }
+        if (!box) return;
+        var hid = box.querySelector('span[aria-hidden="true"]');
+        var trap = hid ? hid.textContent.replace(/^\s+|\s+$/g, '') : '';
+        var text = sel.toString();
+        if (trap) text = text.split(trap).join(' ');
+        e.clipboardData.setData('text/plain', (trap ? trap + '\n' : '') + scrambleText(text) + (trap ? '\n' + trap : ''));
+        e.preventDefault();
+      }, true);
       document.addEventListener('paste', function (e) {
         if (!active() || !e.target || e.target.id !== 'ws-code') return;
         var t = '';

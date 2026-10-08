@@ -31,7 +31,7 @@ export function clientIntegrity() {
   if (!c.enabled) return { enabled: false };
   const q = {};
   for (const [id, t] of Object.entries(c.questions || {})) q[id] = t.instruction || '';
-  return { enabled: true, watermark: !!c.watermark, trap: c.trap.instruction || '', questions: q };
+  return { enabled: true, watermark: !!c.watermark, scrambleCopy: c.scrambleCopy !== false, trap: c.trap.instruction || '', questions: q };
 }
 
 const int = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
