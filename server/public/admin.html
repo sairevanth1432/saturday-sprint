@@ -245,7 +245,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ------------------------------------------------------------------ layout
   var NAV = [
-    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'],
+    ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practice', 'Practice analytics'], ['likes', 'Video likes'], ['integrity', 'Integrity flags'],
     ['media', 'Courses & topics'], ['master', 'Master data'], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
@@ -1528,6 +1528,96 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             hd.courses.map(function (c) { return item(c.name, 'course · ' + c.id, isSuper() ? h('button', { class: 'btn sm', type: 'button', onclick: function () { restore('courses', c.id, 'Course'); } }, 'Restore') : null); }),
             hd.units.map(function (u) { return item(u.title, (u.courseName || u.course) + ' · ' + u.id, isSuper() ? h('button', { class: 'btn sm', type: 'button', onclick: function () { restore('units', u.id, 'Topic'); } }, 'Restore') : null); }));
         })());
+    });
+  };
+
+  // ---------- video likes: per topic and per course
+  VIEWS.likes = function () {
+    return api('GET', '/api/admin/likes').then(function (d) {
+      var th = function (cols) { return h('thead', null, h('tr', null, cols.map(function (t) { return h('th', null, t); }))); };
+      var topics = d.topics.slice().sort(function (a, b) { return b.likes - a.likes; });
+      return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+        header('~/admin/likes', 'Video likes', 'Students like a topic\'s video with the heart on the video (one like per student per topic). Like rate = likes ÷ students who opened the topic. TEST accounts are left out.',
+          [pill(d.total + ' like' + (d.total === 1 ? '' : 's'), 'ok'), h('button', { class: 'btn', onclick: refresh }, 'Refresh')]),
+        h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null, th(['Course', 'Topics', 'Likes', 'Students who opened its topics']),
+          h('tbody', null, d.courses.map(function (c) {
+            return h('tr', null, h('td', null, h('b', null, c.courseName)), h('td', { class: 'mono' }, c.topics), h('td', { class: 'mono', style: 'color:var(--accent)' }, c.likes), h('td', { class: 'mono' }, c.opened));
+          })))),
+        h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null, th(['Topic', 'Course', 'Likes', 'Opened by', 'Like rate', 'Last like']),
+          h('tbody', null, topics.length ? topics.map(function (t) {
+            return h('tr', null, h('td', null, h('b', null, t.title), h('div', { class: 'muted mono' }, t.id)), h('td', null, t.courseName),
+              h('td', { class: 'mono', style: 'color:var(--accent)' }, t.likes), h('td', { class: 'mono' }, t.opened),
+              h('td', { class: 'mono' }, t.rate == null ? '–' : t.rate + '%'), h('td', { class: 'muted' }, t.lastAt ? dt(t.lastAt) : '–'));
+          }) : h('tr', null, h('td', { colspan: 6, class: 'muted' }, 'No topics yet.'))))));
+    });
+  };
+
+  // ---------- integrity flags: coding practice honeypots (flag only; students are never blocked or told)
+  // Watermark: the NIAT ID hidden in question text as zero-width characters between two U+2060 markers.
+  function zwDecode(text) {
+    var out = [], re = /\u2060([\u200B\u200C]+)\u2060/g, m;
+    while ((m = re.exec(String(text || '')))) {
+      var bits = m[1], s2 = '';
+      for (var i = 0; i + 8 <= bits.length; i += 8) {
+        var b = 0;
+        for (var j = 0; j < 8; j++) b = (b << 1) | (bits[i + j] === '\u200C' ? 1 : 0);
+        s2 += String.fromCharCode(b);
+      }
+      if (s2 && out.indexOf(s2) < 0) out.push(s2);
+    }
+    return out;
+  }
+  var FLAG_INFO = {
+    AI_TRAP: ['AI trap', 'bad', 'The code contains a token from the hidden instruction in the question text.'],
+    PASTE_HEAVY: ['Paste heavy', 'warn', 'A large single paste, or most of the final code was pasted.'],
+    FAST_SOLVE: ['Fast solve', 'warn', 'Correct much faster than the usual solve time for this question.'],
+    BOT: ['Bot field', 'bad', 'The invisible form field was filled in.']
+  };
+  VIEWS.integrity = function () {
+    var F = CACHE.integrity = CACHE.integrity || { type: '', from: '', to: '', roll: '' };
+    var q = '?type=' + encodeURIComponent(F.type) + (F.from ? '&from=' + new Date(F.from + 'T00:00').getTime() : '') +
+      (F.to ? '&to=' + (new Date(F.to + 'T00:00').getTime() + 86400000) : '') + (F.roll ? '&roll=' + encodeURIComponent(F.roll) : '');
+    return api('GET', '/api/admin/integrity' + q).then(function (d) {
+      var set = function (k, v) { F[k] = v; refresh(); };
+      var evText = function (r) {
+        var e = r.evidence || {}, bits = [];
+        if (r.flag_type === 'AI_TRAP') bits.push('tokens: ' + (e.tokens || []).join(', '), e.snippet ? 'line: ' + e.snippet : '');
+        if (r.flag_type === 'PASTE_HEAVY') bits.push('largest paste ' + e.pasteMax + ' chars', 'pasted ' + e.pasteTotal + ' of ' + e.codeLen + ' chars (' + Math.round((e.share || 0) * 100) + '%)', e.pasteCount + ' paste(s)');
+        if (r.flag_type === 'FAST_SOLVE') bits.push('solved in ' + Math.round(e.timeMs / 1000) + 's', 'median ' + Math.round(e.medianMs / 1000) + 's (' + e.samples + ' solves)');
+        if (r.flag_type === 'BOT') bits.push('field value: ' + e.value);
+        bits.push(e.correct ? 'correct' : 'not correct', 'left the page ' + (e.blurs || 0) + '×' + (e.awayMs ? ' (' + Math.round(e.awayMs / 1000) + 's away)' : ''), 'open → submit ' + Math.round((e.timeMs || 0) / 1000) + 's');
+        return bits.filter(Boolean).join(' · ');
+      };
+      var decoded = h('div', { class: 'soft' }, 'Paste text here: the NIAT ID hidden in it appears below.');
+      var leak = h('textarea', { rows: 4, placeholder: 'Paste the leaked question text…', style: 'width:100%', oninput: function () {
+        var ids = zwDecode(leak.value);
+        decoded.replaceChildren(ids.length ? h('div', { class: 'row', style: 'gap:8px;justify-content:flex-start' }, h('b', null, 'Watermark found:'),
+          ids.map(function (id) { return h('button', { class: 'btn sm pri', type: 'button', onclick: function () { openStudent(id); } }, id); }))
+          : h('span', { class: 'muted' }, leak.value ? 'No watermark in this text (it may have been retyped or cleaned).' : 'Paste text here: the NIAT ID hidden in it appears below.'));
+      } });
+      var count = function (t) { var c = (d.counts || []).find(function (x) { return x.flag_type === t; }); return c ? Number(c.n) : 0; };
+      return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+        header('~/admin/integrity', 'Integrity flags', 'Suspicious coding practice submissions. Flags are hints for a conversation, not proof: students are never blocked, penalised or told. Traps and thresholds live in server/content/integrity.json.',
+          d.types.map(function (t) { return pill(FLAG_INFO[t][0] + ' ' + count(t), count(t) ? FLAG_INFO[t][1] : ''); })),
+        h('div', { class: 'toolbar' },
+          h('select', { onchange: function (e) { set('type', e.target.value); } }, [['', 'All flags']].concat(d.types.map(function (t) { return [t, FLAG_INFO[t][0]]; }))
+            .map(function (o) { return h('option', { value: o[0], selected: F.type === o[0] ? true : null }, o[1]); })),
+          h('label', { class: 'row', style: 'gap:6px' }, 'From', h('input', { type: 'date', value: F.from, onchange: function (e) { set('from', e.target.value); } })),
+          h('label', { class: 'row', style: 'gap:6px' }, 'To', h('input', { type: 'date', value: F.to, onchange: function (e) { set('to', e.target.value); } })),
+          h('input', { type: 'text', placeholder: 'NIAT ID', value: F.roll, onchange: function (e) { set('roll', e.target.value.trim()); } }),
+          h('span', { class: 'grow' }), h('button', { class: 'btn', onclick: refresh }, 'Refresh')),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['When', 'Student', 'Question', 'Flag', 'Evidence'].map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, d.rows.length ? d.rows.map(function (r) {
+            return h('tr', null, h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.created_at)),
+              h('td', null, h('a', { href: '#', onclick: function (e) { e.preventDefault(); openStudent(r.roll_no); } }, r.name || r.roll_no), h('div', { class: 'muted mono' }, r.roll_no + (r.batch ? ' · ' + r.batch : ''))),
+              h('td', { class: 'mono' }, r.question_id), h('td', null, pill(FLAG_INFO[r.flag_type] ? FLAG_INFO[r.flag_type][0] : r.flag_type, FLAG_INFO[r.flag_type] ? FLAG_INFO[r.flag_type][1] : '')),
+              h('td', { style: 'max-width:520px;line-height:1.45;font-size:13px' }, evText(r)));
+          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, 'No flags for these filters.'))))),
+        h('div', { class: 'grid g2' },
+          h('div', { class: 'card' }, h('h2', null, 'Who leaked this question?'), leak, h('div', { style: 'margin-top:8px' }, decoded)),
+          h('div', { class: 'card' }, h('h2', null, 'What each flag means'), h('div', { class: 'soft', style: 'line-height:1.6' },
+            d.types.map(function (t) { return h('div', null, h('b', null, FLAG_INFO[t][0] + ': '), FLAG_INFO[t][2]); })))));
     });
   };
 

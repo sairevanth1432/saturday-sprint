@@ -29,6 +29,19 @@
   }
 
   var toLocal = function (serverMs) { return serverMs - clock.offset; };
+  // Watermark: the NIAT ID as zero-width characters (8 bits per character, U+200B = 0, U+200C = 1) between two
+  // U+2060 markers. Admin → Integrity flags decodes it from leaked text.
+  var zwEncode = function (s) {
+    var out = '\u2060';
+    String(s || '').split('').forEach(function (ch) { var b = ch.charCodeAt(0) & 255; for (var i = 7; i >= 0; i--) out += (b >> i) & 1 ? '\u200C' : '\u200B'; });
+    return out + '\u2060';
+  };
+  // Download links: same-site files take the download attribute; Vercel Blob and /api/content need ?download=1.
+  var downloadUrl = function (u) {
+    if (!u) return '';
+    var add = /\/api\/content\//.test(u) || /\.blob\.vercel-storage\.com\//.test(u);
+    return add ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'download=1' : u;
+  };
   var fmtScore = function (x) { return x == null ? '–' : String(Math.round(Number(x) * 100) / 100); };
 
   function placeholders(types) {
@@ -116,6 +129,11 @@
       PROGRESS_KEYS.forEach(function (k) { if (p[k] !== undefined && (k !== 'done' || sameContent)) S[k] = p[k]; });
       if (moved) { S.course = 0; S.mod = 0; S.les = 0; }
       if (p.code) S.code = Object.assign({}, S.code, p.code);
+      // Video likes: my likes and the counts per topic.
+      var LK = B.likes || {};
+      S.ssLiked = {}; (LK.mine || []).forEach(function (id) { S.ssLiked[id] = true; });
+      S.ssLikeN = Object.assign({}, LK.counts || {});
+      this.ssHpListen();
 
       var a = B.attempt;
       if (a && a.status === 'running') {
@@ -699,6 +717,65 @@
       setTimeout(function () { if (self.state.ssToast && self.state.ssToast.at === at) self.setState({ ssToast: null }); }, 4500);
     }
 
+    // ---------- coding practice honeypots (server/integrity.js): flag only, students see no difference
+    // The question being shown in the code editor (same choice as the portal's wsBuild).
+    ssCurQuestion() {
+      var S = this.state, P = this.ccbpCoding || [];
+      if (S.csel === 'play') return null;
+      return P.find(function (p) { return p.id === S.csel; }) || P.find(function (p) { return p.topic === (S.ctopic || 'For Loop'); }) || P[0] || null;
+    }
+    // Question text split around the hidden trap line; the watermark (NIAT ID in zero-width characters) goes after
+    // the first word and into the trap line.
+    ssHoneypot(v) {
+      var text = v.ws ? String(v.ws.text || '') : '', I = this.ss.integrity || {}, U = this.ss.user;
+      var q = this.state.tab === 'code' ? this.ssCurQuestion() : null;
+      if (!q || !I.enabled || U.kind !== 'student') return { a: text, trap: '', b: '' };
+      this._hpQid = q.id;
+      var M = this.ssHpMetrics(q.id);
+      if (!M.openedAt) M.openedAt = Date.now();
+      var wm = I.watermark ? zwEncode(U.rollNo) : '';
+      var i = text.indexOf('\n\n'), cut = i > 0 ? i : (text.indexOf('. ') > 0 ? text.indexOf('. ') + 1 : text.length);
+      var a = text.slice(0, cut), b = text.slice(cut), sp = a.indexOf(' ');
+      if (wm && sp > 0) a = a.slice(0, sp) + wm + a.slice(sp);
+      return { a: a, trap: ' ' + ((I.questions || {})[q.id] || I.trap || '') + wm + ' ', b: b };
+    }
+    ssHpMetrics(qid) {
+      this._hp = this._hp || {};
+      return this._hp[qid] || (this._hp[qid] = { openedAt: 0, pasteMax: 0, pasteTotal: 0, pasteCount: 0, blurs: 0, awayMs: 0, awayAt: 0 });
+    }
+    ssHpListen() {
+      if (this._hpOn) return;
+      this._hpOn = true;
+      var self = this;
+      var active = function () { return self.state.tab === 'code' && self._hpQid && (self.ss.integrity || {}).enabled; };
+      document.addEventListener('paste', function (e) {
+        if (!active() || !e.target || e.target.id !== 'ws-code') return;
+        var t = '';
+        try { t = (e.clipboardData || window.clipboardData).getData('text') || ''; } catch (x) {}
+        var M = self.ssHpMetrics(self._hpQid);
+        M.pasteCount++; M.pasteTotal += t.length; M.pasteMax = Math.max(M.pasteMax, t.length);
+      }, true);
+      var away = function () { if (!active()) return; var M = self.ssHpMetrics(self._hpQid); if (!M.awayAt) { M.blurs++; M.awayAt = Date.now(); } };
+      var back = function () { if (!self._hpQid) return; var M = self.ssHpMetrics(self._hpQid); if (M.awayAt) { M.awayMs += Date.now() - M.awayAt; M.awayAt = 0; } };
+      window.addEventListener('blur', away);
+      window.addEventListener('focus', back);
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') away(); else back(); });
+    }
+    // Submit in the code editor: the portal grades with checkTests; report that run's result with the metrics.
+    checkTests(code, tests) {
+      var res = super.checkTests(code, tests), pend = this._hpPending, self = this;
+      if (pend && pend.code === code) {
+        this._hpPending = null;
+        Promise.resolve(res).then(function (r) {
+          var M = self.ssHpMetrics(pend.qid), f = document.getElementById('ss-hp-field');
+          api('POST', '/api/practice/submission', { qid: pend.qid, topic: pend.topic, code: code, correct: Array.isArray(r) && r.length > 0 && r.every(function (x) { return x.pass; }),
+            pasteMax: M.pasteMax, pasteTotal: M.pasteTotal, pasteCount: M.pasteCount, blurs: M.blurs, awayMs: M.awayMs,
+            timeMs: M.openedAt ? Date.now() - M.openedAt : 0, bot: f ? f.value : '' }).catch(function () {});
+        }, function () {});
+      }
+      return res;
+    }
+
     // Built-in courses, then the courses admins added that have at least one topic.
     courseList() {
       // Built-in courses an admin removed, or left without topics, are not shown.
@@ -821,16 +898,39 @@
             text: (tab === 'watch' ? 'The video' : tab === 'play' ? 'The game' : 'The reading material') + ' for this topic is on its way.' +
               (other.length ? ' For now, ' + other.join(' and ') + '.' : ' Check back soon!') };
         }
-        // Play and Read open full screen (the game or notes frame only); browsers without it get a new tab.
-        if ((tab === 'play' || tab === 'read') && src[tab]) {
-          var fsUrl = src[tab];
-          v.ss_fs = { on: true, label: 'Full screen', hint: tab === 'play' ? 'Press Esc to leave full screen' : 'Read in full screen · Esc to leave',
-            go: function () {
+        // Toolbar above the media: Download for every step with a file; Full screen for Play and Read (the game or
+        // notes frame only; browsers without it get a new tab).
+        if (src[tab]) {
+          var fsUrl = src[tab], isPR = tab === 'play' || tab === 'read';
+          v.ss_tools = { on: true, hint: tab === 'play' ? 'Press Esc to leave full screen' : tab === 'read' ? 'Read in full screen · Esc to leave' : '',
+            dl: true, dlHref: downloadUrl(src[tab]), dlName: les.id + '-' + tab + (tab === 'watch' ? '.mp4' : '.html'),
+            dlLabel: tab === 'watch' ? 'Download video' : tab === 'play' ? 'Download game' : 'Download notes',
+            fs: isPR, fsGo: function () {
               var el = document.getElementById('ss-embed');
               var rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
               var tab2 = function () { window.open(fsUrl, '_blank', 'noopener'); };
               if (!rq) return tab2();
               try { var p = rq.call(el); if (p && p.catch) p.catch(tab2); } catch (e) { tab2(); }
+            } };
+        }
+        // Watch: like button on the video (one like per student per topic)
+        if (tab === 'watch' && src.watch && U.kind === 'student') {
+          var likedSet = S.ssLiked || {}, liked = !!likedSet[les.id], cnt = Math.max(0, (S.ssLikeN || {})[les.id] || 0);
+          var lid = les.id;
+          v.ss_like = { on: true, liked: liked, count: String(cnt), fill: liked ? '#FF5A6E' : 'none', stroke: liked ? '#FF5A6E' : '#FFFFFF',
+            label: (liked ? 'Unlike' : 'Like') + ' this video · ' + cnt + ' like' + (cnt === 1 ? '' : 's'),
+            toggle: function () {
+              var now = !((self.state.ssLiked || {})[lid]);
+              self.setState(function (s2) {
+                var L2 = Object.assign({}, s2.ssLiked), N2 = Object.assign({}, s2.ssLikeN);
+                L2[lid] = now; N2[lid] = Math.max(0, (N2[lid] || 0) + (now ? 1 : -1));
+                return { ssLiked: L2, ssLikeN: N2 };
+              });
+              api('POST', '/api/likes/' + encodeURIComponent(lid), { liked: now }).then(function (r) {
+                if (r && typeof r.count === 'number') self.setState(function (s2) { var N2 = Object.assign({}, s2.ssLikeN); N2[lid] = r.count; return { ssLikeN: N2 }; });
+              }, function () {
+                self.setState(function (s2) { var L2 = Object.assign({}, s2.ssLiked), N2 = Object.assign({}, s2.ssLikeN); L2[lid] = !now; N2[lid] = Math.max(0, (N2[lid] || 0) + (now ? -1 : 1)); return { ssLiked: L2, ssLikeN: N2 }; });
+              });
             } };
         }
         // Bottom bar: "Next: Play →" / "Next: Read →", then the next unit
@@ -868,6 +968,18 @@
         });
       }
 
+      if (v.ws && typeof v.ws.submit === 'function' && (this.ss.integrity || {}).enabled && U.kind === 'student') {
+        var q0 = this.state.tab === 'code' ? this.ssCurQuestion() : null, baseSubmit = v.ws.submit;
+        if (q0) v.ws.submit = function () {
+          var el = document.getElementById('ws-code');
+          self._hpPending = { qid: q0.id, topic: q0.topic, code: el ? el.value : '' };
+          var st = self.state.code || {};
+          if (st[q0.id] !== undefined) self._hpPending.code = st[q0.id];
+          else if (q0.starter !== undefined && !el) self._hpPending.code = q0.starter;
+          return baseSubmit.apply(this, arguments);
+        };
+      }
+
       v.lb = this.ssBoardVals();
       v.ss = {
         when: when,
@@ -880,7 +992,9 @@
             toggle: function () { self.setState(function (s) { return { ssNextFolded: !s.ssNextFolded }; }); },
             groups: N.groups.map(function (g) { return { name: g.name, topics: g.topics.map(function (t) { return { t: t }; }) }; }) };
         })(),
-        fs: v.ss_fs || { on: false, label: '', hint: '', go: null },
+        tools: v.ss_tools || { on: false, hint: '', dl: false, dlHref: '', dlName: '', dlLabel: '', fs: false, fsGo: null },
+        like: v.ss_like || { on: false },
+        hp: this.ssHoneypot(v),
         user: {
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),
           sub: U.kind === 'admin' ? (U.role === 'super_admin' ? 'super admin' : 'admin') + ' · preview' : U.rollNo + (U.batch ? ' · ' + U.batch : ''),

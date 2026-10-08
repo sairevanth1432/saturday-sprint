@@ -254,6 +254,21 @@ CREATE TABLE IF NOT EXISTS content_units (
 -- so the session and approval queries stay small.
 CREATE TABLE IF NOT EXISTS student_photos (roll_no TEXT PRIMARY KEY, photo TEXT NOT NULL, updated_at BIGINT NOT NULL);
 CREATE TABLE IF NOT EXISTS request_photos (request_id BIGINT PRIMARY KEY, photo TEXT NOT NULL, created_at BIGINT NOT NULL);
+
+-- Likes on the Watch videos: one per student per topic (unit).
+CREATE TABLE IF NOT EXISTS unit_likes (roll_no TEXT NOT NULL, unit_id TEXT NOT NULL, course TEXT NOT NULL, created_at BIGINT NOT NULL, PRIMARY KEY (roll_no, unit_id));
+CREATE INDEX IF NOT EXISTS unit_likes_unit ON unit_likes(unit_id);
+
+-- Coding practice honeypots (integrity.js): every Submit in the code editor, and the flags raised for admins.
+CREATE TABLE IF NOT EXISTS practice_submissions (
+  id BIGSERIAL PRIMARY KEY, roll_no TEXT NOT NULL, question_id TEXT NOT NULL, topic TEXT NOT NULL DEFAULT '', correct INTEGER NOT NULL,
+  time_ms BIGINT NOT NULL DEFAULT 0, paste_max INTEGER NOT NULL DEFAULT 0, paste_total INTEGER NOT NULL DEFAULT 0, paste_count INTEGER NOT NULL DEFAULT 0,
+  code_len INTEGER NOT NULL DEFAULT 0, blurs INTEGER NOT NULL DEFAULT 0, away_ms BIGINT NOT NULL DEFAULT 0, created_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS practice_submissions_q ON practice_submissions(question_id, correct);
+CREATE TABLE IF NOT EXISTS integrity_flags (
+  id BIGSERIAL PRIMARY KEY, roll_no TEXT NOT NULL, question_id TEXT NOT NULL, flag_type TEXT NOT NULL, evidence TEXT, created_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS integrity_flags_type ON integrity_flags(flag_type, created_at);
+CREATE INDEX IF NOT EXISTS integrity_flags_roll ON integrity_flags(roll_no);
 `;
 
 // ---------- backend

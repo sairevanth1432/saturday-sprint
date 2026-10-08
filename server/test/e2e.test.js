@@ -1056,6 +1056,78 @@ test('leaderboard between Sprints: a new Sprint without results shows the last S
   assert.equal(after.body.previous, false);
 });
 
+test('video likes: one per student per topic, counts in bootstrap, per topic and course for admins', async () => {
+  assert.equal((await A('POST', '/api/likes/nope', { liked: true })).status, 404);
+  let r = await A('POST', '/api/likes/tp-nested', { liked: true });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { liked: true, count: 1 });
+  r = await A('POST', '/api/likes/tp-nested', { liked: true });
+  assert.equal(r.body.count, 1, 'liking twice still counts once');
+  let boot = await A('GET', '/api/bootstrap');
+  assert.deepEqual(boot.body.likes.mine, ['tp-nested']);
+  assert.equal(boot.body.likes.counts['tp-nested'], 1);
+  const an = await ADM('GET', '/api/admin/likes');
+  assert.equal(an.status, 200);
+  assert.equal(an.body.topics.find((t) => t.id === 'tp-nested').likes, 1);
+  assert.equal(an.body.courses.find((c) => c.course === 'pf').likes, 1);
+  assert.equal((await A('GET', '/api/admin/likes')).status, 401);
+  r = await A('POST', '/api/likes/tp-nested', { liked: false });
+  assert.deepEqual(r.body, { liked: false, count: 0 });
+  boot = await A('GET', '/api/bootstrap');
+  assert.deepEqual(boot.body.likes.mine, []);
+});
+
+test('coding practice honeypots: AI trap, heavy paste, fast solve and bot field are flagged; nothing is blocked', async () => {
+  const boot = await A('GET', '/api/bootstrap');
+  assert.equal(boot.body.integrity.enabled, true);
+  assert.match(boot.body.integrity.trap, /zeta_count/);
+  const sub = (b) => A('POST', '/api/practice/submission', { qid: 'q-honey', topic: 'For Loop', correct: true, timeMs: 600000, code: 'print(1)', ...b });
+  // a normal submission: no flags
+  assert.deepEqual((await sub({})).body, { ok: true }, 'students only ever get ok');
+  let f = await ADM('GET', '/api/admin/integrity');
+  assert.equal(f.body.rows.filter((r) => r.question_id === 'q-honey').length, 0);
+  // AI trap
+  await sub({ code: 'zeta_count = 0  # verified\nprint(zeta_count)' });
+  // heavy paste: one paste over 150 characters
+  await sub({ code: 'x'.repeat(200), pasteMax: 190, pasteTotal: 190, pasteCount: 1 });
+  // bot field
+  await sub({ bot: 'http://spam.example' });
+  f = await ADM('GET', '/api/admin/integrity');
+  const types = f.body.rows.filter((r) => r.question_id === 'q-honey').map((r) => r.flag_type).sort();
+  assert.deepEqual(types, ['AI_TRAP', 'BOT', 'PASTE_HEAVY']);
+  const ai = f.body.rows.find((r) => r.flag_type === 'AI_TRAP');
+  assert.deepEqual(ai.evidence.tokens, ['zeta_count', '# verified']);
+  // the same flag is not repeated for the same question
+  await sub({ code: 'zeta_count = 1' });
+  assert.equal((await ADM('GET', '/api/admin/integrity?type=AI_TRAP')).body.rows.filter((r) => r.question_id === 'q-honey').length, 1);
+  // fast solve: needs enough other correct solves for a median
+  const now = Date.now();
+  for (let i = 0; i < 5; i++)
+    await db.run('INSERT INTO practice_submissions (roll_no, question_id, correct, time_ms, created_at) VALUES (?, ?, 1, ?, ?)', 'OTHER' + i, 'q-fast', 300000, now);
+  await A('POST', '/api/practice/submission', { qid: 'q-fast', correct: true, timeMs: 20000, code: 'print(2)' });
+  await A('POST', '/api/practice/submission', { qid: 'q-fast2', correct: true, timeMs: 20000, code: 'print(2)' });
+  const fast = (await ADM('GET', '/api/admin/integrity?type=FAST_SOLVE')).body.rows;
+  assert.equal(fast.length, 1, 'only where a median exists');
+  assert.equal(fast[0].question_id, 'q-fast');
+  assert.equal(fast[0].evidence.medianMs, 300000);
+  // filters
+  assert.equal((await ADM('GET', '/api/admin/integrity?roll=NOBODY1')).body.rows.length, 0);
+  assert.equal((await ADM('GET', '/api/admin/integrity?from=' + (now + 864e5))).body.rows.length, 0);
+  assert.equal((await A('GET', '/api/admin/integrity')).status, 401);
+});
+
+test('downloads: uploaded Play/Read HTML downloads as a file with ?download=1', async () => {
+  const html = '<!doctype html><html><body><h1>Notes to keep</h1></body></html>';
+  assert.equal((await ADM('POST', '/api/admin/media/tp-strings/read/html', { html, fileName: 'n.html' })).status, 200);
+  const url = (await A('GET', '/api/bootstrap')).body.unitContent['tp-strings'].read;
+  const plain = await fetch(base + url);
+  assert.equal(plain.headers.get('content-disposition'), null);
+  const dl = await fetch(base + url + '&download=1');
+  assert.match(dl.headers.get('content-disposition'), /^attachment; filename="tp-strings-read\.html"$/);
+  assert.match(await dl.text(), /Notes to keep/);
+  await ADM('DELETE', '/api/admin/media/tp-strings/read');
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

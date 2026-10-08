@@ -223,6 +223,16 @@ fs.writeFileSync(config.lessonsFile, JSON.stringify(lessonsOut, null, 2));
     console.log(`Next Sprint → ${n.id}: ${new Date(o).toISOString()} – ${new Date(c).toISOString()}, ${d} min (applied once the current Sprint has closed)`);
   }
   fs.writeFileSync(path.join(ROOT, 'generated', 'sprint-schedule.json'), JSON.stringify(n));
+  // Coding practice honeypots (content/integrity.json): trap text, tokens and thresholds, read by integrity.js.
+  const integ = path.join(ROOT, 'content', 'integrity.json');
+  if (fs.existsSync(integ)) {
+    const ic = JSON.parse(fs.readFileSync(integ, 'utf8'));
+    for (const [id, t] of [['trap', ic.trap], ...Object.entries(ic.questions || {})])
+      if (!t || !t.instruction || !Array.isArray(t.tokens) || !t.tokens.length || t.tokens.some((k) => !String(k).trim()))
+        throw new Error(`content/integrity.json: "${id}" needs an instruction and at least one non-empty token.`);
+    fs.writeFileSync(path.join(ROOT, 'generated', 'integrity.json'), JSON.stringify(ic));
+    console.log('Integrity   → ' + (ic.enabled === false ? 'off' : 'on') + ' (trap tokens: ' + ic.trap.tokens.join(', ') + ')');
+  }
   // Question sets for named Sprints (content/sprint-sets/<sprintId>.json): used instead of the portal's set for
   // that Sprint ID until an admin builds one in Admin → Sprint questions.
   const SETS = path.join(ROOT, 'content', 'sprint-sets'), OUT = path.join(ROOT, 'generated', 'sprint-sets');
@@ -525,15 +535,36 @@ replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px
   '<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">', 'learn media width');
 replaceOnce('<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F; max-width: 1040px">',
   '<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">', 'learn bottom bar width');
-replaceOnce('<sc-if value="{{ wt.isSlides }}" hint-placeholder-val="{{ false }}">\n<a data-embed="slides"',
-  `<sc-if value="{{ ss.fs.on }}" hint-placeholder-val="{{ false }}">
-<div style="display: flex; align-items: center; gap: 12px">
-<span style="flex-grow: 1; font-family: 'VT323', monospace; font-size: 19px; color: #8A8A8A">{{ ss.fs.hint }}</span>
-<button class="k3" onClick="{{ ss.fs.go }}" aria-label="{{ ss.fs.label }}" title="{{ ss.fs.label }}" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 14px; font-weight: 800"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M20 9V4h-5"></path><path d="M4 15v5h5"></path><path d="M20 15v5h-5"></path></svg><span>{{ ss.fs.label }}</span></button>
+// Toolbar above the step's media: Download (Watch, Play, Read) and Full screen (Play, Read)
+replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">\n<sc-if value="{{ wt.isVideo }}" hint-placeholder-val="{{ true }}">',
+  (a) => a.split('\n')[0] + `
+<sc-if value="{{ ss.tools.on }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<span style="flex-grow: 1; font-family: 'VT323', monospace; font-size: 19px; color: #8A8A8A">{{ ss.tools.hint }}</span>
+<sc-if value="{{ ss.tools.dl }}" hint-placeholder-val="{{ true }}"><a class="k3" href="{{ ss.tools.dlHref }}" download="{{ ss.tools.dlName }}" target="_blank" rel="noopener" aria-label="{{ ss.tools.dlLabel }}" title="{{ ss.tools.dlLabel }}" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid #333333; border-radius: 12px; color: #FFFFFF; font-size: 14px; font-weight: 800; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg><span>{{ ss.tools.dlLabel }}</span></a></sc-if>
+<sc-if value="{{ ss.tools.fs }}" hint-placeholder-val="{{ false }}"><button class="k3" onClick="{{ ss.tools.fsGo }}" aria-label="Full screen" title="Full screen" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 14px; font-weight: 800"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M20 9V4h-5"></path><path d="M4 15v5h5"></path><path d="M20 15v5h-5"></path></svg><span>Full screen</span></button></sc-if>
 </div>
 </sc-if>
-<sc-if value="{{ wt.isSlides }}" hint-placeholder-val="{{ false }}">
-<a data-embed="slides"`, 'full screen button');
+` + a.split('\n')[1], 'step toolbar');
+
+// Watch: a like button pinned on the right side of the video, like a reel
+replaceOnce('<video ref="{{ wt.ref }}" controls playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: {{ wt.vw }}; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; margin: 0 auto; border-radius: 12px; background: #000000"></video>',
+  `<div style="position: relative; width: {{ wt.vw }}; max-width: 100%; margin: 0 auto">
+<video ref="{{ wt.ref }}" controls playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: 100%; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; border-radius: 12px; background: #000000"></video>
+<sc-if value="{{ ss.like.on }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 4px">
+<button onClick="{{ ss.like.toggle }}" aria-pressed="{{ ss.like.liked }}" aria-label="{{ ss.like.label }}" title="{{ ss.like.label }}" style="width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: rgba(5,5,5,.6); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.5); transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1)"><svg width="28" height="28" viewBox="0 0 24 24" fill="{{ ss.like.fill }}" stroke="{{ ss.like.stroke }}" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.4-9.3-9.2C1.4 7.8 3.6 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.3 4.3 6.8-1.8 4.8-9.3 9.2-9.3 9.2z"></path></svg></button>
+<span style="min-width: 30px; padding: 1px 8px; border-radius: 999px; background: rgba(5,5,5,.6); color: #FFFFFF; font-size: 13px; font-weight: 800; text-align: center">{{ ss.like.count }}</span>
+</div>
+</sc-if>
+</div>`, 'video like button');
+
+// Coding practice honeypots: hidden trap line and watermark in the question text, invisible bot field by Submit
+replaceOnce('<div style="font-size: 15px; line-height: 1.6; color: #DADADA; white-space: pre-wrap">{{ ws.text }}</div>',
+  '<div style="font-size: 15px; line-height: 1.6; color: #DADADA; white-space: pre-wrap">{{ ss.hp.a }}<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hp.trap }}</span>{{ ss.hp.b }}</div>', 'question trap');
+replaceOnce('<sc-if value="{{ ws.canSubmit }}" hint-placeholder-val="{{ true }}"><button class="b3" onClick="{{ ws.submit }}"',
+  '<input id="ss-hp-field" type="text" name="website" tabindex="-1" aria-hidden="true" autocomplete="off" style="position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; opacity: 0">' +
+  '<sc-if value="{{ ws.canSubmit }}" hint-placeholder-val="{{ true }}"><button class="b3" onClick="{{ ws.submit }}"', 'bot field');
 replaceOnce("return h('iframe', { src: props.href, title: 'Class slides', allowfullscreen: true, loading: 'lazy',",
   "return h('iframe', { id: 'ss-embed', src: props.href, title: 'Class slides', allowfullscreen: true, allow: 'fullscreen', loading: 'lazy',", 'embed id');
 

@@ -28,6 +28,8 @@ import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.
 import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
+import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
+import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -147,6 +149,22 @@ api.put('/me/photo', who, async (req, res) => {
   res.json({ ok: true, photoAt: await photoStamp(req.who.roll_no) });
 });
 
+// Likes on a topic's video (one per student per topic).
+api.post('/likes/:unitId', who, async (req, res) => {
+  if (req.who.kind !== 'student') return res.json({ ok: true, preview: true });
+  if (!(await kv.rateLimit('like:' + req.who.roll_no, 120, 3600000)).ok) return res.status(429).json({ error: 'RATE_LIMITED', message: 'Slow down a little.' });
+  const r = await setLike(req.who.roll_no, String(req.params.unitId), !!(req.body || {}).liked);
+  if (!r) return res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown topic.' });
+  res.json(r);
+});
+// Coding practice Submit metrics for the honeypots (integrity.js). Always answers ok: students never see flags.
+api.post('/practice/submission', who, async (req, res) => {
+  if (req.who.kind !== 'student') return res.json({ ok: true });
+  if (!(await kv.rateLimit('psub:' + req.who.roll_no, 120, 3600000)).ok) return res.json({ ok: true });
+  await recordSubmission(req.who.roll_no, req.body || {});
+  res.json({ ok: true });
+});
+
 // Public facts for the Help page and the landing page (no login): Sprint window, format, rules and the units it is based on.
 api.get('/info', async (req, res) => {
   const [sprint, proctor, mode] = await Promise.all([getSprint(), proctorSettings(), loginMode()]);
@@ -167,13 +185,15 @@ api.get('/info', async (req, res) => {
 api.get('/bootstrap', who, async (req, res) => {
   noStore(res);
   const w = req.who, sprint = await sprintFor(w);
-  const [a, prog, fb, bytes, proctor, photoAt] = await Promise.all([
+  const [a, prog, fb, bytes, proctor, photoAt, likeN, liked] = await Promise.all([
     getAttempt(w, sprint),
     w.kind === 'student' ? one('SELECT data FROM progress WHERE roll_no = ?', w.roll_no) : null,
     w.kind === 'student' ? one("SELECT 1 AS x FROM feedback WHERE roll_no = ? AND kind = 'sprint-test' LIMIT 1", w.roll_no) : null,
     unitContentMap(),
     proctorSettings(),
-    w.kind === 'student' ? photoStamp(w.roll_no) : 0
+    w.kind === 'student' ? photoStamp(w.roll_no) : 0,
+    likeCounts(),
+    w.kind === 'student' ? myLikes(w.roll_no) : []
   ]);
   res.json({
     serverNow: Date.now(),
@@ -188,7 +208,9 @@ api.get('/bootstrap', who, async (req, res) => {
     unitContent: bytes,
     units: packUnits(),
     courses: customCourses().map((c) => ({ id: c.id, name: c.name, color: c.color })),
-    nextSprint: nextSprintTopics
+    nextSprint: nextSprintTopics,
+    likes: { counts: likeN, mine: liked },
+    integrity: w.kind === 'student' ? clientIntegrity() : { enabled: false }
   });
 });
 
@@ -288,6 +310,11 @@ api.get('/content/:unitId/:slot', async (req, res) => {
     'Cache-Control': req.query.v ? 'public, max-age=300, s-maxage=31536000, immutable' : 'public, max-age=60, s-maxage=60',
     'X-Frame-Options': 'SAMEORIGIN'
   });
+  // ?download=1: the portal's Download button saves the original page as a file (without the activity ping).
+  if (req.query.download) {
+    res.set('Content-Disposition', `attachment; filename="${String(unitId).replace(/[^A-Za-z0-9._-]/g, '')}-${slot}.html"`);
+    return res.send(r.body);
+  }
   res.send(withActivityPing(r.body));
 });
 // The sandboxed page tells the portal when the student clicks, types, scrolls or moves the mouse inside it
@@ -505,6 +532,10 @@ adm.post('/users/:roll/status', async (req, res) => {
   await audit(req, status === 'disabled' ? 'user.disabled' : 'user.enabled', roll);
   res.json({ ok: true });
 });
+
+// ---------- integrity flags (coding practice honeypots) and video likes
+adm.get('/integrity', async (req, res) => res.json(await listFlags({ type: req.query.type, from: req.query.from, to: req.query.to, roll: req.query.roll ? normRoll(req.query.roll) : '' })));
+adm.get('/likes', async (req, res) => res.json(await likesAnalytics()));
 
 // ---------- student photographs (accounts and registration requests)
 adm.get('/photos/student/:roll', async (req, res) => sendPhoto(res, await studentPhoto(normRoll(req.params.roll))));
