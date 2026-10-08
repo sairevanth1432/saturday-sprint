@@ -572,7 +572,10 @@ replaceOnce('</head>', `<style>
 
 // Coding practice honeypots: hidden trap line and watermark in the question text, invisible bot field by Submit
 replaceOnce('<div style="font-size: 15px; line-height: 1.6; color: #DADADA; white-space: pre-wrap">{{ ws.text }}</div>',
-  '<div style="font-size: 15px; line-height: 1.6; color: #DADADA; white-space: pre-wrap">{{ ss.hp.a }}<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hp.trap }}</span>{{ ss.hp.b }}</div>', 'question trap');
+  '<div style="font-size: 15px; line-height: 1.6; color: #DADADA; white-space: pre-wrap"><span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hp.trap }}</span>{{ ss.hp.a }}<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hp.trap }}</span>{{ ss.hp.b }}<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hp.trap }}</span></div>', 'question trap');
+// the Practice tab's coding card shows the question text too: same hidden line (start, middle and end)
+replaceOnce('<div style="font-size: 16px; line-height: 1.6; color: #BDBDBD; white-space: pre-wrap; max-height: 260px; overflow-y: auto">{{ pq.ckText }}</div>',
+  '<div style="font-size: 16px; line-height: 1.6; color: #BDBDBD; white-space: pre-wrap; max-height: 260px; overflow-y: auto"><span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hpc.trap }}</span>{{ ss.hpc.a }}<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hpc.trap }}</span>{{ ss.hpc.b }}<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ ss.hpc.trap }}</span></div>', 'practice card trap');
 replaceOnce('<sc-if value="{{ ws.canSubmit }}" hint-placeholder-val="{{ true }}"><button class="b3" onClick="{{ ws.submit }}"',
   '<input id="ss-hp-field" type="text" name="website" tabindex="-1" aria-hidden="true" autocomplete="off" style="position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; opacity: 0">' +
   '<sc-if value="{{ ws.canSubmit }}" hint-placeholder-val="{{ true }}"><button class="b3" onClick="{{ ws.submit }}"', 'bot field');

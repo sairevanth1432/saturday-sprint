@@ -740,12 +740,24 @@
     // Question text split around the hidden trap line; the watermark (NIAT ID in zero-width characters) goes after
     // the first word and into the trap line.
     ssHoneypot(v) {
-      var text = v.ws ? String(v.ws.text || '') : '', I = this.ss.integrity || {}, U = this.ss.user;
+      var text = v.ws ? String(v.ws.text || '') : '';
       var q = this.state.tab === 'code' ? this.ssCurQuestion() : null;
-      if (!q || !I.enabled) return { a: text, trap: '', b: '' };
-      this._hpQid = q.id;
-      var M = this.ssHpMetrics(q.id);
-      if (!M.openedAt) M.openedAt = Date.now();
+      if (q && (this.ss.integrity || {}).enabled) {
+        this._hpQid = q.id;
+        var M = this.ssHpMetrics(q.id);
+        if (!M.openedAt) M.openedAt = Date.now();
+      }
+      return this.ssTrapText(text, q);
+    }
+    // The Practice tab's coding card (pq.ckText): the same hidden line, for the question it shows.
+    ssHoneypotCard(v) {
+      var pq = v.pq || {}, text = String(pq.ckText || '');
+      var q = pq.ckTitle ? (this.ccbpCoding || []).find(function (p) { return p.title === pq.ckTitle; }) : null;
+      return this.ssTrapText(text, q || null);
+    }
+    ssTrapText(text, q) {
+      var I = this.ss.integrity || {}, U = this.ss.user;
+      if (!q || !I.enabled || !text) return { a: text, trap: '', b: '' };
       var wm = I.watermark ? zwEncode(U.kind === 'student' ? U.rollNo : 'ADMIN-' + (U.email || '')) : '';
       var i = text.indexOf('\n\n'), cut = i > 0 ? i : (text.indexOf('. ') > 0 ? text.indexOf('. ') + 1 : text.length);
       var a = text.slice(0, cut), b = text.slice(cut), sp = a.indexOf(' ');
@@ -1010,6 +1022,7 @@
         like: v.ss_like || { on: false },
         reel: { max: !!S.ssReelMax, cls: S.ssReelMax ? 'ss-reel-max' : '', close: function () { self.setState({ ssReelMax: false }); } },
         hp: this.ssHoneypot(v),
+        hpc: this.ssHoneypotCard(v),
         user: {
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),
           sub: U.kind === 'admin' ? (U.role === 'super_admin' ? 'super admin' : 'admin') + ' · preview' : U.rollNo + (U.batch ? ' · ' + U.batch : ''),
