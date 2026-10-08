@@ -29,7 +29,7 @@ import { recordActivity, recordStepEvents, businessMetrics, overview as analytic
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
-import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, importPractice } from './practiceq.js';
+import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, setArchivedMany, importPractice } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
 
@@ -560,6 +560,12 @@ adm.put('/practice-questions/:id', async (req, res) => {
   await updatePractice(req.params.id, req.body || {}, req.admin.email);
   await audit(req, 'practice.question_updated', req.params.id, null);
   res.json({ ok: true });
+});
+adm.post('/practice-questions/archive-many', async (req, res) => {
+  const on = (req.body || {}).archived !== false;
+  const n = await setArchivedMany((req.body || {}).ids, on);
+  await audit(req, on ? 'practice.questions_deleted' : 'practice.questions_restored', n + ' question(s)', null);
+  res.json({ ok: true, count: n });
 });
 adm.post('/practice-questions/:id/archive', async (req, res) => {
   const on = (req.body || {}).archived !== false;

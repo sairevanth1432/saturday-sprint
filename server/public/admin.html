@@ -1668,7 +1668,12 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('select', { onchange: function (e) { set('topic', e.target.value); } }, [['', 'All topics']].concat(allTopics.map(function (t) { return [t, t]; })).map(function (o) { return h('option', { value: o[0], selected: F.topic === o[0] ? true : null }, o[1]); })),
           h('select', { onchange: function (e) { set('kind', e.target.value); } }, [['', 'MCQ and coding'], ['mcq', 'MCQ'], ['code', 'Coding']].map(function (o) { return h('option', { value: o[0], selected: F.kind === o[0] ? true : null }, o[1]); })),
           h('select', { onchange: function (e) { set('status', e.target.value); } }, [['live', 'Live (students see them)'], ['draft', 'Drafts (incomplete, hidden)'], ['deleted', 'Deleted']].map(function (o) { return h('option', { value: o[0], selected: (F.status || 'live') === o[0] ? true : null }, o[1] + ' · ' + d.rows.filter(function (r) { return (r.archived ? 'deleted' : r.draft ? 'draft' : 'live') === o[0]; }).length); })),
-          h('span', { class: 'grow' }), pill(rows.length + ' question' + (rows.length === 1 ? '' : 's'), '')),
+          h('span', { class: 'grow' }), pill(rows.length + ' question' + (rows.length === 1 ? '' : 's'), ''),
+          rows.length > 1 ? h('button', { class: 'btn sm ' + (F.status === 'deleted' ? '' : 'bad'), type: 'button', onclick: function () {
+            var on = F.status !== 'deleted';
+            if (!confirm((on ? 'Delete all ' : 'Restore all ') + rows.length + ' questions shown?' + (on ? ' Students will not see them. Importing the files again brings them back.' : ''))) return;
+            api('POST', '/api/admin/practice-questions/archive-many', { ids: rows.map(function (r) { return r.id; }), archived: on }).then(function (r) { toast((on ? 'Deleted ' : 'Restored ') + r.count + ' questions.'); refresh(); }, fail);
+          } }, F.status === 'deleted' ? 'Restore all shown' : 'Delete all shown') : null),
         h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,
           h('thead', null, h('tr', null, ['Type', 'Course · Topic', 'Question', 'Added', ''].map(function (t) { return h('th', null, t); }))),
           h('tbody', null, rows.length ? rows.map(function (r) {
@@ -1679,7 +1684,9 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
               h('td', null, h('div', { class: 'row', style: 'gap:6px' }, r.archived ? h('button', { class: 'btn sm', type: 'button', onclick: function () { archive(r, false); } }, 'Restore')
                 : [h('button', { class: 'btn sm' + (r.draft ? ' pri' : ''), type: 'button', onclick: function () { form(r.kind, r); } }, r.draft ? 'Finish' : 'Edit'), h('button', { class: 'btn sm bad', type: 'button', onclick: function () { archive(r, true); } }, 'Delete')]),
                 r.draft && r.data.issues && r.data.issues.length ? h('div', { class: 'muted', style: 'font-size:12px;margin-top:6px;max-width:220px' }, 'Missing: ' + r.data.issues.join(', ')) : null));
-          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, F.status === 'deleted' ? 'No deleted questions.' : F.status === 'draft' ? 'No drafts.' : 'No questions yet. Use "Import JSON", "+ Add MCQ" or "+ Add coding question".'))))));
+          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, F.status === 'deleted' ? 'No deleted questions.' : F.status === 'draft' ? 'No drafts.'
+            : d.rows.some(function (r) { return r.draft && !r.archived; }) ? 'No live questions yet. ' + d.rows.filter(function (r) { return r.draft && !r.archived; }).length + ' imported question(s) are waiting in Drafts (choose "Drafts" above) until their options / test cases are added.'
+            : 'No questions yet. Use "Import JSON", "+ Add MCQ" or "+ Add coding question".'))))));
     });
   };
 

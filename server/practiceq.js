@@ -75,6 +75,13 @@ export async function updatePractice(id, b, by) {
   await run('UPDATE practice_questions SET course = ?, topic = ?, data = ?, draft = 0, updated_at = ?, updated_by = ? WHERE id = ?', v.course, v.topic, JSON.stringify(v.data), Date.now(), by || null, cur.id);
   await clearPracticeCache();
 }
+// Delete (archive) or restore many questions at once (Admin → Practice questions → "Delete all shown").
+export async function setArchivedMany(ids, archived) {
+  const list = (Array.isArray(ids) ? ids : []).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 5000);
+  for (const id of list) await run('UPDATE practice_questions SET archived = ?, updated_at = ? WHERE id = ?', archived ? 1 : 0, Date.now(), id);
+  await clearPracticeCache();
+  return list.length;
+}
 export async function setArchived(id, archived) {
   const r = await one('UPDATE practice_questions SET archived = ?, updated_at = ? WHERE id = ? RETURNING id', archived ? 1 : 0, Date.now(), Number(id));
   if (!r) throw new PracticeError('NOT_FOUND', 'Question not found.', 404);
@@ -107,7 +114,8 @@ export async function importPractice(files, { dry = true, drafts = true } = {}, 
   for (const p of plan) {
     if (p.action === 'skip') continue;
     const data = { ...p.data, srcId: p.srcId, issues: p.complete ? [] : p.issues };
-    if (p.action === 'update') await run('UPDATE practice_questions SET course = ?, topic = ?, data = ?, draft = ?, updated_at = ?, updated_by = ? WHERE id = ?', p.course, p.topic, JSON.stringify(data), p.complete ? 0 : 1, now, by || null, p.id);
+    // importing again also brings back questions that were deleted
+    if (p.action === 'update') await run('UPDATE practice_questions SET course = ?, topic = ?, data = ?, draft = ?, archived = 0, updated_at = ?, updated_by = ? WHERE id = ?', p.course, p.topic, JSON.stringify(data), p.complete ? 0 : 1, now, by || null, p.id);
     else await run('INSERT INTO practice_questions (kind, course, topic, data, archived, draft, src_id, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)',
       p.kind, p.course, p.topic, JSON.stringify(data), p.complete ? 0 : 1, p.srcId || null, now, now, by || null);
   }

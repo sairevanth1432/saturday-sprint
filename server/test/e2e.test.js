@@ -1238,6 +1238,13 @@ test('practice JSON import: stems come in as drafts, complete questions go live,
   assert.equal(again.body.summary.update, 2);
   assert.equal((await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.srcId).length, 5);
 
+  // delete many at once; importing again brings them back
+  const drafts = (await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.draft && !r.archived);
+  assert.equal((await ADM('POST', '/api/admin/practice-questions/archive-many', { ids: drafts.map((r) => r.id), archived: true })).body.count, drafts.length);
+  assert.equal((await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.draft && !r.archived).length, 0);
+  await ADM('POST', '/api/admin/practice-questions/import', { files: [files[0]], dry: false });
+  assert.equal((await ADM('GET', '/api/admin/practice-questions')).body.rows.filter((r) => r.draft && !r.archived).length, drafts.length);
+
   // finishing a draft in the editor publishes it
   const d1 = list.find((r) => r.srcId === 'qa1');
   assert.equal((await ADM('PUT', '/api/admin/practice-questions/' + d1.id, { course: 'pf', topic: 'Logical Operators', q: 'What will be the output?', code: 'print(not True)', o: ['True', 'False'], c: 1 })).status, 200);
