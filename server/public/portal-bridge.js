@@ -1045,7 +1045,17 @@
         if (tab === 'watch' && src.watch && U.kind === 'student') {
           var likedSet = S.ssLiked || {}, liked = !!likedSet[les.id], cnt = Math.max(0, (S.ssLikeN || {})[les.id] || 0);
           var lid = les.id;
-          v.ss_like = { on: true, liked: liked, count: String(cnt), fill: liked ? '#FF5A6E' : 'none', stroke: liked ? '#FF5A6E' : '#FFFFFF',
+          var burst = !!S.ssLikeBurst && Date.now() - S.ssLikeBurst < 850;
+          v.ss_like = { on: true, liked: liked, count: cnt ? String(cnt) : '', fill: liked ? '#FF3040' : 'none', stroke: liked ? '#FF3040' : '#FFFFFF',
+            cls: liked ? 'ss-like-pop' : '', burst: burst,
+            // double-click / double-tap on the video likes it (never unlikes), with a heart burst in the middle
+            dbl: function (e) {
+              if (e && e.preventDefault) e.preventDefault();
+              var t = Date.now();
+              self.setState({ ssLikeBurst: t });
+              setTimeout(function () { if (self.state.ssLikeBurst === t) self.setState({ ssLikeBurst: 0 }); }, 850);
+              if (!((self.state.ssLiked || {})[lid])) v.ss_like.toggle();
+            },
             label: (liked ? 'Unlike' : 'Like') + ' this video · ' + cnt + ' like' + (cnt === 1 ? '' : 's'),
             toggle: function () {
               var now = !((self.state.ssLiked || {})[lid]);
