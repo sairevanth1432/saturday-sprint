@@ -288,7 +288,8 @@ export async function nameLogin(req, res, rawRoll, rawName) {
   const m = await one('SELECT * FROM students_master WHERE roll_no = ?', roll);
   const given = nameKey(rawName);
   if (!given) throw new AuthError('BAD_NAME', 'Enter your name as it is in the student list.', 400);
-  if (!m || !m.active || nameKey(m.name) !== given) {
+  // A NIAT ID listed without a name accepts any name (the record stays as listed); otherwise the name must match.
+  if (!m || !m.active || (nameKey(m.name) && nameKey(m.name) !== given)) {
     throw new AuthError('BAD_LOGIN', 'That NIAT ID and name do not match the student list. Check the spelling, or ask your mentor.', 401);
   }
   let u = await one('SELECT * FROM users WHERE roll_no = ?', roll);

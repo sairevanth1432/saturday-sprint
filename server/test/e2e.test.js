@@ -501,6 +501,15 @@ test('photo update request: students of the chosen university with an older phot
   assert.equal((await ADM('GET', '/api/admin/imports')).body.photoUpdate, null);
 });
 
+test('simple login: a NIAT ID listed without a name accepts any name; the record keeps no name', async () => {
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES ('N26HY01A953', '', '', '', '', 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", Date.now());
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'N26HY01A953', name: '' })).body.error, 'BAD_NAME', 'a name is still required');
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'N26HY01A953', name: 'Any Name' })).status, 200);
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'N26HY01A953', name: 'another one' })).status, 200);
+  assert.equal((await db.one('SELECT name FROM students_master WHERE roll_no = ?', 'N26HY01A953')).name, '');
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'N26HY01A9999', name: 'Any Name' })).body.error, 'BAD_LOGIN', 'unknown IDs still fail');
+});
+
 test('units: 6 units, each ONE lesson with Watch → Play → Read; files are served by this server with seeking', async () => {
   const boot = await A('GET', '/api/bootstrap');
   assert.equal(boot.body.units.mode, 'replace');
