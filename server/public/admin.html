@@ -1605,7 +1605,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       d.rows.forEach(function (r) { (topics[r.course] = topics[r.course] || {})[r.topic] = 1; });
       var allTopics = Object.keys(topics).reduce(function (a, c) { return a.concat(Object.keys(topics[c])); }, []).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
       var rows = d.rows.filter(function (r) {
-        var st = r.archived ? 'deleted' : r.draft ? 'draft' : 'live';
+        var st = r.archived ? 'deleted' : r.draft ? 'draft' : r.inSprint ? 'sprint' : 'live';
         return (!F.course || r.course === F.course) && (!F.topic || r.topic === F.topic) && (!F.kind || r.kind === F.kind) && st === (F.status || 'live');
       });
       var set = function (k, v) { F[k] = v; refresh(); };
@@ -1733,7 +1733,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('select', { onchange: function (e) { set('course', e.target.value); } }, [['', 'All courses']].concat(Object.keys(C).map(function (k) { return [k, C[k]]; })).map(function (o) { return h('option', { value: o[0], selected: F.course === o[0] ? true : null }, o[1]); })),
           h('select', { onchange: function (e) { set('topic', e.target.value); } }, [['', 'All topics']].concat(allTopics.map(function (t) { return [t, t]; })).map(function (o) { return h('option', { value: o[0], selected: F.topic === o[0] ? true : null }, o[1]); })),
           h('select', { onchange: function (e) { set('kind', e.target.value); } }, [['', 'MCQ and coding'], ['mcq', 'MCQ'], ['code', 'Coding']].map(function (o) { return h('option', { value: o[0], selected: F.kind === o[0] ? true : null }, o[1]); })),
-          h('select', { onchange: function (e) { set('status', e.target.value); } }, [['live', 'Live (students see them)'], ['draft', 'Drafts (incomplete, hidden)'], ['deleted', 'Deleted']].map(function (o) { return h('option', { value: o[0], selected: (F.status || 'live') === o[0] ? true : null }, o[1] + ' · ' + d.rows.filter(function (r) { return (r.archived ? 'deleted' : r.draft ? 'draft' : 'live') === o[0]; }).length); })),
+          h('select', { onchange: function (e) { set('status', e.target.value); } }, [['live', 'Live (students see them)'], ['sprint', 'In a Sprint test (hidden from Practice)'], ['draft', 'Drafts (incomplete, hidden)'], ['deleted', 'Deleted']].map(function (o) { return h('option', { value: o[0], selected: (F.status || 'live') === o[0] ? true : null }, o[1] + ' · ' + d.rows.filter(function (r) { return (r.archived ? 'deleted' : r.draft ? 'draft' : 'live') === o[0]; }).length); })),
           h('span', { class: 'grow' }), pill(rows.length + ' question' + (rows.length === 1 ? '' : 's'), ''),
           rows.length > 1 ? h('button', { class: 'btn sm ' + (F.status === 'deleted' ? '' : 'bad'), type: 'button', onclick: function () {
             var on = F.status !== 'deleted';

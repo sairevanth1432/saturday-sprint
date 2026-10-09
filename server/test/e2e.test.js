@@ -1452,3 +1452,21 @@ test('every page script parses (a syntax error leaves the admin console or porta
   }
   assert.doesNotThrow(() => new vm.Script(fs.readFileSync(path.join(dir, 'portal-bridge.js'), 'utf8'), { filename: 'portal-bridge.js' }));
 });
+
+test('practice questions used in a Sprint test are hidden from Practice (no repeats), marked for admins', async () => {
+  const set = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'sprint-sets', 'sprint-2026-10-10.json'), 'utf8'));
+  const used = set.find((q) => q.src);
+  assert.ok(used, 'the set names its Practice questions');
+  const file = { track: 'Programming Foundations', session: 'Repeat Check', mcq_practice: [{ questions: [
+    { question_id: used.src, question_type: 'MULTIPLE_CHOICE', question_content: 'Used in the test?', options: ['Yes', 'No'], correct_answer: 'Yes' },
+    { question_id: 'not-in-any-set', question_type: 'MULTIPLE_CHOICE', question_content: 'Free to practise?', options: ['Yes', 'No'], correct_answer: 'Yes' }] }], coding_practice: [] };
+  const imp = await ADM('POST', '/api/admin/practice-questions/import', { files: [{ name: 'r.json', json: JSON.stringify(file) }], dry: false });
+  assert.equal(imp.status, 200, JSON.stringify(imp.body));
+  const rows = (await ADM('GET', '/api/admin/practice-questions')).body.rows;
+  assert.equal(rows.find((r) => r.srcId === used.src).inSprint, true);
+  assert.equal(rows.find((r) => r.srcId === 'not-in-any-set').inSprint, false);
+  await new Promise((r) => setTimeout(r, 11000)); // the portal list is cached for 10 s per instance
+  const mcq = (await A('GET', '/api/bootstrap')).body.practiceExtra.mcq;
+  assert.ok(!mcq.some((q) => q.q === 'Used in the test?'), 'hidden from students');
+  assert.ok(mcq.some((q) => q.q === 'Free to practise?' && q.sess === 'Repeat Check'));
+});

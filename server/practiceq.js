@@ -5,6 +5,26 @@
 import { one, all, run, parseJSON } from './db.js';
 import * as kv from './kv.js';
 import { parseImport } from './practice-import.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { config } from './config.js';
+
+// Questions used in a Sprint test are hidden from Practice, so students do not see them before the test.
+// A Sprint set question names its Practice question ("src", content/sprint-sets/*.json); questions with the same
+// text, code and options also count (a set copied by hand).
+const fp = (q, code, o) => [q, code, (o || []).slice().sort().join('|')].map((s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()).join('#');
+let sprintUse = null;
+function inSprintSets() {
+  if (sprintUse) return sprintUse;
+  const src = new Set(), prints = new Set(), dir = path.join(path.dirname(config.sprintTestFile), 'sprint-sets');
+  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => x.endsWith('.json')) : []) {
+    let set = [];
+    try { set = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch { /* checked at build */ }
+    for (const q of Array.isArray(set) ? set : []) { if (q.src) src.add(String(q.src)); if (q.type === 'mcq') prints.add(fp(q.q, q.code, q.o)); }
+  }
+  return (sprintUse = { src, prints });
+}
+export const usedInSprint = (r, d) => { const u = inSprintSets(); return (!!r.src_id && u.src.has(r.src_id)) || (r.kind === 'mcq' && u.prints.has(fp(d.q, d.code, d.o))); };
 
 export const PRACTICE_COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI', wad: 'Web Application Development' };
 export class PracticeError extends Error {
@@ -45,20 +65,21 @@ const CACHE = 'practiceq:v1';
 export const clearPracticeCache = () => kv.invalidate(CACHE);
 // For the portal: every question in creation order (archived ones as placeholders that Practice never shows).
 export const practiceExtra = () => kv.cached(CACHE, 30, async () => {
-  const rows = await all('SELECT id, kind, course, topic, data, archived, draft FROM practice_questions ORDER BY id');
+  const rows = await all('SELECT id, kind, course, topic, data, archived, draft, src_id FROM practice_questions ORDER BY id');
   const mcq = [], code = [];
   for (const r of rows) {
     const d = parseJSON(r.data, {}) || {};
-    if (r.kind === 'mcq') mcq.push(r.archived || r.draft ? { course: '', sess: '', q: '', o: [], c: 0, why: '', xid: Number(r.id) }
+    const hide = r.archived || r.draft || usedInSprint(r, d);
+    if (r.kind === 'mcq') mcq.push(hide ? { course: '', sess: '', q: '', o: [], c: 0, why: '', xid: Number(r.id) }
       : { course: r.course, sess: r.topic, q: d.q, code: d.code || undefined, o: d.o, c: d.c, why: d.why || '', xid: Number(r.id) });
-    else if (!r.archived && !r.draft) code.push({ id: 'x' + r.id, topic: r.topic, title: d.title, level: d.level, text: d.text, starter: d.starter || '', tests: d.tests });
+    else if (!hide) code.push({ id: 'x' + r.id, topic: r.topic, title: d.title, level: d.level, text: d.text, starter: d.starter || '', tests: d.tests });
   }
   return { mcq, code };
 }, { localMs: 10000 });
 
 export async function listPractice() {
   const rows = await all('SELECT * FROM practice_questions ORDER BY id DESC');
-  return rows.map((r) => ({ id: Number(r.id), kind: r.kind, course: r.course, topic: r.topic, archived: !!r.archived, draft: !!r.draft, srcId: r.src_id || '', data: parseJSON(r.data, {}),
+  return rows.map((r) => ({ id: Number(r.id), kind: r.kind, course: r.course, topic: r.topic, archived: !!r.archived, draft: !!r.draft, inSprint: usedInSprint(r, parseJSON(r.data, {}) || {}), srcId: r.src_id || '', data: parseJSON(r.data, {}),
     createdAt: r.created_at, updatedAt: r.updated_at, by: r.updated_by }));
 }
 export async function addPractice(kind, b, by) {
