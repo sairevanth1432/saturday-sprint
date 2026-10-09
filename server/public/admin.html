@@ -1184,6 +1184,16 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'soft', style: 'line-height:1.55' }, 'Upload the Excel sheet (.xlsx) or a CSV. Columns: ', h('b', null, 'NIAT ID'), ' (required), Student Name, University, Phone No., Email IDs, Section, User id (LMS). Only the first sheet is read.'),
             file, h('div', { class: 'muted' }, 'You will see a preview before anything changes.'))),
         result,
+        isSuper() ? (function () {
+          var pu = im.photoUpdate, sel = h('select', null, h('option', { value: '' }, 'All students'), (im.universities || []).filter(function (u) { return u.university; }).map(function (u) { return h('option', { value: u.university }, u.university); }));
+          return h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:10px' }, h('h2', { style: 'margin:0' }, 'Profile photos'),
+            h('div', { class: 'soft', style: 'line-height:1.55' }, 'Ask students to update their photo: those whose photo is older than the request (or who have none) see the photo screen on their next visit. Students without a photo are always asked.'),
+            pu ? h('div', { class: 'note' }, 'Requested ' + dt(pu.at) + ' for ' + (pu.university || 'all students') + '. ', h('a', { href: '#', onclick: function (e) { e.preventDefault(); api('POST', '/api/admin/photo-update', { cancel: true }).then(function () { toast('Request cancelled.'); refresh(); }, fail); } }, 'Cancel request')) : null,
+            h('div', { class: 'row' }, sel, h('button', { class: 'btn', onclick: function () {
+              if (!confirm('Ask ' + (sel.value || 'all students') + ' to update their photo?')) return;
+              api('POST', '/api/admin/photo-update', { university: sel.value }).then(function () { toast('Students will be asked on their next visit.'); refresh(); }, fail);
+            } }, 'Ask to update photo')));
+        })() : null,
         (im.universities || []).length ? h('div', { class: 'card' }, h('h2', null, 'Students by university'),
           uniTable(im.universities, [['active', 'In master list'], ['registered', 'Registered'], ['no_name', 'No name'], ['inactive', 'Inactive']])) : null,
         h('div', { class: 'card' }, h('h2', null, 'Import history'), im.rows.length ? h('table', null,
@@ -1890,7 +1900,16 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'field' }, h('label', null, 'Sprint ID (results are grouped by this)'), f.sprint_id),
             h('div', { class: 'field' }, h('label', null, 'Opens (' + tz + ')'), f.sprint_open),
             h('div', { class: 'field' }, h('label', null, 'Closes (' + tz + ')'), f.sprint_close),
-            h('div', { class: 'field' }, h('label', null, 'Duration per student (minutes)'), f.sprint_duration_min),
+            h('div', { class: 'field' }, h('label', null, 'Duration per student (minutes)'), f.sprint_duration_min,
+              (function () {
+                var hint = h('div', { class: 'muted', style: 'font-size:13px;line-height:1.5' });
+                var upd = function () {
+                  var c = new Date(f.sprint_close.value), m = Number(f.sprint_duration_min.value) || 0;
+                  hint.textContent = isNaN(c) || !m ? '' : 'The timer starts when each student clicks Start and the test is submitted automatically when it ends. Last start with the full ' + m + ' minutes: ' + dt(c.getTime() - m * 60000) + ' (later starts end at the close).';
+                };
+                f.sprint_close.addEventListener('input', upd); f.sprint_duration_min.addEventListener('input', upd); upd();
+                return hint;
+              })()),
             h('div', { class: 'field' }, h('label', null, 'Students see the answers review'), f.review_mode),
             h('div', { class: 'field' }, h('label', null, 'Pass mark (% of total marks, for Pass rate)'), f.pass_mark_pct),
             h('label', { class: 'row', style: 'margin-top:22px' }, f.leaderboard_visible, 'Leaderboard visible to students'),

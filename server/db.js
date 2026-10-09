@@ -5,6 +5,7 @@
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { config } from './config.js';
+import { UNIVERSITY_PREFIXES } from './universities.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS students_master (
@@ -354,7 +355,15 @@ async function open() {
 const txStore = new AsyncLocalStorage();
 let readyPromise = null;
 
+// Students listed before the University column (e.g. the first ALARD list) get their university from the NIAT ID prefix.
+const BACKFILL_UNIVERSITIES = UNIVERSITY_PREFIXES.map(([p, u]) =>
+  `UPDATE students_master SET university = '${u.replace(/'/g, "''")}' WHERE university = '' AND roll_no LIKE '${p}%';`).join('\n');
+export async function backfillUniversities() {
+  for (const [p, u] of UNIVERSITY_PREFIXES) await query("UPDATE students_master SET university = ? WHERE university = '' AND roll_no LIKE ?", [u, p + '%']);
+}
+
 // Connect and create tables once per process. Safe with many serverless instances (advisory lock).
+
 export function ready() {
   if (!readyPromise) {
     readyPromise = (async () => {
@@ -363,9 +372,11 @@ export function ready() {
         await backend.transaction(async (c) => {
           await c.query('SELECT pg_advisory_xact_lock(72631001)');
           await c.query(SCHEMA);
+          await c.query(BACKFILL_UNIVERSITIES);
         });
       } else {
         await backend.exec(SCHEMA);
+        await backend.exec(BACKFILL_UNIVERSITIES);
       }
       return backend;
     })().catch((e) => { readyPromise = null; throw e; });

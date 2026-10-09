@@ -475,6 +475,32 @@ test('archives: "Sprint 1" keeps a frozen copy of students, results and analyses
   assert.match(st.text, /N26HY03A999,.*Prefix Geeta,Geeta University - Panipat/);
 });
 
+test('photo update request: students of the chosen university with an older photo are asked again; others are not', async () => {
+  const now = Date.now();
+  for (const [r, n] of [['N26P02A0977', 'Alard Photo'], ['N26H01A0977', 'Cdu Photo']]) {
+    await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, '', '', '', 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", r, n, now);
+  }
+  // listed without a university: the start-up backfill fills it from the NIAT ID
+  await db.backfillUniversities();
+  assert.equal((await db.one('SELECT university FROM students_master WHERE roll_no = ?', 'N26P02A0977')).university, 'ALARD - Pune');
+  const al = client(), cd = client();
+  const lg = await al('POST', '/api/auth/name-login', { rollNo: 'n26p02a0977', name: 'PHOTO alard' });
+  assert.equal(lg.status, 200, 'any case, any word order: ' + JSON.stringify(lg.body));
+  assert.equal((await cd('POST', '/api/auth/name-login', { rollNo: 'N26H01A0977', name: 'Cdu Photo' })).status, 200);
+  for (const c of [al, cd]) await c('PUT', '/api/me/photo', { photo: PHOTO });
+  assert.equal((await al('GET', '/api/bootstrap')).body.user.photoUpdate, false);
+  assert.equal((await A('POST', '/api/admin/photo-update', {})).status, 401);
+  assert.equal((await ADM('POST', '/api/admin/photo-update', { university: 'ALARD - Pune' })).status, 200);
+  assert.equal((await al('GET', '/api/bootstrap')).body.user.photoUpdate, true, 'Alard students with an older photo are asked');
+  assert.equal((await cd('GET', '/api/bootstrap')).body.user.photoUpdate, false, 'other universities are not');
+  await new Promise((r) => setTimeout(r, 5));
+  await al('PUT', '/api/me/photo', { photo: PHOTO });
+  assert.equal((await al('GET', '/api/bootstrap')).body.user.photoUpdate, false, 'asked once: a new photo clears it');
+  assert.equal((await ADM('GET', '/api/admin/imports')).body.photoUpdate.university, 'ALARD - Pune');
+  await ADM('POST', '/api/admin/photo-update', { cancel: true });
+  assert.equal((await ADM('GET', '/api/admin/imports')).body.photoUpdate, null);
+});
+
 test('units: 6 units, each ONE lesson with Watch → Play → Read; files are served by this server with seeking', async () => {
   const boot = await A('GET', '/api/bootstrap');
   assert.equal(boot.body.units.mode, 'replace');

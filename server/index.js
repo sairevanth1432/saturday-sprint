@@ -144,6 +144,15 @@ api.get('/me', who, (req, res) => {
 });
 
 // The student's photograph: required before the portal opens (see public/portal-bridge.js), changeable later.
+// An admin can ask students (all, or one university) to update it: students whose photo is older than the request
+// see the photo screen again on their next visit (Admin → Master data → Profile photos).
+async function photoUpdateDue(roll, photoAt) {
+  const r = await getSetting('photo_update_request', null);
+  if (!r || !r.at || (photoAt && photoAt >= r.at)) return false;
+  if (!r.university) return true;
+  const m = await one('SELECT university FROM students_master WHERE roll_no = ?', roll);
+  return !!m && (m.university || universityOf(roll)) === r.university;
+}
 api.get('/me/photo', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.status(404).end();
   sendPhoto(res, await studentPhoto(req.who.roll_no));
@@ -205,7 +214,7 @@ api.get('/bootstrap', who, async (req, res) => {
   ]);
   res.json({
     serverNow: Date.now(),
-    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, photoAt }
+    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, photoAt, photoUpdate: await photoUpdateDue(w.roll_no, photoAt) }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
       preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id), previewOf: sprint.previewOf || null },
@@ -776,13 +785,22 @@ adm.get('/leaderboard', async (req, res) => {
 });
 
 // ---------- master data
+adm.post('/photo-update', requireSuper, async (req, res) => {
+  const b = req.body || {};
+  if (b.cancel) { await setSetting('photo_update_request', null); await audit(req, 'photos.update_cancelled', null); return res.json({ ok: true }); }
+  const r = { at: Date.now(), university: String(b.university || '').slice(0, 160), by: req.admin.email };
+  await setSetting('photo_update_request', r);
+  await audit(req, 'photos.update_requested', r.university || 'all students', r);
+  res.json({ ok: true, request: r });
+});
 adm.get('/imports', async (req, res) => {
   res.json({ studentsFile: config.isVercel ? null : studentsFilePath(), exists: !config.isVercel && fs.existsSync(studentsFilePath()), vercel: config.isVercel,
     rows: (await all('SELECT * FROM imports ORDER BY id DESC LIMIT 50')).map((r) => ({ ...r, errors: parseJSON(r.errors, {}) })),
     // the master list split by university (students without one are grouped under '')
     universities: await all(`SELECT m.university, SUM(CASE WHEN m.active = 1 THEN 1 ELSE 0 END) AS active, SUM(CASE WHEN m.active = 0 THEN 1 ELSE 0 END) AS inactive,
       COUNT(u.roll_no) AS registered, SUM(CASE WHEN m.active = 1 AND m.name = '' THEN 1 ELSE 0 END) AS no_name
-      FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no GROUP BY m.university ORDER BY active DESC, m.university`) });
+      FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no GROUP BY m.university ORDER BY active DESC, m.university`),
+    photoUpdate: await getSetting('photo_update_request', null) });
 });
 adm.post('/import/preview', async (req, res) => {
   const r = readStudents(await rowsFrom(req.body));

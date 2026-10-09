@@ -1336,6 +1336,7 @@
       '</div></div>';
     var $ = function (k) { return app.querySelector('[data-k="' + k + '"]'); };
     var first = String(B.user.name || '').trim().split(/\s+/)[0];
+    if (B.user.photoAt) app.querySelector('[style*="Silkscreen"]').textContent = 'Update your photograph';
     $('hello').textContent = (first ? 'Hi ' + first + '. ' : '') + 'Add a clear, recent photo of your face. It appears on your profile and helps mentors recognise you. You can change it later by clicking it in the sidebar.';
     var say = function (t) { var m = $('msg'); m.textContent = t || ''; m.style.display = t ? 'block' : 'none'; };
     var ready = function (on) { var b = $('save'); b.disabled = !on; b.style.background = on ? '#FFE45C' : '#262626'; b.style.color = on ? '#050505' : '#8A8A8A'; b.style.cursor = on ? 'pointer' : 'not-allowed'; };
@@ -1361,6 +1362,6 @@
     window.__ssBoot = B;
     var boot = function () { bootPortal(SprintPortal, { testMode: B.sprint.preview ? 'preview-open' : 'auto' }); };
     var testRunning = B.attempt && B.attempt.status === 'running';
-    if (B.user.kind === 'student' && !B.user.photoAt && !testRunning && window.SSPhoto) photoGate(B, boot); else boot();
+    if (B.user.kind === 'student' && (!B.user.photoAt || B.user.photoUpdate) && !testRunning && window.SSPhoto) photoGate(B, boot); else boot();
   }, function (e) { if (e.code !== 'AUTH') fail(e.message); });
 })();
