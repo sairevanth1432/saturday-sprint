@@ -6,7 +6,9 @@ import { config } from './config.js';
 import { one, all, run, getSetting, setSetting, parseJSON } from './db.js';
 import * as kv from './kv.js';
 import { runTests } from './grader.js';
-import { maskRoll } from './security.js';
+import crypto from 'node:crypto';
+import { maskRoll, photoToken } from './security.js';
+import { universityOf } from './universities.js';
 
 // Marks per question type. MCQ: 1 each. Coding: partial credit by hidden tests passed.
 // Written problems ("reviewed by panel"): awarded by an admin, 0..MARKS.text each.
@@ -148,12 +150,24 @@ async function writeDraft(a, answers) {
   await run('UPDATE attempts SET draft = ?, updated_at = ? WHERE id = ? AND status = ?', JSON.stringify(answers), Date.now(), a.id, 'running');
 }
 
+// Each student sees the questions, and each question's options, in their own fixed random order (seeded by the attempt).
+// The portal shows that order and sends answers back in the original numbering, so storage and grading never change.
+export function attemptOrder(a, qs) {
+  let s = crypto.createHash('sha256').update(`${a.sprint_id}|${a.roll_no}|${a.started_at}`).digest().readUInt32LE(0);
+  const rnd = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const shuffle = (n) => { const x = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
+  return { order: shuffle(qs.length), optOrder: qs.map((q) => (q.type === 'mcq' ? shuffle(q.o.length) : null)) };
+}
+
 export async function attemptView(a, { withQuestions = false } = {}) {
   if (!a) return { status: 'none' };
   const v = { status: a.status, startedAt: a.started_at, deadlineAt: a.deadline_at };
   if (a.status === 'running') {
     v.draft = await readDraft(a);
-    if (withQuestions) v.questions = await publicQuestions(a.sprint_id);
+    if (withQuestions) {
+      v.questions = await publicQuestions(a.sprint_id);
+      Object.assign(v, attemptOrder(a, v.questions));
+    }
   } else {
     v.submittedAt = a.submitted_at;
     v.result = resultView(a);
@@ -343,74 +357,89 @@ export const RANK_RULE = 'Ranked by total score (high to low). Ties are broken b
 const ELIGIBLE = `a.sprint_id = ? AND a.status = 'submitted' AND m.active = 1 AND (u.status IS NULL OR u.status = 'active')` +
   (config.isLive ? ` AND m.batch <> 'TEST'` : '');
 const FROM = `FROM attempts a JOIN students_master m ON m.roll_no = a.roll_no LEFT JOIN users u ON u.roll_no = a.roll_no`;
+// Boards are per Sprint and, for students, per university: students are ranked among their own university only.
+// university null = everyone; '' = students without a university.
+const uniWhere = (university) => (university == null ? '' : ' AND m.university = ?');
+const uniArgs = (university) => (university == null ? [] : [university]);
 
 // Full ranked list (admin views, exports).
-export async function leaderboardRows(sprintId, limit = 100000) {
-  return all(`SELECT a.id, a.roll_no, m.name, m.batch, a.total, a.max_total, a.used_ms, a.submitted_at, a.mcq_score, a.code_score, a.text_score, a.text_reviewed,
+export async function leaderboardRows(sprintId, limit = 100000, university = null) {
+  return all(`SELECT a.id, a.roll_no, m.name, m.batch, m.university, (SELECT p.updated_at FROM student_photos p WHERE p.roll_no = a.roll_no) AS photo_at,
+           a.total, a.max_total, a.used_ms, a.submitted_at, a.mcq_score, a.code_score, a.text_score, a.text_reviewed,
            RANK() OVER (ORDER BY a.total DESC, (a.used_ms / 1000) ASC) AS rank
-    ${FROM} WHERE ${ELIGIBLE} ORDER BY rank ASC, a.submitted_at ASC LIMIT ?`, sprintId, limit);
+    ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)} ORDER BY rank ASC, a.submitted_at ASC LIMIT ?`, sprintId, ...uniArgs(university), limit);
 }
 
 const publicRow = (r, meRoll) => ({
-  rank: r.rank, name: r.name || 'Student', id: maskRoll(r.roll_no), batch: r.batch, score: r.total, maxTotal: r.max_total,
-  usedMs: r.used_ms, me: r.roll_no === meRoll
+  rank: r.rank, name: r.name || 'Student', id: maskRoll(r.roll_no), batch: r.batch, university: r.university || '', score: r.total, maxTotal: r.max_total,
+  usedMs: r.used_ms, me: r.roll_no === meRoll, photo: r.photo_at ? '/api/board-photo/' + photoToken(r.roll_no) + '?v=' + r.photo_at : ''
 });
 
-const boardKey = (sprintId) => 'lb:v1:' + sprintId;
+const boardKey = (sprintId, university) => 'lb:v2:' + sprintId + '|' + (university == null ? '*' : university);
 export async function clearBoardCache() {
   const s = await getSprint();
-  await kv.invalidate(boardKey(s.id));
+  const unis = (await all('SELECT DISTINCT university FROM students_master')).map((r) => r.university);
+  await Promise.all([null, ...unis].map((u) => kv.invalidate(boardKey(s.id, u))));
   myRank.clear();
 }
 
 // Top of the board: computed at most once per 5 s across all instances (Redis), ~free per request.
-async function boardTop(sprintId) {
-  return kv.cached(boardKey(sprintId), 5, async () => {
+async function boardTop(sprintId, university) {
+  return kv.cached(boardKey(sprintId, university), 5, async () => {
     const [rows, cnt] = await Promise.all([
-      leaderboardRows(sprintId, 100),
-      one(`SELECT COUNT(*) AS n ${FROM} WHERE ${ELIGIBLE}`, sprintId)
+      leaderboardRows(sprintId, 100, university),
+      one(`SELECT COUNT(*) AS n ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)}`, sprintId, ...uniArgs(university))
     ]);
-    return { rows: rows.map((r) => ({ rank: r.rank, roll_no: r.roll_no, name: r.name, batch: r.batch, total: r.total, max_total: r.max_total, used_ms: r.used_ms })), participants: cnt.n, at: Date.now() };
+    return { rows: rows.map((r) => ({ rank: r.rank, roll_no: r.roll_no, name: r.name, batch: r.batch, university: r.university, photo_at: r.photo_at, total: r.total, max_total: r.max_total, used_ms: r.used_ms })),
+      participants: Number(cnt.n), at: Date.now() };
   });
 }
 
 // One student's rank without loading the whole board (cached per instance for 10 s).
 const myRank = new Map();
-async function rankOf(sprintId, roll) {
-  const k = sprintId + '|' + roll, hit = myRank.get(k);
+async function rankOf(sprintId, roll, university) {
+  const k = sprintId + '|' + roll + '|' + university, hit = myRank.get(k);
   if (hit && Date.now() - hit.at < 10000) return hit.v;
-  const me = await one(`SELECT a.roll_no, m.name, m.batch, a.total, a.max_total, a.used_ms ${FROM} WHERE ${ELIGIBLE} AND a.roll_no = ?`, sprintId, roll);
+  const me = await one(`SELECT a.roll_no, m.name, m.batch, m.university, (SELECT p.updated_at FROM student_photos p WHERE p.roll_no = a.roll_no) AS photo_at, a.total, a.max_total, a.used_ms
+    ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)} AND a.roll_no = ?`, sprintId, ...uniArgs(university), roll);
   let v = null;
   if (me) {
-    const ahead = await one(`SELECT COUNT(*) AS n ${FROM} WHERE ${ELIGIBLE} AND (a.total > ? OR (a.total = ? AND (a.used_ms / 1000) < ?))`,
-      sprintId, me.total, me.total, Math.floor(me.used_ms / 1000));
-    v = { ...me, rank: ahead.n + 1 };
+    const ahead = await one(`SELECT COUNT(*) AS n ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)} AND (a.total > ? OR (a.total = ? AND (a.used_ms / 1000) < ?))`,
+      sprintId, ...uniArgs(university), me.total, me.total, Math.floor(me.used_ms / 1000));
+    v = { ...me, rank: Number(ahead.n) + 1 };
   }
   if (myRank.size > 50000) myRank.clear();
   myRank.set(k, { at: Date.now(), v });
   return v;
 }
 
-// Until the current Sprint has its first result, the board shows the latest Sprint that has results (labelled as such),
-// so students never see an empty leaderboard between Sprints. Every Sprint's results stay in the database.
-async function boardSprintId(currentId) {
-  return kv.cached('lb:latest:' + currentId, 30, async () => {
-    const r = await one(`SELECT a.sprint_id FROM attempts a WHERE a.status = 'submitted' AND a.roll_no NOT LIKE 'ADMIN-%'
-      GROUP BY a.sprint_id ORDER BY MAX(a.submitted_at) DESC LIMIT 1`);
-    return r ? r.sprint_id : currentId;
-  }, { localMs: 15000 });
+// Sprints that have results (newest first), for the Sprint picker on the board.
+export async function boardSprints(university = null) {
+  return kv.cached('lb:sprints:' + (university == null ? '*' : university), 30, async () =>
+    (await all(`SELECT a.sprint_id, COUNT(*) AS n, MAX(a.submitted_at) AS last ${FROM} WHERE a.status = 'submitted' AND a.roll_no NOT LIKE 'ADMIN-%'${uniWhere(university)}
+      GROUP BY a.sprint_id ORDER BY MAX(a.submitted_at) DESC`, ...uniArgs(university))).map((r) => ({ id: r.sprint_id, participants: Number(r.n) })), { localMs: 15000 });
 }
-export async function leaderboard(meRoll, limit = 50) {
+export async function studentUniversity(roll) {
+  const m = await one('SELECT university FROM students_master WHERE roll_no = ?', roll);
+  return (m && m.university) || universityOf(roll);
+}
+
+// Students see their own university's board. Until the current Sprint has its first result, the board shows the latest
+// Sprint that has results (labelled as such), so it is never empty between Sprints. Every Sprint's results are kept.
+export async function leaderboard(meRoll, limit = 50, { sprintId = '', university = null } = {}) {
   const sprint = await getSprint();
-  let id = sprint.id, top = await boardTop(id);
-  if (!top.participants) {
-    const prev = await boardSprintId(sprint.id);
-    if (prev !== id) { const t = await boardTop(prev); if (t.participants) { id = prev; top = t; } }
+  const sprints = await boardSprints(university);
+  let id = sprintId && sprints.some((s) => s.id === sprintId) ? sprintId : sprint.id, top = await boardTop(id, university);
+  if (!sprintId && !top.participants && sprints.length && sprints[0].id !== id) {
+    const t = await boardTop(sprints[0].id, university);
+    if (t.participants) { id = sprints[0].id; top = t; }
   }
-  const mine = meRoll ? await rankOf(id, meRoll) : null;
+  const mine = meRoll ? await rankOf(id, meRoll, university) : null;
   const previous = id !== sprint.id;
+  const list = sprints.some((s) => s.id === sprint.id) ? sprints : [{ id: sprint.id, participants: 0 }].concat(sprints);
   return {
-    sprintId: id, previous, title: previous ? 'Last Sprint results (' + id + ')' : sprint.title, rule: RANK_RULE, participants: top.participants, updatedAt: top.at,
+    sprintId: id, previous, title: previous ? (sprintId ? 'Sprint results (' : 'Last Sprint results (') + id + ')' : sprint.title, rule: RANK_RULE, participants: top.participants, updatedAt: top.at,
+    university: university || '', sprints: list.map((s) => ({ id: s.id, current: s.id === sprint.id, participants: s.participants })),
     rows: top.rows.slice(0, limit).map((r) => publicRow(r, meRoll)),
     me: mine ? publicRow(mine, meRoll) : null
   };

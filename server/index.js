@@ -14,11 +14,11 @@ import {
   approveRequest, rejectRequest, changeAccountPhone, passwordLogin, setStudentPassword, resetStudentPassword, nameLogin, loginMode,
   adminPasswordLogin, adminTotpLogin, finishTotpSetup, listSessions, forgetSessions
 } from './auth.js';
-import { normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
+import { rollFromPhotoToken, normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
 import { readStudents, rowsFrom, importStudents, syncStudentsFile, watchStudentsFile, studentsFilePath, studentCounts, logImport } from './students.js';
 import {
   SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
-  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, clearBoardCache, readDraft, MARKS, RANK_RULE
+  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, boardSprints, studentUniversity, clearBoardCache, readDraft, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
@@ -31,7 +31,7 @@ import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS }
 import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
 import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, setArchivedMany, importPractice } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
-import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
+import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -286,13 +286,20 @@ async function maybeFinalize() {
   if (await kv.setNX('lock:finalize', '1', 20)) await finalizeExpired({ limit: 50, budgetMs: 5000 }).catch((e) => console.error('[sprint]', e.message));
 }
 
+// Photos on the leaderboard (logged-in users only; the link does not show the NIAT ID).
+api.get('/board-photo/:token', who, async (req, res) => {
+  const roll = rollFromPhotoToken(req.params.token);
+  sendPhoto(res, roll ? await studentPhoto(roll) : null);
+});
 api.get('/leaderboard', who, async (req, res) => {
   noStore(res);
   const sprint = await getSprint();
   if (!sprint.leaderboardVisible && req.who.kind !== 'admin') return res.json({ hidden: true, rows: [], me: null, rule: RANK_RULE, participants: 0 });
   await maybeFinalize();
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-  res.json(await leaderboard(req.who.kind === 'student' ? req.who.roll_no : null, limit));
+  // students: their own university's board; admins previewing the portal: everyone
+  const university = req.who.kind === 'student' ? await studentUniversity(req.who.roll_no) : null;
+  res.json(await leaderboard(req.who.kind === 'student' ? req.who.roll_no : null, limit, { sprintId: String(req.query.sprint || ''), university }));
 });
 
 api.put('/progress', who, async (req, res) => {
@@ -609,6 +616,17 @@ adm.get('/photos/student/:roll', async (req, res) => {
   if (req.query.download) res.set('Content-Disposition', `attachment; filename="${roll}.jpg"`);
   sendPhoto(res, await studentPhoto(roll));
 });
+// Photos as ZIP files (one university, or everyone), in parts small enough for one response each.
+adm.get('/photos/parts', async (req, res) => res.json({ parts: await photoParts(String(req.query.university || '')) }));
+adm.get('/photos/zip', async (req, res) => {
+  const uni = String(req.query.university || ''), first = normRoll(req.query.first), last = normRoll(req.query.last);
+  if (!first || !last) return res.status(400).json({ error: 'BAD_RANGE', message: 'Choose a part.' });
+  const zip = await photosZip(uni, first, last);
+  await audit(req, 'photos.downloaded', uni || 'all students', { first, last });
+  const label = (uni || 'all-students').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  res.set({ 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="photos-${label}-${first}-${last}.zip"`, 'Cache-Control': 'no-store' });
+  res.send(zip);
+});
 // An admin changes a student's photo (the student sees the new one in the portal).
 adm.put('/photos/student/:roll', async (req, res) => {
   const roll = normRoll(req.params.roll);
@@ -793,7 +811,10 @@ adm.delete('/attempts/:id', requireSuper, async (req, res) => {
 adm.get('/leaderboard', async (req, res) => {
   await maybeFinalize();
   const sprint = await getSprint();
-  res.json({ rule: RANK_RULE, sprint, rows: await leaderboardRows(String(req.query.sprint || sprint.id), 20000) });
+  const university = req.query.university === undefined || req.query.university === '*' ? null : String(req.query.university);
+  const universities = (await all("SELECT DISTINCT university FROM students_master WHERE university <> '' ORDER BY university")).map((r) => r.university);
+  res.json({ rule: RANK_RULE, sprint, sprints: await boardSprints(null), universities, university, sprintId: String(req.query.sprint || sprint.id),
+    rows: await leaderboardRows(String(req.query.sprint || sprint.id), 20000, university) });
 });
 
 // ---------- master data

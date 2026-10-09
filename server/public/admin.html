@@ -604,14 +604,24 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   }
 
   // ---------- leaderboard
+  CACHE.lb = { sprint: '', university: '*' };
   VIEWS.leaderboard = function () {
-    return api('GET', '/api/admin/leaderboard').then(function (b) {
+    var F = CACHE.lb;
+    return api('GET', '/api/admin/leaderboard?sprint=' + encodeURIComponent(F.sprint) + '&university=' + encodeURIComponent(F.university)).then(function (b) {
+      var sprints = (b.sprints || []).map(function (s) { return s.id; });
+      if (sprints.indexOf(b.sprint.id) < 0) sprints.unshift(b.sprint.id);
+      var filters = h('div', { class: 'toolbar' },
+        h('select', { onchange: function () { F.sprint = this.value; refresh(); } }, sprints.map(function (id) { return h('option', { value: id, selected: id === b.sprintId ? true : null }, id + (id === b.sprint.id ? ' (current)' : '')); })),
+        h('select', { onchange: function () { F.university = this.value; refresh(); } }, [h('option', { value: '*' }, 'All universities')].concat((b.universities || []).map(function (u) { return h('option', { value: u, selected: F.university === u ? true : null }, u); }))));
       return h('div', null, header('~/admin/leaderboard', 'Leaderboard', b.rule,
         [b.sprint.leaderboardVisible ? pill('visible to students', 'ok') : pill('hidden from students', 'bad'), h('button', { class: 'btn', onclick: refresh }, 'Refresh'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/results.csv'); } }, 'Export CSV')]),
+        filters,
         h('div', { class: 'tablewrap' }, h('table', null,
-          h('thead', null, h('tr', null, ['Rank', 'NIAT ID', 'Name', 'Batch', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t); }))),
+          h('thead', null, h('tr', null, ['Rank', 'NIAT ID', 'Name', 'University', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t); }))),
           h('tbody', null, b.rows.length ? b.rows.map(function (r) {
-            return h('tr', { class: 'click', onclick: function () { openAttempt(r.id, refresh); } }, h('td', { class: 'mono', style: r.rank <= 3 ? 'color:var(--accent)' : null }, '#' + r.rank), h('td', { class: 'mono' }, r.roll_no), h('td', null, r.name), h('td', null, r.batch || '–'),
+            return h('tr', { class: 'click', onclick: function () { openAttempt(r.id, refresh); } }, h('td', { class: 'mono', style: r.rank <= 3 ? 'color:var(--accent)' : null }, '#' + r.rank), h('td', { class: 'mono' }, r.roll_no),
+              h('td', null, h('div', { class: 'row', style: 'gap:8px;justify-content:flex-start;flex-wrap:nowrap' }, photo(r.photo_at ? '/api/admin/photos/student/' + encodeURIComponent(r.roll_no) + '?v=' + r.photo_at : null, 32), r.name || '–')),
+              h('td', null, r.university || r.batch || '–'),
               h('td', { class: 'num mono' }, sc(r.mcq_score)), h('td', { class: 'num mono' }, sc(r.code_score)), h('td', { class: 'num' }, r.text_reviewed ? h('span', { class: 'mono' }, sc(r.text_score)) : pill('to mark', 'warn')),
               h('td', { class: 'num mono', style: 'color:var(--accent)' }, sc(r.total) + '/' + sc(r.max_total)), h('td', { class: 'num mono' }, mmss(r.used_ms)), h('td', { class: 'muted' }, dt(r.submitted_at)));
           }) : h('tr', null, h('td', { colspan: 10, class: 'muted' }, 'No submissions yet.'))))));
@@ -1203,7 +1213,22 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'row' }, sel, h('button', { class: 'btn', onclick: function () {
               if (!confirm('Ask ' + (sel.value || 'all students') + ' to update their photo?')) return;
               api('POST', '/api/admin/photo-update', { university: sel.value }).then(function () { toast('Students will be asked on their next visit.'); refresh(); }, fail);
-            } }, 'Ask to update photo')));
+            } }, 'Ask to update photo')),
+            (function () {
+              var usel = h('select', null, h('option', { value: '' }, 'All students'), (im.universities || []).filter(function (u) { return u.university; }).map(function (u) { return h('option', { value: u.university }, u.university); }));
+              var out = h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' });
+              return h('div', { style: 'display:flex;flex-direction:column;gap:8px;margin-top:6px' }, h('div', { class: 'soft' }, 'Download photos (ZIP, one file per student named by NIAT ID; large lists come in parts):'),
+                h('div', { class: 'row' }, usel, h('button', { class: 'btn', onclick: function () {
+                  out.replaceChildren(h('span', { class: 'muted' }, 'Counting…'));
+                  api('GET', '/api/admin/photos/parts?university=' + encodeURIComponent(usel.value)).then(function (d) {
+                    if (!d.parts.length) return out.replaceChildren(h('span', { class: 'muted' }, 'No photos yet.'));
+                    out.replaceChildren.apply(out, d.parts.map(function (p, i) {
+                      return h('button', { class: 'btn sm', onclick: function () { download('/api/admin/photos/zip?university=' + encodeURIComponent(usel.value) + '&first=' + encodeURIComponent(p.first) + '&last=' + encodeURIComponent(p.last)); } },
+                        'Part ' + (i + 1) + ' · ' + p.n + ' photos');
+                    }));
+                  }, fail);
+                } }, 'Show downloads')), out);
+            })());
         })() : null,
         (im.universities || []).length ? h('div', { class: 'card' }, h('h2', null, 'Students by university'),
           uniTable(im.universities, [['active', 'In master list'], ['registered', 'Registered'], ['no_name', 'No name'], ['inactive', 'Inactive']])) : null,

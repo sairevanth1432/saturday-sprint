@@ -319,9 +319,13 @@ replaceOnce('\n</div>\n\n</nav>', `\n${NAV_BOARD}\n</div>\n\n${NAV_USER}\n</nav>
 const BOARD_ROW = (list, as) => `<sc-for list="{{ ${list} }}" as="${as}" hint-placeholder-count="5">
 <div style="display: grid; grid-template-columns: 76px minmax(0, 1fr) 150px 130px 92px; align-items: center; gap: 12px; min-height: 56px; padding: 6px 16px; border-radius: 14px; border: 2px solid {{ ${as}.ring }}; background: {{ ${as}.bg }}">
 <span style="justify-self: start; min-width: 44px; height: 34px; padding: 0 8px; box-sizing: border-box; border-radius: 10px; border: 2px solid {{ ${as}.rankRing }}; background: {{ ${as}.rankBg }}; color: {{ ${as}.rankFg }}; font-family: 'VT323', monospace; font-size: 22px; display: flex; align-items: center; justify-content: center">{{ ${as}.rank }}</span>
+<span style="display: flex; align-items: center; gap: 10px; min-width: 0">
+<sc-if value="{{ ${as}.hasPhoto }}" hint-placeholder-val="{{ false }}"><img src="{{ ${as}.photo }}" alt="" loading="lazy" style="width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; object-fit: cover; background: #050505; border: 2px solid #333333" /></sc-if>
+<sc-if value="{{ ${as}.noPhoto }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; border: 2px dashed #333333; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #8A8A8A">{{ ${as}.initial }}</span></sc-if>
 <span style="display: flex; flex-direction: column; min-width: 0">
 <span style="font-size: 16px; font-weight: 800; color: #FFFFFF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ ${as}.name }} <span style="color: #FFE45C">{{ ${as}.youTag }}</span></span>
 <span style="font-family: 'VT323', monospace; font-size: 17px; color: #8A8A8A">{{ ${as}.id }}</span>
+</span>
 </span>
 <span style="font-size: 14px; color: #BDBDBD; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ ${as}.batch }}</span>
 <span style="font-family: 'VT323', monospace; font-size: 24px; color: #FFE45C; text-align: right">{{ ${as}.score }}</span>
@@ -330,7 +334,7 @@ const BOARD_ROW = (list, as) => `<sc-for list="{{ ${list} }}" as="${as}" hint-pl
 </sc-for>`;
 
 const BOARD_HEAD = `<div style="display: grid; grid-template-columns: 76px minmax(0, 1fr) 150px 130px 92px; gap: 12px; padding: 0 18px; font-size: 13px; font-weight: 800; color: #8A8A8A">
-<span>Rank</span><span>Student</span><span>Batch</span><span style="text-align: right">Score</span><span style="text-align: right">Time</span>
+<span>Rank</span><span>Student</span><span>University</span><span style="text-align: right">Score</span><span style="text-align: right">Time</span>
 </div>`;
 
 const BOARD_TAB = `<!-- ============ STATUS (auth bridge) ============ -->
@@ -369,6 +373,10 @@ const BOARD_TAB = `<!-- ============ STATUS (auth bridge) ============ -->
 <div style="font-size: 15px; color: #BDBDBD">{{ lb.emptyNote }}</div>
 </div>
 </sc-if>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<sc-if value="{{ lb.uniLabel }}" hint-placeholder-val="{{ false }}"><span style="font-size: 15px; font-weight: 800; color: #FFE45C; margin-right: 6px">{{ lb.uniLabel }}</span></sc-if>
+<sc-if value="{{ lb.hasSprints }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ lb.sprints }}" as="sp" hint-placeholder-count="2"><button class="k3" onClick="{{ sp.go }}" style="min-height: 36px; padding: 0 12px; border: 2px solid #333333; border-radius: 10px; background: {{ sp.bg }}; color: {{ sp.fg }}; font-size: 13px; font-weight: 800">{{ sp.label }}</button></sc-for></sc-if>
+</div>
 <sc-if value="{{ lb.hasRows }}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; flex-direction: column; gap: 8px">
 ${BOARD_HEAD}
@@ -536,6 +544,12 @@ replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px
   '<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">', 'learn media width');
 replaceOnce('<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F; max-width: 1040px">',
   '<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">', 'learn bottom bar width');
+// ---------- 4g. NIAT crest above the Saturday Sprint wordmark in the sidebar (public/niat-logo.png)
+replaceOnce(`<div style="display: flex; flex-direction: column; gap: 6px">
+<button class="k3" onClick="{{ nav.brand }}"`,
+  `<div style="display: flex; flex-direction: column; gap: 10px">
+<img src="/niat-logo.png" alt="NIAT" width="46" height="44" style="display: block; width: 46px; height: auto; border-radius: 6px" />
+<button class="k3" onClick="{{ nav.brand }}"`, 'NIAT crest');
 // ---------- 4e. Learn bottom bar: Previous / Next centred at the bottom of the content (.ss-nav CSS below)
 replaceOnce(`<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">
 <span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>

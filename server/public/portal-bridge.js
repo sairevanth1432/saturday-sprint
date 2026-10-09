@@ -68,7 +68,16 @@
     try { if (navigator.userAgentData && navigator.userAgentData.mobile) return true; } catch (e) {}
     return /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|Opera Mini|BlackBerry/i.test(navigator.userAgent || '');
   }
-  function fromServer(qs) {
+  // The student's own question and option order (sprint.js attemptOrder): position on screen → original numbering.
+  // Answers go to the server in the original numbering, so the order only changes what the student sees.
+  var ORD = null;
+  var origQ = function (i) { return ORD ? ORD.order[Number(i)] : Number(i); };
+  var origOpt = function (k, v) { var p = ORD && ORD.optOrder[k]; return p ? p[v] : v; };
+  var shownOpt = function (k, v) { var p = ORD && ORD.optOrder[k]; return p ? p.indexOf(v) : v; };
+  var shownKeys = function (obj) { var out = {}; Object.keys(obj || {}).forEach(function (k) { out[ORD ? ORD.order.indexOf(Number(k)) : k] = obj[k]; }); return out; };
+  function fromServer(qs, a) {
+    ORD = a && Array.isArray(a.order) && a.order.length === qs.length ? { order: a.order, optOrder: a.optOrder || [] } : null;
+    if (ORD) qs = ORD.order.map(function (k) { var q = qs[k], p = ORD.optOrder[k]; return p && q.o ? Object.assign({}, q, { o: p.map(function (j) { return q.o[j]; }) }) : q; });
     return qs.map(function (q) {
       var o = { course: q.course, type: q.type, q: q.q };
       if (q.code) o.code = q.code;
@@ -83,9 +92,10 @@
   function draftToState(d) {
     d = d || {};
     var s = { tAns: {}, tText: {}, code: {} };
-    Object.keys(d.mcq || {}).forEach(function (i) { s.tAns[i] = d.mcq[i]; });
-    Object.keys(d.text || {}).forEach(function (i) { s.tText[i] = d.text[i]; });
-    Object.keys(d.code || {}).forEach(function (i) { s.code['t' + i] = d.code[i]; });
+    var at = function (k) { return ORD ? ORD.order.indexOf(Number(k)) : k; };
+    Object.keys(d.mcq || {}).forEach(function (k) { s.tAns[at(k)] = shownOpt(Number(k), d.mcq[k]); });
+    Object.keys(d.text || {}).forEach(function (k) { s.tText[at(k)] = d.text[k]; });
+    Object.keys(d.code || {}).forEach(function (k) { s.code['t' + at(k)] = d.code[k]; });
     return s;
   }
 
@@ -167,7 +177,7 @@
       if (a && a.status === 'running' && S.ssPhone) {
         S.tab = 'test'; // shows the "use a laptop" card; the server sent no questions
       } else if (a && a.status === 'running') {
-        this.test = fromServer(a.questions);
+        this.test = fromServer(a.questions, a);
         var d = draftToState(a.draft);
         S.tStart = toLocal(a.startedAt); S.tAns = d.tAns; S.tText = d.tText; S.code = Object.assign({}, S.code, d.code);
         S.tab = 'test';
@@ -227,9 +237,10 @@
     ssAnswers() {
       var S = this.state, out = { mcq: {}, text: {}, code: {} };
       this.test.forEach(function (q, i) {
-        if (q.type === 'mcq' && S.tAns[i] !== undefined) out.mcq[i] = S.tAns[i];
-        else if (q.type === 'text' && S.tText[i]) out.text[i] = S.tText[i];
-        else if (q.type === 'code' && S.code['t' + i] !== undefined) out.code[i] = S.code['t' + i];
+        var k = origQ(i);
+        if (q.type === 'mcq' && S.tAns[i] !== undefined) out.mcq[k] = origOpt(k, S.tAns[i]);
+        else if (q.type === 'text' && S.tText[i]) out.text[k] = S.tText[i];
+        else if (q.type === 'code' && S.code['t' + i] !== undefined) out.code[k] = S.code['t' + i];
       });
       return out;
     }
@@ -253,7 +264,7 @@
         var a = r.attempt;
         clock.offset = r.serverNow - Date.now();
         if (a.status === 'submitted') { location.reload(); return; }
-        self.test = fromServer(a.questions);
+        self.test = fromServer(a.questions, a);
         var d = draftToState(a.draft);
         self.setState(function (s) {
           return { tStart: toLocal(a.startedAt), now: Date.now(), tCur: 0, tAns: d.tAns, tText: d.tText, code: Object.assign({}, s.code, d.code) };
@@ -268,7 +279,7 @@
       var self = this, q = this.test[index];
       var code = this.state.code[key] !== undefined ? this.state.code[key] : q.starter;
       this.setState(function (s) { var c = Object.assign({}, s.ctests); c[key] = 'running'; return { ctests: c }; });
-      api('POST', '/api/sprint/check', { index: index, code: code }).then(function (r) {
+      api('POST', '/api/sprint/check', { index: origQ(index), code: code }).then(function (r) {
         self.setState(function (s) {
           var c = Object.assign({}, s.ctests);
           c[key] = r.results.map(function (x) { return { pass: x.pass, hid: true, i: '', e: '', g: '' }; });
@@ -295,7 +306,7 @@
       return api('POST', '/api/sprint/submit', this.ssAnswers()).then(function (r) {
         var a = r.attempt;
         self._grading = false;
-        self.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: a.result.codeRes || {} });
+        self.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: shownKeys(a.result.codeRes) });
         self.ssLoadBoard(true);
       }, function (e) {
         self._grading = false;
@@ -479,7 +490,7 @@
     ssEndedByProctor(a) {
       var P = this._p;
       if (P) P.ended = true;
-      this.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: a.result.codeRes || {} });
+      this.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: shownKeys(a.result.codeRes) });
       this.ssLoadBoard(true);
       this.ssOverlay();
     }
@@ -681,7 +692,7 @@
       if (this._ssBoardBusy && !force) return;
       this._ssBoardBusy = true;
       var self = this;
-      api('GET', '/api/leaderboard?limit=100').then(function (b) {
+      api('GET', '/api/leaderboard?limit=100' + (this.state.ssBoardSprint ? '&sprint=' + encodeURIComponent(this.state.ssBoardSprint) : '')).then(function (b) {
         self.setState({ ssBoard: b, ssBoardAt: Date.now() });
       }, function () {}).then(function () { self._ssBoardBusy = false; });
     }
@@ -690,7 +701,7 @@
       var row = function (r) {
         var top = r.rank <= 3, tone = r.rank === 1 ? '#FFE45C' : r.rank === 2 ? '#EDEDED' : '#FF7A7A';
         return {
-          rank: '#' + r.rank, name: r.name, id: r.id, batch: r.batch || '–',
+          rank: '#' + r.rank, name: r.name, id: r.id, batch: r.university || r.batch || '–', photo: r.photo || '', hasPhoto: !!r.photo, noPhoto: !r.photo, initial: String(r.name || '?').trim().charAt(0).toUpperCase(),
           score: fmtScore(r.score) + ' / ' + fmtScore(r.maxTotal), time: self.mmss(r.usedMs || 0),
           youTag: r.me ? '· you' : '', ring: r.me ? '#FFE45C' : '#262626', bg: r.me ? 'rgba(255,228,92,.08)' : '#0D0D0D',
           rankBg: top ? tone : 'transparent', rankFg: top ? '#050505' : '#FFFFFF', rankRing: top ? tone : '#333333', rankText: top ? tone : '#BDBDBD'
@@ -711,7 +722,14 @@
         my: my, participants: B ? B.participants : 0, homeLine: homeLine,
         rule: (B && B.rule) || '', kicker: (B && B.title ? B.title + ' · ' : '') + 'auto-refreshes every 30s',
         updated: S.ssBoardAt ? 'updated ' + new Date(S.ssBoardAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '',
-        refresh: function () { self.ssLoadBoard(true); }
+        refresh: function () { self.ssLoadBoard(true); },
+        uniLabel: B && B.university ? B.university : '',
+        hasSprints: !!(B && B.sprints && B.sprints.length > 1),
+        sprints: (B && B.sprints || []).map(function (sp) {
+          var on = sp.id === B.sprintId;
+          return { label: sp.id.replace(/^sprint-/, 'Sprint ') + (sp.current ? ' · current' : ''), bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#FFFFFF',
+            go: function () { self.setState({ ssBoardSprint: sp.id }, function () { self.ssLoadBoard(true); }); } };
+        })
       };
     }
 
@@ -1025,6 +1043,8 @@
       } else if (v.t.done) { v.t.mcqScore = '…'; v.t.probScore = '…'; }
       // Test options: the portal letters them A–C; questions can have up to 6 options.
       if (v.tq && Array.isArray(v.tq.opts)) v.tq.opts.forEach(function (o, i) { o.k = 'ABCDEF'[i]; });
+      // the course of each question is not shown in the test ("MCQ 3 of 18 · 1 mark")
+      if (v.tq && v.tq.label) v.tq.label = String(v.tq.label).replace(/^[^·]*·\s*/, '');
       v.t.start = function () {
         if (self._p && self.ssProctorCfg().enabled) { self._p.rules = true; self.ssOverlay(); return; }
         self.ssStart();

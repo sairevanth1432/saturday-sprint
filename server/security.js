@@ -111,6 +111,15 @@ export function maskPhone(e164) {
   if (local.length < 6) return '••••••';
   return cc + local.slice(0, 2) + '•••••' + local.slice(-3);
 }
+// Leaderboard photos: an opaque link per student (the NIAT ID is not in the URL); the server turns it back into the ID.
+const PHOTO_KEY = () => crypto.createHash('sha256').update('board-photo:' + config.secret).digest();
+export function photoToken(roll) {
+  const c = crypto.createCipheriv('aes-256-ecb', PHOTO_KEY(), null);
+  return Buffer.concat([c.update(String(roll), 'utf8'), c.final()]).toString('base64url');
+}
+export function rollFromPhotoToken(token) {
+  try { const d = crypto.createDecipheriv('aes-256-ecb', PHOTO_KEY(), null); return Buffer.concat([d.update(Buffer.from(String(token), 'base64url')), d.final()]).toString('utf8'); } catch { return null; }
+}
 export function maskRoll(roll) {
   const r = String(roll || '');
   if (r.length <= 5) return r.slice(0, 1) + '•••' + r.slice(-1);

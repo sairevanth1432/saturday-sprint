@@ -1470,3 +1470,46 @@ test('practice questions used in a Sprint test are hidden from Practice (no repe
   assert.ok(!mcq.some((q) => q.q === 'Used in the test?'), 'hidden from students');
   assert.ok(mcq.some((q) => q.q === 'Free to practise?' && q.sess === 'Repeat Check'));
 });
+
+test('test order: each student gets their own fixed shuffle of questions and options; boards per university with photos; photo ZIPs', async () => {
+  const sp = await import('../sprint.js');
+  const qs = await sp.getQuestions();
+  const a1 = { sprint_id: 's', roll_no: 'R1', started_at: 1 }, a2 = { sprint_id: 's', roll_no: 'R2', started_at: 1 };
+  const o1 = sp.attemptOrder(a1, qs), o2 = sp.attemptOrder(a2, qs);
+  const isPerm = (p, n) => p.length === n && [...p].sort((x, y) => x - y).every((v, i) => v === i);
+  assert.ok(isPerm(o1.order, qs.length));
+  qs.forEach((q, i) => { if (q.type === 'mcq') assert.ok(isPerm(o1.optOrder[i], q.o.length)); });
+  assert.deepEqual(sp.attemptOrder(a1, qs), o1, 'same student, same order (a reload shows the same test)');
+  assert.notDeepEqual(o1.order, o2.order, 'another student, another order');
+
+  // two universities, one board each; photos as opaque links
+  const now = Date.now(), sid = 'board-uni-test';
+  for (const [r, n, u, t] of [['N26P02A0991', 'Alard Top', 'ALARD - Pune', 9], ['N26P02A0992', 'Alard Two', 'ALARD - Pune', 5], ['N26HY03A991', 'Geeta Top', 'Geeta University - Panipat', 7]]) {
+    await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, ?, '', '', '', ?, 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", r, n, u, now);
+    await db.run("INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, submitted_at, total, max_total, used_ms, updated_at) VALUES (?, ?, 'submitted', ?, ?, ?, ?, 18, 60000, ?)", sid, r, now, now + 1, now, t, now);
+  }
+  const ga = client();
+  assert.equal((await ga('POST', '/api/auth/name-login', { rollNo: 'N26HY03A991', name: 'geeta top' })).status, 200);
+  await ga('PUT', '/api/me/photo', { photo: PHOTO });
+  const lb = (await ga('GET', '/api/leaderboard?sprint=' + sid)).body;
+  assert.equal(lb.sprintId, sid);
+  assert.equal(lb.university, 'Geeta University - Panipat');
+  assert.deepEqual(lb.rows.map((r) => r.name), ['Geeta Top'], 'Geeta students see Geeta only');
+  assert.equal(lb.me.rank, 1);
+  assert.ok(lb.rows[0].photo && !lb.rows[0].photo.includes('N26HY03A991'), 'photo link does not show the NIAT ID');
+  assert.equal((await ga('GET', lb.rows[0].photo)).status, 200);
+  assert.equal((await client()('GET', lb.rows[0].photo)).status, 401, 'logged-in users only');
+  assert.ok(lb.sprints.some((s) => s.id === sid));
+  const adm = (await ADM('GET', '/api/admin/leaderboard?sprint=' + sid + '&university=' + encodeURIComponent('ALARD - Pune'))).body;
+  assert.deepEqual(adm.rows.map((r) => [r.name, Number(r.rank)]), [['Alard Top', 1], ['Alard Two', 2]]);
+  assert.equal((await ADM('GET', '/api/admin/leaderboard?sprint=' + sid)).body.rows.length, 3, 'admins: all universities');
+
+  // photos as a ZIP
+  const parts = (await ADM('GET', '/api/admin/photos/parts?university=' + encodeURIComponent('Geeta University - Panipat'))).body.parts;
+  assert.ok(parts.length >= 1);
+  const zr = await fetch(base + '/api/admin/photos/zip?university=' + encodeURIComponent('Geeta University - Panipat') + '&first=' + parts[0].first + '&last=' + parts[0].last, { headers: { cookie: ADM.cookie() } });
+  assert.equal(zr.status, 200);
+  const buf = Buffer.from(await zr.arrayBuffer());
+  assert.equal(buf.readUInt32LE(0), 0x04034b50, 'a ZIP file');
+  assert.ok(buf.includes(Buffer.from('N26HY03A991.jpg')));
+});
