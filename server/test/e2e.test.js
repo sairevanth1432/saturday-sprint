@@ -1563,3 +1563,21 @@ test('past Sprint leaderboards keep everyone who took them, with their names, al
   const cur = (await ADM('GET', '/api/admin/leaderboard')).body.rows;
   assert.ok(!cur.some((r) => r.roll_no === 'PASTB001'), 'the current Sprint ranks the current list');
 });
+
+test('profile: students listed without a name must add it (and a photo) once; a listed name is never overwritten', async () => {
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES ('NONAME01', '', '', '', '', 'ALARD - Pune', 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", Date.now());
+  const c = client();
+  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'NONAME01', name: 'Whoever' })).status, 200);
+  let b = (await c('GET', '/api/bootstrap')).body.user;
+  assert.equal(b.needsName, true);
+  assert.ok(!b.photoAt, 'no photo yet: the portal asks for it too');
+  assert.equal((await c('PUT', '/api/me/name', { name: '123' })).body.error, 'BAD_NAME');
+  assert.equal((await c('PUT', '/api/me/name', { name: '  Riya   Patil ' })).status, 200);
+  assert.equal((await db.one("SELECT name FROM students_master WHERE roll_no = 'NONAME01'")).name, 'Riya Patil');
+  assert.equal((await c('GET', '/api/bootstrap')).body.user.needsName, false);
+  assert.equal((await c('PUT', '/api/me/name', { name: 'Someone Else' })).body.unchanged, true);
+  assert.equal((await db.one("SELECT name FROM students_master WHERE roll_no = 'NONAME01'")).name, 'Riya Patil', 'a name in the list is kept');
+  // a master file with the official name wins
+  await ADM('POST', '/api/admin/import', { csv: 'NIAT ID,Student Name\nNONAME01,Riya S Patil\n', fileName: 'n.csv', mode: 'merge' });
+  assert.equal((await db.one("SELECT name FROM students_master WHERE roll_no = 'NONAME01'")).name, 'Riya S Patil');
+});

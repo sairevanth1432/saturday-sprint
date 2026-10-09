@@ -165,6 +165,19 @@ api.put('/me/photo', who, async (req, res) => {
   res.json({ ok: true, photoAt: await photoStamp(req.who.roll_no) });
 });
 
+// A student listed without a name types it once (portal profile screen). A name already in the list is never changed
+// here: an admin or the master file does that (and a later master file with names wins).
+api.put('/me/name', who, async (req, res) => {
+  if (req.who.kind !== 'student') return res.status(403).json({ error: 'STUDENTS_ONLY', message: 'Only students have a name here.' });
+  const name = String((req.body || {}).name || '').trim().replace(/\s+/g, ' ');
+  if (!/^[\p{L}][\p{L} .'-]{1,79}$/u.test(name)) return res.status(400).json({ error: 'BAD_NAME', message: 'Type your full name using letters only.' });
+  const r = await one("UPDATE students_master SET name = ?, updated_at = ? WHERE roll_no = ? AND name = '' RETURNING roll_no", name, Date.now(), req.who.roll_no);
+  if (!r) return res.json({ ok: true, unchanged: true }); // a name is already in the list (kept)
+  forgetSessions();
+  await clearBoardCache();
+  res.json({ ok: true, name });
+});
+
 // Likes on a topic's video (one per student per topic).
 api.post('/likes/:unitId', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.json({ ok: true, preview: true });
@@ -215,7 +228,7 @@ api.get('/bootstrap', who, async (req, res) => {
   ]);
   res.json({
     serverNow: Date.now(),
-    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, photoAt, photoUpdate: await photoUpdateDue(w.roll_no, photoAt) }
+    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, photoAt, photoUpdate: await photoUpdateDue(w.roll_no, photoAt), needsName: !String(((await one('SELECT name FROM students_master WHERE roll_no = ?', w.roll_no)) || {}).name || '').trim() }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
       preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id), previewOf: sprint.previewOf || null },

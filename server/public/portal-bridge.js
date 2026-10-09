@@ -1339,16 +1339,19 @@
     });
   }
 
-  // Every student needs a photograph. Accounts without one (simple log-in, or registered before photos were
-  // asked for) add it here before the portal opens. Skipped while a Sprint attempt is running.
+  // Every student needs a photograph and a name before the portal opens. Accounts without them (registered before
+  // photos were required, or listed without a name) see this screen first; an admin can also ask for a new photo.
   function photoGate(B, done) {
+    var needPhoto = !B.user.photoAt || !!B.user.photoUpdate, needName = !!B.user.needsName;
     var app = document.getElementById('app'), data = '';
     app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0A0A0A;color:#EDEDED;font-family:JetBrains Mono,monospace;padding:24px;box-sizing:border-box">' +
       '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:18px;background:#151515;border-radius:22px;padding:28px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 48px -20px rgba(0,0,0,.9)">' +
-      '<div style="font-family:VT323,monospace;font-size:20px;color:#FFE45C">~/profile/photo</div>' +
-      '<div style="font-family:Silkscreen,monospace;font-size:28px;line-height:1.1;color:#FFFFFF">Add your photograph</div>' +
+      '<div style="font-family:VT323,monospace;font-size:20px;color:#FFE45C">~/profile</div>' +
+      '<div data-k="title" style="font-family:Silkscreen,monospace;font-size:28px;line-height:1.1;color:#FFFFFF"></div>' +
       '<div data-k="hello" style="font-size:15px;line-height:1.55;color:#BDBDBD"></div>' +
-      '<div style="display:flex;align-items:center;gap:16px"><div data-k="prev" style="width:112px;height:112px;flex-shrink:0;border-radius:16px;border:2px dashed #333333;background:#050505;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#5E5E5E;font-size:12px">no photo</div>' +
+      '<label data-k="nameWrap" style="display:none;flex-direction:column;gap:8px"><span style="font-size:14px;font-weight:800;color:#FFFFFF">Your full name</span>' +
+      '<input data-k="name" type="text" maxlength="80" autocomplete="name" placeholder="e.g. Asha Kumar" style="min-height:48px;padding:0 14px;border:2px solid #333333;border-radius:12px;background:#050505;color:#FFFFFF;font-family:inherit;font-size:16px"></label>' +
+      '<div data-k="photoWrap" style="display:none;align-items:center;gap:16px"><div data-k="prev" style="width:112px;height:112px;flex-shrink:0;border-radius:16px;border:2px dashed #333333;background:#050505;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#5E5E5E;font-size:12px">no photo</div>' +
       '<button data-k="choose" type="button" style="min-height:46px;padding:0 18px;border:2px solid #333333;border-radius:12px;background:transparent;color:#FFFFFF;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">Choose a photo</button></div>' +
       '<div data-k="msg" role="alert" style="display:none;padding:10px 14px;border-radius:12px;border:2px solid #FF7A7A;color:#FF7A7A;font-size:14px;font-weight:700"></div>' +
       '<button data-k="save" type="button" disabled style="min-height:50px;border:0;border-radius:14px;background:#262626;color:#8A8A8A;font-family:inherit;font-size:16px;font-weight:800;cursor:not-allowed">Save and open the portal</button>' +
@@ -1356,23 +1359,31 @@
       '</div></div>';
     var $ = function (k) { return app.querySelector('[data-k="' + k + '"]'); };
     var first = String(B.user.name || '').trim().split(/\s+/)[0];
-    if (B.user.photoAt) app.querySelector('[style*="Silkscreen"]').textContent = 'Update your photograph';
-    $('hello').textContent = (first ? 'Hi ' + first + '. ' : '') + 'Add a clear, recent photo of your face. It appears on your profile and helps mentors recognise you. You can change it later by clicking it in the sidebar.';
+    $('title').textContent = needName && needPhoto ? 'Complete your profile' : needName ? 'Add your name' : B.user.photoAt ? 'Update your photograph' : 'Add your photograph';
+    $('hello').textContent = (first ? 'Hi ' + first + '. ' : '') + (needName ? 'Type your full name as in your college records. ' : '') +
+      (needPhoto ? 'Add a clear, recent photo of your face. It appears on your profile and the leaderboard and helps mentors recognise you.' : '');
+    if (needName) $('nameWrap').style.display = 'flex';
+    if (needPhoto) $('photoWrap').style.display = 'flex';
     var say = function (t) { var m = $('msg'); m.textContent = t || ''; m.style.display = t ? 'block' : 'none'; };
-    var ready = function (on) { var b = $('save'); b.disabled = !on; b.style.background = on ? '#FFE45C' : '#262626'; b.style.color = on ? '#050505' : '#8A8A8A'; b.style.cursor = on ? 'pointer' : 'not-allowed'; };
+    var nameOk = function () { return !needName || $('name').value.trim().replace(/\s+/g, ' ').length >= 2; };
+    var ready = function () { var on = nameOk() && (!needPhoto || !!data), b = $('save'); b.disabled = !on; b.style.background = on ? '#FFE45C' : '#262626'; b.style.color = on ? '#050505' : '#8A8A8A'; b.style.cursor = on ? 'pointer' : 'not-allowed'; };
+    $('name').oninput = function () { say(''); ready(); };
     $('choose').onclick = function () {
       pickPhoto().then(function (d) {
         data = d; say('');
         var img = document.createElement('img'); img.src = d; img.alt = 'Your photo'; img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
         var p = $('prev'); p.replaceChildren(img); p.style.border = '2px solid #FFE45C';
-        $('choose').textContent = 'Change photo'; ready(true);
+        $('choose').textContent = 'Change photo'; ready();
       }, function (e) { say(e.message); });
     };
     $('save').onclick = function () {
-      if (!data) return;
-      ready(false); $('save').textContent = 'Saving…';
-      api('PUT', '/api/me/photo', { photo: data }).then(function (r) { B.user.photoAt = r.photoAt; app.innerHTML = ''; done(); },
-        function (e) { say(e.message); ready(true); $('save').textContent = 'Save and open the portal'; });
+      if ($('save').disabled) return;
+      $('save').disabled = true; $('save').textContent = 'Saving…';
+      var nm = $('name').value.trim().replace(/\s+/g, ' ');
+      (needName ? api('PUT', '/api/me/name', { name: nm }).then(function () { B.user.name = nm; B.user.needsName = false; needName = false; }) : Promise.resolve())
+        .then(function () { return needPhoto ? api('PUT', '/api/me/photo', { photo: data }).then(function (r) { B.user.photoAt = r.photoAt; }) : null; })
+        .then(function () { app.innerHTML = ''; done(); },
+          function (e) { say(e.message); $('save').textContent = 'Save and open the portal'; ready(); });
     };
     $('out').onclick = function () { api('POST', '/api/auth/logout').then(function () { location.href = '/login'; }, function () { location.href = '/login'; }); };
   }
@@ -1382,6 +1393,6 @@
     window.__ssBoot = B;
     var boot = function () { bootPortal(SprintPortal, { testMode: B.sprint.preview ? 'preview-open' : 'auto' }); };
     var testRunning = B.attempt && B.attempt.status === 'running';
-    if (B.user.kind === 'student' && (!B.user.photoAt || B.user.photoUpdate) && !testRunning && window.SSPhoto) photoGate(B, boot); else boot();
+    if (B.user.kind === 'student' && (!B.user.photoAt || B.user.photoUpdate || B.user.needsName) && !testRunning && window.SSPhoto) photoGate(B, boot); else boot();
   }, function (e) { if (e.code !== 'AUTH') fail(e.message); });
 })();
