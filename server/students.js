@@ -123,8 +123,8 @@ export async function importStudents(input, { source = 'file', fileName = '', ad
     // Batched upsert: 500 rows per statement keeps 15k-row files fast.
     for (let i = 0; i < changed.length; i += 500) {
       const chunk = changed.slice(i, i + 500), vals = [], params = [];
-      for (const s of chunk) { vals.push('(?, ?, ?, ?, ?, ?, ?, 1, ?, ?)'); params.push(s.roll_no, s.name, s.phone, s.batch, s.email, s.lms_id, s.university, source, now); }
-      await run(`INSERT INTO students_master (roll_no, name, phone, batch, email, lms_id, university, active, source, updated_at) VALUES ${vals.join(', ')}
+      for (const s of chunk) { vals.push('(?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)'); params.push(s.roll_no, s.name, s.phone, s.batch, s.email, s.lms_id, s.university, source, now, now); }
+      await run(`INSERT INTO students_master (roll_no, name, phone, batch, email, lms_id, university, active, source, updated_at, created_at) VALUES ${vals.join(', ')}
         ON CONFLICT (roll_no) DO UPDATE SET name = excluded.name, phone = excluded.phone, batch = excluded.batch, email = excluded.email,
         lms_id = excluded.lms_id, university = excluded.university, active = 1, source = excluded.source, updated_at = excluded.updated_at`, ...params);
     }

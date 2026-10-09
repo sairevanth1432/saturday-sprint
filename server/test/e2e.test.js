@@ -1513,3 +1513,30 @@ test('test order: each student gets their own fixed shuffle of questions and opt
   assert.equal(buf.readUInt32LE(0), 0x04034b50, 'a ZIP file');
   assert.ok(buf.includes(Buffer.from('N26HY03A991.jpg')));
 });
+
+test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = from then; every page takes the filter', async () => {
+  const { SPRINT2_START } = await import('../periods.js');
+  const now = Date.now();
+  // an old student (listed before Sprint 2) active on 5 Oct and on 9 Oct; a new student added for Sprint 2
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES ('PERIOD01', 'Old Student', '', '', '', 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", now);
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at, created_at) VALUES ('PERIOD02', 'New Student', '', '', '', 1, 'file', ?, ?) ON CONFLICT (roll_no) DO NOTHING", now, SPRINT2_START + 1000);
+  for (const [day, ms] of [['2026-10-05', 600000], ['2026-10-09', 300000]]) {
+    await db.run("INSERT INTO activity (roll_no, day, area, item, step, ms, opens, video_ms, video_pct, updated_at) VALUES ('PERIOD01', ?, 'practice', 'x', '', ?, 1, 0, 0, ?) ON CONFLICT DO NOTHING", day, ms, now);
+  }
+  const rows = async (p) => (await ADM('GET', '/api/admin/analytics/students?days=365&q=PERIOD0&period=' + p)).body;
+  const s1 = await rows('s1'), s2 = await rows('s2');
+  assert.equal(s1.period.id, 's1');
+  assert.deepEqual(s1.rows.map((r) => r.roll_no), ['PERIOD01'], 'Sprint 1: only students listed before 9 Oct');
+  assert.equal(s1.rows[0].practice_ms, 600000, 'Sprint 1: activity before 9 Oct');
+  assert.equal(s2.rows.find((r) => r.roll_no === 'PERIOD01').practice_ms, 300000, 'Sprint 2: activity from 9 Oct');
+  assert.ok(s2.rows.some((r) => r.roll_no === 'PERIOD02'));
+  for (const url of ['/api/admin/analytics/overview?days=30', '/api/admin/analytics/business?fresh=1', '/api/admin/practice?fresh=1', '/api/admin/likes?v=1', '/api/admin/integrity?type=', '/api/admin/feedback?v=1']) {
+    for (const p of ['s1', 's2']) {
+      const r = await ADM('GET', url + '&period=' + p);
+      assert.equal(r.status, 200, url + ' ' + p + ' ' + JSON.stringify(r.body).slice(0, 200));
+    }
+  }
+  const o1 = (await ADM('GET', '/api/admin/analytics/overview?days=30&period=s1')).body, o2 = (await ADM('GET', '/api/admin/analytics/overview?days=30&period=s2')).body;
+  assert.ok(o1.units.every((u) => !u.id.startsWith('u-')) && o2.units.every((u) => u.id.startsWith('u-')), 'built-in topics are Sprint 1, added topics Sprint 2');
+  assert.equal((await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s1')).body.period.id, 's1');
+});

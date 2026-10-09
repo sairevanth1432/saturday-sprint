@@ -108,6 +108,16 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   // ------------------------------------------------------------------ helpers
   var root = document.getElementById('root');
   var ME = null, VIEW = (location.hash || '#overview').slice(1), CACHE = {};
+  // Sprint filter of the analytics pages (server: periods.js). Sprint 1 = before Fri 9 Oct 2026, Sprint 2 = from then.
+  try { CACHE.period = localStorage.getItem('ss-admin-period') || ''; } catch (e) { CACHE.period = ''; }
+  var PERIOD_VIEWS = { analytics: 1, practice: 1, likes: 1, integrity: 1, feedback: 1 };
+  var per = function () { return CACHE.period ? '&period=' + CACHE.period : ''; };
+  function periodBar() {
+    var sel = h('select', { onchange: function () { CACHE.period = sel.value; try { localStorage.setItem('ss-admin-period', sel.value); } catch (e) {} refresh(); } },
+      [['', 'All Sprints'], ['s1', 'Sprint 1 (before 9 Oct)'], ['s2', 'Sprint 2 (from 9 Oct)']].map(function (o) { return h('option', { value: o[0], selected: CACHE.period === o[0] ? true : null }, o[1]); }));
+    return h('div', { class: 'row', style: 'justify-content:flex-start;gap:10px;margin-bottom:14px' }, h('b', null, 'Sprint'), sel,
+      CACHE.period ? h('span', { class: 'muted' }, CACHE.period === 's1' ? 'Before Fri 9 Oct: Sprint 1 topics and practice, students listed then.' : 'From Fri 9 Oct: Sprint 2 topics and practice, the current student list.') : null);
+  }
 
   function h(tag, props) {
     var el = document.createElement(tag);
@@ -264,7 +274,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         h('a', { class: 'btn', href: '/', target: '_blank', rel: 'noopener', style: 'display:flex;align-items:center;justify-content:center;text-decoration:none' }, 'Open student portal ↗'),
         h('div', { class: 'me' }, h('b', { title: ME.email }, ME.name || ME.email), h('span', null, (ME.role === 'super_admin' ? 'Super admin' : 'Admin') + ' · ' + ME.email),
           h('button', { class: 'btn sm', onclick: function () { api('POST', '/api/admin/logout').then(loginScreen, loginScreen); } }, 'Log out'))),
-      h('main', null, content));
+      h('main', null, PERIOD_VIEWS[VIEW] ? periodBar() : null, content));
   }
   function header(kicker, title, sub, actions) {
     return h('div', { class: 'head' }, h('div', null, h('div', { class: 'kicker' }, kicker), h('h1', null, title), sub ? h('p', null, sub) : null), actions ? h('div', { class: 'row' }, actions) : null);
@@ -799,8 +809,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var st = CACHE.analytics;
     var fresh = st.fresh ? '&fresh=1' : ''; st.fresh = false;
     return Promise.all([
-      api('GET', '/api/admin/analytics/business?sprint=' + encodeURIComponent(st.sprint || '') + fresh),
-      api('GET', '/api/admin/analytics/overview?days=' + st.days)
+      api('GET', '/api/admin/analytics/business?sprint=' + encodeURIComponent(st.sprint || '') + fresh + per()),
+      api('GET', '/api/admin/analytics/overview?days=' + st.days + per())
     ]).then(function (res) {
       var B = res[0], o = res[1];
       var fmtV = function (m) {
@@ -849,7 +859,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var sortSel = h('select', { onchange: function () { st.sort = this.value; loadStudents(); } },
         [['time', 'Most time on units'], ['portal', 'Most time on portal'], ['least', 'Least time on units'], ['recent', 'Recently active'], ['name', 'Name'], ['id', 'NIAT ID']].map(function (x) { return h('option', { value: x[0], selected: st.sort === x[0] ? true : null }, x[1]); }));
       function loadStudents() {
-        api('GET', '/api/admin/analytics/students?days=' + st.days + '&sort=' + st.sort + '&q=' + encodeURIComponent(st.q)).then(function (d) {
+        api('GET', '/api/admin/analytics/students?days=' + st.days + '&sort=' + st.sort + '&q=' + encodeURIComponent(st.q) + per()).then(function (d) {
           studentsHolder.className = '';
           studentsHolder.replaceChildren(h('div', { class: 'tablewrap' }, h('table', null,
             h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Last active', 'Days', 'Time on portal', 'Time on units', 'Learn', 'Videos', 'Practice', 'Sprint', 'Units opened', 'Unit clicks', 'Steps done', 'Practice answers', 'Logins'].map(function (t, i) { return h('th', { class: i >= 3 ? 'num' : null }, t); }))),
@@ -973,7 +983,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   function openStudentAnalytics(roll) {
     var d = drawer(), days = CACHE.analytics.days;
-    api('GET', '/api/admin/analytics/students/' + encodeURIComponent(roll) + '?days=' + days).then(function (x) {
+    api('GET', '/api/admin/analytics/students/' + encodeURIComponent(roll) + '?days=' + days + per()).then(function (x) {
       var s = x.student, T = x.totals;
       var stat = function (k, v) { return h('div', { class: 'card stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)); };
       var tick = function (on) { return on ? h('span', { style: 'color:var(--good)' }, ' ✓') : null; };
@@ -1020,7 +1030,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   CACHE.practice = { course: 'all', sess: 'all', sort: 'order', q: '' };
   VIEWS.practice = function () {
     var st = CACHE.practice;
-    return api('GET', '/api/admin/practice' + (st.fresh ? '?fresh=1' : '')).then(function (d) {
+    return api('GET', '/api/admin/practice?v=1' + (st.fresh ? '&fresh=1' : '') + per()).then(function (d) {
       st.fresh = false;
       var COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
       var pct = function (n, of) { return of ? Math.round(n / of * 100) + '%' : '–'; };
@@ -1784,7 +1794,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ---------- video likes: per topic and per course
   VIEWS.likes = function () {
-    return api('GET', '/api/admin/likes').then(function (d) {
+    return api('GET', '/api/admin/likes?v=1' + per()).then(function (d) {
       var th = function (cols) { return h('thead', null, h('tr', null, cols.map(function (t) { return h('th', null, t); }))); };
       var topics = d.topics.slice().sort(function (a, b) { return b.likes - a.likes; });
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
@@ -1829,7 +1839,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var F = CACHE.integrity = CACHE.integrity || { type: '', from: '', to: '', roll: '' };
     var q = '?type=' + encodeURIComponent(F.type) + (F.from ? '&from=' + new Date(F.from + 'T00:00').getTime() : '') +
       (F.to ? '&to=' + (new Date(F.to + 'T00:00').getTime() + 86400000) : '') + (F.roll ? '&roll=' + encodeURIComponent(F.roll) : '');
-    return api('GET', '/api/admin/integrity' + q).then(function (d) {
+    return api('GET', '/api/admin/integrity' + q + per()).then(function (d) {
       var set = function (k, v) { F[k] = v; refresh(); };
       var evText = function (r) {
         var e = r.evidence || {}, bits = [];
@@ -1877,7 +1887,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 
   // ---------- feedback
   VIEWS.feedback = function () {
-    return api('GET', '/api/admin/feedback').then(function (d) {
+    return api('GET', '/api/admin/feedback?v=1' + per()).then(function (d) {
       var avg = d.rows.length ? d.rows.reduce(function (s, r) { return s + (r.rating || 0); }, 0) / d.rows.length : null;
       var aiCard = d.aiStudents ? h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, 'To what extent did you use AI tools while completing the Sprint/practice questions? (' + d.aiStudents + ' student' + (d.aiStudents === 1 ? '' : 's') + ', latest answer each)'),
         h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', null,

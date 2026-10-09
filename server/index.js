@@ -33,6 +33,7 @@ import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPracti
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
+import { periodOf } from './periods.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 // Topics of the next Sprint (content/next-sprint.json → generated/ by npm run build), shown on the Learn page.
@@ -541,8 +542,8 @@ adm.post('/students', async (req, res) => {
   if (!validRoll(roll)) throw new AuthError('BAD_ROLL', 'Enter a valid NIAT ID.', 400);
   if (await one('SELECT 1 AS x FROM students_master WHERE roll_no = ?', roll)) throw new AuthError('EXISTS', 'That NIAT ID already exists.', 409);
   const s = cleanStudent(req.body, roll);
-  await run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'admin', ?)",
-    s.roll_no, s.name, s.phone, s.batch, s.email, s.university, Date.now());
+  await run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'admin', ?, ?)",
+    s.roll_no, s.name, s.phone, s.batch, s.email, s.university, Date.now(), Date.now());
   await audit(req, 'student.created', roll, s);
   res.json({ ok: true });
 });
@@ -607,8 +608,11 @@ adm.post('/practice-questions/:id/archive', async (req, res) => {
 });
 
 // ---------- integrity flags (coding practice honeypots) and video likes
-adm.get('/integrity', async (req, res) => res.json(await listFlags({ type: req.query.type, from: req.query.from, to: req.query.to, roll: req.query.roll ? normRoll(req.query.roll) : '' })));
-adm.get('/likes', async (req, res) => res.json(await likesAnalytics()));
+adm.get('/integrity', async (req, res) => {
+  const P = periodOf(String(req.query.period || ''));
+  res.json(await listFlags({ type: req.query.type, from: P ? P.from : req.query.from, to: P ? P.to : req.query.to, roll: req.query.roll ? normRoll(req.query.roll) : '' }));
+});
+adm.get('/likes', async (req, res) => res.json(await likesAnalytics({ period: String(req.query.period || '') })));
 
 // ---------- student photographs (accounts and registration requests)
 adm.get('/photos/student/:roll', async (req, res) => {
@@ -740,19 +744,19 @@ adm.post('/sprints/:sid/questions/copy', requireSuper, async (req, res) => {
 
 // ---------- student analytics (super admin): time, clicks, units, logins per student
 const daysOf = (req) => Math.min(365, Math.max(1, Number(req.query.days) || 30));
-adm.get('/analytics/business', requireSuper, async (req, res) => res.json(await businessMetrics({ sprintId: req.query.sprint ? String(req.query.sprint) : '', fresh: req.query.fresh === '1' })));
-adm.get('/analytics/overview', requireSuper, async (req, res) => res.json(await analyticsOverview({ days: daysOf(req) })));
-adm.get('/analytics/students', requireSuper, async (req, res) => res.json(await studentRows({ q: String(req.query.q || '').trim(), days: daysOf(req),
+adm.get('/analytics/business', requireSuper, async (req, res) => res.json(await businessMetrics({ sprintId: req.query.sprint ? String(req.query.sprint) : '', fresh: req.query.fresh === '1', period: String(req.query.period || '') })));
+adm.get('/analytics/overview', requireSuper, async (req, res) => res.json(await analyticsOverview({ days: daysOf(req), period: String(req.query.period || '') })));
+adm.get('/analytics/students', requireSuper, async (req, res) => res.json(await studentRows({ q: String(req.query.q || '').trim(), days: daysOf(req), period: String(req.query.period || ''),
   sort: String(req.query.sort || 'time'), limit: Number(req.query.limit) || 500, offset: Number(req.query.offset) || 0 })));
 adm.get('/analytics/students/:roll', requireSuper, async (req, res) => {
-  const d = await studentDetail(normRoll(req.params.roll), { days: daysOf(req) });
+  const d = await studentDetail(normRoll(req.params.roll), { days: daysOf(req), period: String(req.query.period || '') });
   if (!d) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such NIAT ID.' });
   res.json(d);
 });
 
 // ---------- practice analytics (attempts per practice question, correct %, option spread, coding solved)
 adm.get('/practice', async (req, res) => {
-  res.json(await practiceAnalytics({ fresh: req.query.fresh === '1' }));
+  res.json(await practiceAnalytics({ fresh: req.query.fresh === '1', period: String(req.query.period || '') }));
 });
 adm.get('/practice/:gi', async (req, res) => {
   const d = await practiceQuestion(Number(req.params.gi));
@@ -994,7 +998,8 @@ adm.delete('/media/:unitId/:slot', async (req, res) => {
 
 // ---------- feedback, audit
 adm.get('/feedback', async (req, res) => {
-  const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id DESC LIMIT 1000'))
+  const P = periodOf(String(req.query.period || ''));
+  const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no WHERE f.created_at >= ? AND f.created_at < ? ORDER BY f.id DESC LIMIT 1000', P ? P.from : 0, P ? P.to : 8.64e15))
     .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, ai_use: d.aiUse || '', ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
   // how many students picked each answer (latest answer per student)
   const latest = new Map();

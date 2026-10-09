@@ -7,6 +7,7 @@ import { ROOT, config } from './config.js';
 import { all, parseJSON } from './db.js';
 import { all as allRows } from './db.js';
 import * as kv from './kv.js';
+import { periodOf, topicInPeriod } from './periods.js';
 
 const FILE = path.join(ROOT, 'generated', 'practice.json');
 let catalogue = null, catalogueAt = 0;
@@ -38,9 +39,11 @@ async function fullCatalogue() {
   };
 }
 
-async function compute() {
-  const cat = await fullCatalogue();
-  const rows = await all(STUDENTS);
+async function compute(period) {
+  // a Sprint (periods.js): its practice topics, and the students who were in the list then
+  const P = periodOf(period), cat0 = await fullCatalogue();
+  const cat = { quiz: cat0.quiz.filter((q) => topicInPeriod(P, q.sess)), code: cat0.code.filter((c) => topicInPeriod(P, c.topic)) };
+  const rows = await all(P ? `SELECT pr.roll_no, pr.data FROM progress pr JOIN students_master m ON m.roll_no = pr.roll_no WHERE pr.roll_no NOT LIKE 'ADMIN-%' AND ${P.students}` : STUDENTS);
   const quiz = cat.quiz.map((q) => ({ ...q, attempted: 0, correct: 0, picks: q.o.map(() => 0) }));
   const byGi = new Map(quiz.map((q) => [q.gi, q]));
   const code = cat.code.map((c) => ({ ...c, solved: 0 }));
@@ -72,7 +75,7 @@ async function compute() {
   };
   for (const q of quiz) { const t = topic(q.course, q.sess); t.quiz++; t.attempts += q.attempted; t.correct += q.correct; }
   for (const c of code) { const t = topic('pf', c.topic); t.code++; t.solved += c.solved; }
-  return { at: Date.now(), students: rows.length, active, quiz, code, topics };
+  return { at: Date.now(), period: P ? { id: P.id, label: P.label } : null, students: rows.length, active, quiz, code, topics };
 }
 
 export const practiceCatalogue = () => loadCatalogue();
@@ -86,9 +89,10 @@ export function practiceCounts() {
 }
 
 // Cached for a minute: it reads every student's progress.
-export async function practiceAnalytics({ fresh = false } = {}) {
-  if (fresh) await kv.invalidate('practice-analytics').catch(() => {});
-  return kv.cached('practice-analytics', 60, compute, { localMs: 60000 });
+export async function practiceAnalytics({ fresh = false, period = null } = {}) {
+  const k = 'practice-analytics:' + (periodOf(period) ? period : '');
+  if (fresh) await kv.invalidate(k).catch(() => {});
+  return kv.cached(k, 60, () => compute(period), { localMs: 60000 });
 }
 
 // One question: who picked what (for the drill-down list).

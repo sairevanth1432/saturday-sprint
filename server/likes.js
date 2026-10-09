@@ -3,6 +3,7 @@
 import { all, run } from './db.js';
 import * as kv from './kv.js';
 import { packUnits, unitRegistry } from './media.js';
+import { periodOf, unitInPeriod } from './periods.js';
 
 const COUNTS = 'likes:counts:v1';
 export const likeCounts = () => kv.cached(COUNTS, 30, async () => {
@@ -23,14 +24,15 @@ export async function setLike(roll, unitId, liked) {
 }
 
 // Admin: likes per topic (with how many students opened the topic, for a like rate) and per course.
-export async function likesAnalytics() {
+export async function likesAnalytics({ period = null } = {}) {
+  const P = periodOf(period), T0 = P ? P.from : 0, T1 = P ? P.to : 8.64e15;
   const [likes, opened] = await Promise.all([
     all(`SELECT l.unit_id, COUNT(*) AS n, MAX(l.created_at) AS last FROM unit_likes l
-         JOIN students_master m ON m.roll_no = l.roll_no WHERE m.batch IS DISTINCT FROM 'TEST' GROUP BY l.unit_id`),
-    all("SELECT unit_id, COUNT(DISTINCT roll_no) AS n FROM unit_events WHERE kind IN ('start', 'watch') GROUP BY unit_id")
+         JOIN students_master m ON m.roll_no = l.roll_no WHERE m.batch IS DISTINCT FROM 'TEST' AND l.created_at >= ? AND l.created_at < ? GROUP BY l.unit_id`, T0, T1),
+    all("SELECT unit_id, COUNT(DISTINCT roll_no) AS n FROM unit_events WHERE kind IN ('start', 'watch') AND at >= ? AND at < ? GROUP BY unit_id", T0, T1)
   ]);
   const L = new Map(likes.map((r) => [r.unit_id, r])), O = new Map(opened.map((r) => [r.unit_id, Number(r.n)]));
-  const topics = unitRegistry().map((u) => {
+  const topics = unitRegistry().filter((u) => unitInPeriod(P, u)).map((u) => {
     const l = L.get(u.id), n = l ? Number(l.n) : 0, o = O.get(u.id) || 0;
     return { id: u.id, title: u.title, course: u.course, courseName: u.courseName, removed: u.removed, likes: n, opened: o,
       rate: o ? Math.round((n / o) * 1000) / 10 : null, lastAt: l ? Number(l.last) : null };

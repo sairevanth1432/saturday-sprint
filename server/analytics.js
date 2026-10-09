@@ -5,6 +5,7 @@ import * as kv from './kv.js';
 import { getSprint, getQuestions } from './sprint.js';
 import { packUnits, unitRegistry } from './media.js';
 import { practiceCatalogue } from './practice.js';
+import { periodOf, unitInPeriod, topicInPeriod } from './periods.js';
 
 export const AREAS = ['home', 'learn', 'practice', 'code', 'test', 'board'];
 const AREA_SET = new Set(AREAS);
@@ -91,23 +92,29 @@ export function stepsDoneByUnit(progressData) {
 const STUDENTS_WHERE = "m.active = 1 AND m.batch <> 'TEST'";
 function sinceDay(days) { return istDay(Date.now() - (Math.max(1, days) - 1) * 86400000); }
 
+// A time window: the last `days` days, or a whole Sprint (periods.js). Days are IST calendar days [fromDay, toDay).
+function windowOf(days, period) {
+  const P = periodOf(period);
+  if (P) return { P, SW: P.students, from: P.fromDay, to: P.toDay, fromMs: P.from, toMs: P.to, today: istDay(Math.min(Date.now(), P.to - 1)) };
+  const from = sinceDay(days);
+  return { P: null, SW: STUDENTS_WHERE, from, to: '9999-12-31', fromMs: Date.parse(from + 'T00:00:00+05:30'), toMs: 8.64e15, today: istDay(Date.now()) };
+}
+
 // ---------- overview: the whole cohort
-export async function overview({ days = 30 } = {}) {
-  const from = sinceDay(days), today = istDay(Date.now());
-  const fromMs = Date.parse(from + 'T00:00:00+05:30');
-  const J = `FROM activity a JOIN students_master m ON m.roll_no = a.roll_no WHERE ${STUDENTS_WHERE} AND a.day >= ?`;
+export async function overview({ days = 30, period = null } = {}) {
+  const W = windowOf(days, period), { from, to, fromMs, toMs, today } = W;
+  const J = `FROM activity a JOIN students_master m ON m.roll_no = a.roll_no WHERE ${W.SW} AND a.day >= ? AND a.day < ?`;
   const [daily, areas, units, totals, cohort, logins, today7, sprint] = await Promise.all([
-    all(`SELECT a.day, COUNT(DISTINCT a.roll_no) AS students, SUM(CASE WHEN ${STUDY_SQL} THEN a.ms ELSE 0 END) AS ms ${J} GROUP BY a.day ORDER BY a.day`, from),
-    all(`SELECT a.area, SUM(a.ms) AS ms, SUM(a.opens) AS opens, COUNT(DISTINCT a.roll_no) AS students ${J} GROUP BY a.area`, from),
+    all(`SELECT a.day, COUNT(DISTINCT a.roll_no) AS students, SUM(CASE WHEN ${STUDY_SQL} THEN a.ms ELSE 0 END) AS ms ${J} GROUP BY a.day ORDER BY a.day`, from, to),
+    all(`SELECT a.area, SUM(a.ms) AS ms, SUM(a.opens) AS opens, COUNT(DISTINCT a.roll_no) AS students ${J} GROUP BY a.area`, from, to),
     all(`SELECT a.item, a.step, SUM(a.ms) AS ms, SUM(a.opens) AS opens, COUNT(DISTINCT a.roll_no) AS students, SUM(a.video_ms) AS video_ms,
-           AVG(NULLIF(a.video_pct, 0)) AS video_pct ${J} AND a.area = 'learn' GROUP BY a.item, a.step`, from),
-    one(`SELECT COUNT(DISTINCT a.roll_no) AS students, SUM(CASE WHEN ${STUDY_SQL} THEN a.ms ELSE 0 END) AS ms, SUM(CASE WHEN a.area <> 'test' THEN a.ms ELSE 0 END) AS portal_ms ${J}`, from),
-    one(`SELECT COUNT(*) AS n FROM students_master m WHERE ${STUDENTS_WHERE}`),
-    one(`SELECT COUNT(*) AS n, COUNT(DISTINCT l.roll_no) AS students FROM student_logins l JOIN students_master m ON m.roll_no = l.roll_no WHERE ${STUDENTS_WHERE} AND l.at >= ?`,
-      Date.parse(from + 'T00:00:00+05:30')),
-    one(`SELECT COUNT(DISTINCT a.roll_no) AS students ${J} AND a.day = ?`, from, today),
+           AVG(NULLIF(a.video_pct, 0)) AS video_pct ${J} AND a.area = 'learn' GROUP BY a.item, a.step`, from, to),
+    one(`SELECT COUNT(DISTINCT a.roll_no) AS students, SUM(CASE WHEN ${STUDY_SQL} THEN a.ms ELSE 0 END) AS ms, SUM(CASE WHEN a.area <> 'test' THEN a.ms ELSE 0 END) AS portal_ms ${J}`, from, to),
+    one(`SELECT COUNT(*) AS n FROM students_master m WHERE ${W.SW}`),
+    one(`SELECT COUNT(*) AS n, COUNT(DISTINCT l.roll_no) AS students FROM student_logins l JOIN students_master m ON m.roll_no = l.roll_no WHERE ${W.SW} AND l.at >= ? AND l.at < ?`, fromMs, toMs),
+    one(`SELECT COUNT(DISTINCT a.roll_no) AS students ${J} AND a.day = ?`, from, to, today),
     one(`SELECT SUM(${SPRINT_MS}) AS ms, COUNT(DISTINCT attempts.roll_no) AS students
-         FROM attempts JOIN students_master m ON m.roll_no = attempts.roll_no WHERE ${STUDENTS_WHERE} AND started_at >= ?`, Date.now(), fromMs)
+         FROM attempts JOIN students_master m ON m.roll_no = attempts.roll_no WHERE ${W.SW} AND started_at >= ? AND started_at < ?`, Date.now(), fromMs, toMs)
   ]);
   const sprintMs = Number(sprint && sprint.ms) || 0;
   // units: one row per unit with its three steps
@@ -117,10 +124,10 @@ export async function overview({ days = 30 } = {}) {
     u.ms += Number(r.ms) || 0; u.opens += Number(r.opens) || 0;
     u.steps[r.step || 'watch'] = { ms: Number(r.ms) || 0, opens: Number(r.opens) || 0, students: Number(r.students) || 0, videoMs: Number(r.video_ms) || 0, videoPct: r.video_pct == null ? null : Math.round(Number(r.video_pct)) };
   }
-  const studentsPerUnit = await all(`SELECT a.item, COUNT(DISTINCT a.roll_no) AS students ${J} AND a.area = 'learn' GROUP BY a.item`, from);
+  const studentsPerUnit = await all(`SELECT a.item, COUNT(DISTINCT a.roll_no) AS students ${J} AND a.area = 'learn' GROUP BY a.item`, from, to);
   const spu = Object.fromEntries(studentsPerUnit.map((r) => [r.item, Number(r.students)]));
   // finished steps per unit, from saved progress
-  const prog = await all(`SELECT pr.data FROM progress pr JOIN students_master m ON m.roll_no = pr.roll_no WHERE ${STUDENTS_WHERE}`);
+  const prog = await all(`SELECT pr.data FROM progress pr JOIN students_master m ON m.roll_no = pr.roll_no WHERE ${W.SW}`);
   const done = {};
   for (const p of prog) for (const [uid, set] of Object.entries(stepsDoneByUnit(p.data))) {
     done[uid] = done[uid] || { watch: 0, play: 0, read: 0, all3: 0 };
@@ -128,57 +135,57 @@ export async function overview({ days = 30 } = {}) {
     if (set.has('watch') && set.has('play') && set.has('read')) done[uid].all3++;
   }
   return {
-    days, from, today, cohort: Number(cohort.n),
+    days, from, today, cohort: Number(cohort.n), period: W.P ? { id: W.P.id, label: W.P.label } : null,
     totals: { students: Number(totals.students) || 0, ms: (Number(totals.ms) || 0) + sprintMs, portalMs: (Number(totals.portal_ms) || 0) + sprintMs, logins: Number(logins.n) || 0, loginStudents: Number(logins.students) || 0, activeToday: Number(today7.students) || 0 },
     daily: daily.map((r) => ({ day: r.day, students: Number(r.students), ms: Number(r.ms) })),
     // the Sprint test row uses the attempts' own clock; its clicks still come from portal activity
     areas: AREAS.map((a) => { const r = areas.find((x) => x.area === a) || {}; return { area: a, ms: a === 'test' ? sprintMs : Number(r.ms) || 0, opens: Number(r.opens) || 0,
       students: a === 'test' ? Number(sprint && sprint.students) || 0 : Number(r.students) || 0, counted: a === 'test' || STUDY_AREAS.includes(a) }; }),
-    units: unitListAll().map((u) => ({ ...u, ms: per[u.id] ? per[u.id].ms : 0, opens: per[u.id] ? per[u.id].opens : 0, students: spu[u.id] || 0,
+    units: unitListAll().filter((u) => unitInPeriod(W.P, u)).map((u) => ({ ...u, ms: per[u.id] ? per[u.id].ms : 0, opens: per[u.id] ? per[u.id].opens : 0, students: spu[u.id] || 0,
       steps: (per[u.id] || {}).steps || {}, done: done[u.id] || { watch: 0, play: 0, read: 0, all3: 0 } }))
   };
 }
 
 // ---------- one row per student
-export async function studentRows({ q = '', days = 30, sort = 'time', limit = 500, offset = 0 } = {}) {
-  const from = sinceDay(days), fromMs = Date.parse(from + 'T00:00:00+05:30');
-  const where = [STUDENTS_WHERE], p = [];
-  if (q) { where.push('(m.roll_no ILIKE ? OR m.name ILIKE ? OR m.batch ILIKE ?)'); const l = '%' + q + '%'; p.push(l, l, l); }
+export async function studentRows({ q = '', days = 30, period = null, sort = 'time', limit = 500, offset = 0 } = {}) {
+  const W = windowOf(days, period), { from, to, fromMs, toMs } = W;
+  const where = [W.SW], p = [];
+  if (q) { where.push('(m.roll_no ILIKE ? OR m.name ILIKE ? OR m.batch ILIKE ? OR m.university ILIKE ?)'); const l = '%' + q + '%'; p.push(l, l, l, l); }
   const ORDER = { time: 'spent DESC', portal: 'portal DESC', recent: 'last_active DESC NULLS LAST', least: 'spent ASC', name: 'm.name ASC', id: 'm.roll_no ASC' }[sort] || 'spent DESC';
   const sql = `FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no
     LEFT JOIN (SELECT roll_no, SUM(ms) AS ms, COUNT(DISTINCT day) AS days_active, MAX(updated_at) AS last_active,
                       SUM(CASE WHEN area = 'learn' THEN ms ELSE 0 END) AS learn_ms, SUM(CASE WHEN area = 'practice' OR area = 'code' THEN ms ELSE 0 END) AS practice_ms,
                       COUNT(DISTINCT CASE WHEN area = 'learn' THEN item END) AS units_opened, SUM(CASE WHEN area = 'learn' THEN opens ELSE 0 END) AS unit_clicks,
                       SUM(video_ms) AS video_ms, SUM(CASE WHEN area <> 'test' THEN ms ELSE 0 END) AS portal_ms
-               FROM activity WHERE day >= ? GROUP BY roll_no) a ON a.roll_no = m.roll_no
-    LEFT JOIN (SELECT roll_no, COUNT(*) AS logins, MAX(at) AS last_login FROM student_logins WHERE at >= ? GROUP BY roll_no) l ON l.roll_no = m.roll_no
-    LEFT JOIN (SELECT roll_no, SUM(${SPRINT_MS}) AS sprint_ms FROM attempts WHERE started_at >= ? GROUP BY roll_no) t ON t.roll_no = m.roll_no
+               FROM activity WHERE day >= ? AND day < ? GROUP BY roll_no) a ON a.roll_no = m.roll_no
+    LEFT JOIN (SELECT roll_no, COUNT(*) AS logins, MAX(at) AS last_login FROM student_logins WHERE at >= ? AND at < ? GROUP BY roll_no) l ON l.roll_no = m.roll_no
+    LEFT JOIN (SELECT roll_no, SUM(${SPRINT_MS}) AS sprint_ms FROM attempts WHERE started_at >= ? AND started_at < ? GROUP BY roll_no) t ON t.roll_no = m.roll_no
     LEFT JOIN progress pr ON pr.roll_no = m.roll_no
-    WHERE ${where.join(' AND ')}`;
-  const P = [from, fromMs, Date.now(), fromMs, ...p];
+    WHERE ${where.join(' AND ')}${W.P ? ' AND (a.roll_no IS NOT NULL OR l.roll_no IS NOT NULL OR t.roll_no IS NOT NULL OR m.active = 1)' : ''}`;
+  const P = [from, to, fromMs, toMs, Date.now(), fromMs, toMs, ...p];
   const [cnt, rows] = await Promise.all([
     one('SELECT COUNT(*) AS n ' + sql, ...P),
-    all(`SELECT m.roll_no, m.name, m.batch, u.id AS user_id, u.last_login_at, a.days_active, a.last_active, a.learn_ms, a.practice_ms, a.units_opened, a.unit_clicks,
+    all(`SELECT m.roll_no, m.name, m.batch, m.university, u.id AS user_id, u.last_login_at, a.days_active, a.last_active, a.learn_ms, a.practice_ms, a.units_opened, a.unit_clicks,
            a.video_ms, t.sprint_ms, COALESCE(a.learn_ms, 0) + COALESCE(a.practice_ms, 0) + COALESCE(t.sprint_ms, 0) AS spent,
            COALESCE(a.portal_ms, 0) + COALESCE(t.sprint_ms, 0) AS portal, l.logins, pr.data AS progress
          ${sql} ORDER BY ${ORDER}, m.roll_no LIMIT ? OFFSET ?`, ...P, Math.min(5000, limit), offset)
   ]);
-  const cat = practiceCatalogue(), byGi = new Map(cat.quiz.map((x) => [x.gi, x]));
-  const units = unitList().length;
+  const cat = practiceCatalogue(), byGi = new Map(cat.quiz.filter((x) => topicInPeriod(W.P, x.sess)).map((x) => [x.gi, x]));
+  const units = unitList().filter((u) => unitInPeriod(W.P, u)), unitIds = new Set(units.map((u) => u.id));
   return {
-    total: Number(cnt.n), days, from, units,
+    total: Number(cnt.n), days, from, units: units.length, period: W.P ? { id: W.P.id, label: W.P.label } : null,
     rows: rows.map((r) => {
       const d = parseJSON(r.progress, {}) || {};
       let answered = 0, correct = 0;
       for (const [gi, k] of Object.entries(d.pPick || {})) { const qq = byGi.get(Number(gi)); if (!qq || k == null) continue; answered++; if (sameAnswer(qq, k)) correct++; }
-      const done = stepsDoneByUnit(r.progress);
+      const done = Object.fromEntries(Object.entries(stepsDoneByUnit(r.progress)).filter(([id]) => !W.P || unitIds.has(id)));
       return {
-        roll_no: r.roll_no, name: r.name, batch: r.batch, registered: !!r.user_id, last_login_at: r.last_login_at,
+        roll_no: r.roll_no, name: r.name, batch: r.batch, university: r.university || '', registered: !!r.user_id, last_login_at: r.last_login_at,
         ms: Number(r.spent) || 0, portal_ms: Number(r.portal) || 0, days_active: Number(r.days_active) || 0, last_active: r.last_active ? Number(r.last_active) : null,
         learn_ms: Number(r.learn_ms) || 0, practice_ms: Number(r.practice_ms) || 0, video_ms: Number(r.video_ms) || 0, sprint_ms: Number(r.sprint_ms) || 0,
         units_opened: Number(r.units_opened) || 0, unit_clicks: Number(r.unit_clicks) || 0, logins: Number(r.logins) || 0,
         units_completed: Object.values(done).filter((s) => s.size === 3).length, steps_done: Object.values(done).reduce((n, s) => n + s.size, 0),
-        practice_answered: answered, practice_correct: correct, coding_solved: Object.keys(d.solved || {}).filter((k) => d.solved[k] && cat.code.some((c) => c.id === k)).length
+        practice_answered: answered, practice_correct: correct, coding_solved: Object.keys(d.solved || {}).filter((k) => d.solved[k] && cat.code.some((c) => c.id === k && topicInPeriod(W.P, c.topic))).length
       };
     })
   };
@@ -186,21 +193,21 @@ export async function studentRows({ q = '', days = 30, sort = 'time', limit = 50
 const sameAnswer = (q, k) => (Array.isArray(q.c) ? Array.isArray(k) && k.length === q.c.length && q.c.every((x) => k.includes(x)) : k === q.c);
 
 // ---------- one student in detail
-export async function studentDetail(roll, { days = 30 } = {}) {
-  const m = await one('SELECT roll_no, name, batch, email, active FROM students_master WHERE roll_no = ?', roll);
+export async function studentDetail(roll, { days = 30, period = null } = {}) {
+  const m = await one('SELECT roll_no, name, batch, email, university, active FROM students_master WHERE roll_no = ?', roll);
   if (!m) return null;
-  const from = sinceDay(days);
+  const W = windowOf(days, period), { from, to, fromMs, toMs } = W;
   const [u, act, logins, pr, attempts] = await Promise.all([
     one('SELECT created_at, last_login_at, status FROM users WHERE roll_no = ?', roll),
-    all('SELECT day, area, item, step, ms, opens, video_ms, video_pct FROM activity WHERE roll_no = ? AND day >= ? ORDER BY day', roll, from),
-    all('SELECT at, method, ip, ua FROM student_logins WHERE roll_no = ? ORDER BY at DESC LIMIT 50', roll),
+    all('SELECT day, area, item, step, ms, opens, video_ms, video_pct FROM activity WHERE roll_no = ? AND day >= ? AND day < ? ORDER BY day', roll, from, to),
+    all('SELECT at, method, ip, ua FROM student_logins WHERE roll_no = ? AND at >= ? AND at < ? ORDER BY at DESC LIMIT 50', roll, fromMs, toMs),
     one('SELECT data, updated_at FROM progress WHERE roll_no = ?', roll),
-    all('SELECT id, sprint_id, status, started_at, deadline_at, submitted_at, total, max_total, used_ms, violations FROM attempts WHERE roll_no = ? ORDER BY started_at DESC', roll)
+    all('SELECT id, sprint_id, status, started_at, deadline_at, submitted_at, total, max_total, used_ms, violations FROM attempts WHERE roll_no = ? AND started_at >= ? AND started_at < ? ORDER BY started_at DESC', roll, fromMs, toMs)
   ]);
-  const now = Date.now(), fromMs = Date.parse(from + 'T00:00:00+05:30');
-  const sprints = attempts.filter((a) => Number(a.started_at) >= fromMs).map((a) => ({ day: istDay(Number(a.started_at)), ms: attemptMs(a, now) }));
+  const now = Date.now();
+  const sprints = attempts.map((a) => ({ day: istDay(Number(a.started_at)), ms: attemptMs(a, now) }));
   const done = stepsDoneByUnit(pr && pr.data);
-  const units = unitListAll().map((x) => {
+  const units = unitListAll().filter((x) => unitInPeriod(W.P, x)).map((x) => {
     const rows = act.filter((a) => a.area === 'learn' && a.item === x.id), step = (s) => rows.filter((a) => (a.step || 'watch') === s);
     const sum = (rs, k) => rs.reduce((n, a) => n + (Number(a[k]) || 0), 0);
     return { ...x, opens: sum(rows, 'opens'), ms: sum(rows, 'ms'),
@@ -221,6 +228,7 @@ export async function studentDetail(roll, { days = 30 } = {}) {
   // practice per topic
   const cat = practiceCatalogue(), d = parseJSON(pr && pr.data, {}) || {}, topics = {};
   for (const qq of cat.quiz) {
+    if (!topicInPeriod(W.P, qq.sess)) continue;
     const t = topics[qq.course + '|' + qq.sess] = topics[qq.course + '|' + qq.sess] || { course: qq.course, sess: qq.sess, total: 0, answered: 0, correct: 0, ms: 0 };
     t.total++;
     const k = (d.pPick || {})[qq.gi];
@@ -229,7 +237,7 @@ export async function studentDetail(roll, { days = 30 } = {}) {
   for (const a of act) if (a.area === 'practice') { const t = Object.values(topics).find((x) => x.sess === a.item); if (t) t.ms += Number(a.ms) || 0; }
   const daily = Object.values(dayMap).sort((a, b) => (a.day < b.day ? -1 : 1));
   const part = (ar) => areas.find((a) => a.area === ar).ms;
-  return { student: m, account: u, days, from, units, daily, areas, logins, practice: Object.values(topics), attempts,
+  return { student: m, account: u, days, from, period: W.P ? { id: W.P.id, label: W.P.label } : null, units, daily, areas, logins, practice: Object.values(topics), attempts,
     totals: { ms: daily.reduce((n, d) => n + d.ms, 0), portalMs: daily.reduce((n, d) => n + (d.portalMs || 0), 0), learnMs: part('learn'), practiceMs: part('practice') + part('code'), sprintMs,
       videoMs: act.reduce((n, a) => n + (Number(a.video_ms) || 0), 0), days: daily.length, logins: logins.length } };
 }
@@ -265,29 +273,37 @@ export async function recordStepEvents(roll, oldData, newData) {
   return n;
 }
 
-export async function businessMetrics({ sprintId, fresh = false } = {}) {
-  if (fresh) await kv.invalidate('bm:v1:' + (sprintId || '')).catch(() => {});
-  return kv.cached('bm:v1:' + (sprintId || ''), 60, () => computeBusiness(sprintId), { localMs: 60000 });
+export async function businessMetrics({ sprintId, fresh = false, period = null } = {}) {
+  const k = 'bm:v2:' + (sprintId || '') + ':' + (periodOf(period) ? period : '');
+  if (fresh) await kv.invalidate(k).catch(() => {});
+  return kv.cached(k, 60, () => computeBusiness(sprintId, period), { localMs: 60000 });
 }
 
-async function computeBusiness(sprintIdParam) {
-  const now = Date.now(), today = istDay(now);
-  const units = unitListAll(), unitIds = units.map((u) => u.id);
-  const J = (t) => `JOIN students_master m ON m.roll_no = ${t}.roll_no WHERE ${STUDENTS_WHERE}`;
+async function computeBusiness(sprintIdParam, period) {
+  // a Sprint (periods.js): its days, its students, its topics and practice, and the Sprint test taken in it
+  const PER = periodOf(period), SW = PER ? PER.students : STUDENTS_WHERE;
+  const D0 = PER ? PER.fromDay : '0000-01-01', D1 = PER ? PER.toDay : '9999-12-31', T0 = PER ? PER.from : 0, T1 = PER ? PER.to : 8.64e15;
+  const now = PER ? Math.min(Date.now(), PER.to - 1) : Date.now(), today = istDay(now);
+  const units = unitListAll().filter((u) => unitInPeriod(PER, u)), unitIds = units.map((u) => u.id);
+  const J = (t) => `JOIN students_master m ON m.roll_no = ${t}.roll_no WHERE ${SW}`;
   const cur = await getSprint();
-  const sprintId = sprintIdParam || cur.id;
+  let sprintId = sprintIdParam || cur.id;
+  if (!sprintIdParam && PER) {
+    const r = await one("SELECT sprint_id FROM attempts WHERE started_at >= ? AND started_at < ? AND roll_no NOT LIKE 'ADMIN-%' GROUP BY sprint_id ORDER BY COUNT(*) DESC LIMIT 1", T0, T1);
+    if (r) sprintId = r.sprint_id;
+  }
   const [cohortRows, progRows, dayRows, areaRows, learnRows, sessRows, evRows, firstAct, firstSess, firstEv, passMark, attRows, sprintList, questions] = await Promise.all([
-    all(`SELECT m.roll_no, u.id AS user_id FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no WHERE ${STUDENTS_WHERE}`),
+    all(`SELECT m.roll_no, u.id AS user_id, u.created_at AS reg_at FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no WHERE ${SW}`),
     all(`SELECT pr.roll_no, pr.data FROM progress pr ${J('pr')}`),
-    all(`SELECT a.roll_no, a.day FROM activity a ${J('a')} GROUP BY a.roll_no, a.day`),
-    all(`SELECT a.roll_no, a.area, SUM(a.ms) AS ms FROM activity a ${J('a')} GROUP BY a.roll_no, a.area`),
+    all(`SELECT a.roll_no, a.day FROM activity a ${J('a')} AND a.day >= ? AND a.day < ? GROUP BY a.roll_no, a.day`, D0, D1),
+    all(`SELECT a.roll_no, a.area, SUM(a.ms) AS ms FROM activity a ${J('a')} AND a.day >= ? AND a.day < ? GROUP BY a.roll_no, a.area`, D0, D1),
     all(`SELECT a.roll_no, a.item, a.step, SUM(a.ms) AS ms, SUM(a.opens) AS opens, SUM(a.video_ms) AS video_ms, MAX(a.video_pct) AS video_pct
-         FROM activity a ${J('a')} AND a.area = 'learn' GROUP BY a.roll_no, a.item, a.step`),
-    all(`SELECT s.roll_no, s.active_ms FROM activity_sessions s ${J('s')} AND s.started_at >= ?`, now - 30 * DAY),
-    all(`SELECT e.roll_no, e.unit_id, e.kind, e.at FROM unit_events e ${J('e')}`),
-    one('SELECT MIN(day) AS d FROM activity'),
-    one('SELECT MIN(started_at) AS t FROM activity_sessions'),
-    one('SELECT MIN(at) AS t FROM unit_events'),
+         FROM activity a ${J('a')} AND a.area = 'learn' AND a.day >= ? AND a.day < ? GROUP BY a.roll_no, a.item, a.step`, D0, D1),
+    all(`SELECT s.roll_no, s.active_ms FROM activity_sessions s ${J('s')} AND s.started_at >= ? AND s.started_at < ?`, Math.max(T0, now - 30 * DAY), T1),
+    all(`SELECT e.roll_no, e.unit_id, e.kind, e.at FROM unit_events e ${J('e')} AND e.at >= ? AND e.at < ?`, T0, T1),
+    one('SELECT MIN(day) AS d FROM activity WHERE day >= ? AND day < ?', D0, D1),
+    one('SELECT MIN(started_at) AS t FROM activity_sessions WHERE started_at >= ? AND started_at < ?', T0, T1),
+    one('SELECT MIN(at) AS t FROM unit_events WHERE at >= ? AND at < ?', T0, T1),
     getSetting('pass_mark_pct', 40),
     all(`SELECT a.roll_no, a.status, a.total, a.max_total, a.answers, a.text_reviewed FROM attempts a ${J('a')} AND a.sprint_id = ? AND a.roll_no NOT LIKE 'ADMIN-%'`, sprintId),
     all(`SELECT a.sprint_id, COUNT(*) AS n FROM attempts a ${J('a')} AND a.roll_no NOT LIKE 'ADMIN-%' GROUP BY a.sprint_id`),
@@ -296,8 +312,10 @@ async function computeBusiness(sprintIdParam) {
 
   // ---- per-student facts
   const cohort = cohortRows.length;
-  const registered = new Set(cohortRows.filter((r) => r.user_id != null).map((r) => r.roll_no));
-  const cat = practiceCatalogue(), quizByGi = new Map(cat.quiz.map((q) => [q.gi, q])), codeIds = new Set(cat.code.map((c) => c.id));
+  const registered = new Set(cohortRows.filter((r) => r.user_id != null && (!PER || Number(r.reg_at) < PER.to)).map((r) => r.roll_no));
+  const cat0 = practiceCatalogue();
+  const cat = { ...cat0, quiz: cat0.quiz.filter((q) => topicInPeriod(PER, q.sess)), code: cat0.code.filter((c) => topicInPeriod(PER, c.topic)) };
+  const quizByGi = new Map(cat.quiz.map((q) => [q.gi, q])), codeIds = new Set(cat.code.map((c) => c.id));
   const P = new Map(); // roll → { done: {unit:Set}, answers: [{q, right}], solves }
   for (const r of progRows) {
     const d = parseJSON(r.data, {}) || {};
@@ -507,7 +525,7 @@ async function computeBusiness(sprintIdParam) {
   };
 
   return {
-    at: now, today, since: { activity: actSince, sessions: sessSince, unitEvents: evSince }, charts,
+    at: now, today, period: PER ? { id: PER.id, label: PER.label } : null, since: { activity: actSince, sessions: sessSince, unitEvents: evSince }, charts,
     sprint: { id: sprintId, current: sprintId === cur.id, list: sprintList.map((s) => ({ id: s.sprint_id, attempts: Number(s.n) })), passMark: pm },
     funnel: [
       { key: 'reach', title: 'Reach', metrics: reach }, { key: 'activity', title: 'Activity', metrics: activity },
