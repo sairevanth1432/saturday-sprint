@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { one, all, run, tx, getSetting } from './db.js';
 import { rateLimit } from './kv.js';
 import { deliverOtp } from './otp.js';
+import { reportError } from './alerts.js';
 import { checkPhoto, saveRequestPhoto, copyRequestPhoto } from './photos.js';
 import { randomToken, sha256, hmac, safeEqual, normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, verifyTotp } from './security.js';
 
@@ -19,7 +20,10 @@ export function parseCookies(req) {
   const out = {};
   for (const part of String(req.headers.cookie || '').split(';')) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    if (i <= 0) continue;
+    // A value that is not valid percent-encoding (a corrupted or foreign cookie) is ignored, as if it were absent:
+    // throwing here would turn every page and API call from that browser into a 500, including /login.
+    try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch {}
   }
   return out;
 }
@@ -183,6 +187,7 @@ export async function startOtp(req, purpose, rawRoll, rawPhone) {
     await deliverOtp(phone, code);
   } catch (e) {
     console.error('[otp] delivery failed for', roll, '-', e.message);
+    reportError('OTP delivery', e); // the alert carries no roll number or phone
     await run('DELETE FROM otp_codes WHERE id = ?', row.id);
     throw new AuthError('OTP_SEND_FAILED', 'We could not send the code right now. Try again in a minute.', 502);
   }

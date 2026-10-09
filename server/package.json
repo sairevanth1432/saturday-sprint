@@ -13,7 +13,7 @@
     "dev": "node --disable-warning=ExperimentalWarning --watch-path=. index.js",
     "create-admin": "node scripts/create-admin.js",
     "import-students": "node scripts/import-students.js",
-    "test": "node --test --test-concurrency=1 test/e2e.test.js test/activity-time.test.js",
+    "test": "node --test --test-concurrency=1 test/e2e.test.js test/activity-time.test.js test/alerts.test.js",
     "seed-test": "node scripts/seed-test.js",
     "test-accounts": "node scripts/test-accounts.js",
     "vercel:prepare": "node scripts/vercel-prepare.js",

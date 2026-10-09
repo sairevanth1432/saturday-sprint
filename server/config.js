@@ -124,6 +124,12 @@ export const config = {
     close: env.SPRINT_CLOSE || '2026-10-03T11:30:00+05:30',
     durationMin: Number(env.SPRINT_DURATION_MIN || 20),
     graceMs: 90 * 1000
+  },
+
+  // Error alerts (alerts.js): an incoming-webhook URL from Slack, Microsoft Teams, Discord or Google Chat.
+  alerts: {
+    webhookUrl: env.ALERT_WEBHOOK_URL || '',
+    site: env.VERCEL_ENV || (isProd ? 'production' : 'local')
   }
 };
 

@@ -172,6 +172,15 @@ test('cross-site POST is blocked', async () => {
   assert.equal(r.status, 403);
 });
 
+test('a malformed cookie is ignored, not a 500: the browser can still reach the login page', async () => {
+  const bad = { cookie: 'ss_session=%E0%A4%A; ss_admin=%' };
+  const get = (url) => fetch(base + url, { redirect: 'manual', headers: bad });
+  assert.equal((await get('/login')).status, 200);
+  assert.equal((await get('/')).status, 302, 'treated as logged out');
+  assert.equal((await get('/api/bootstrap')).status, 401);
+  assert.equal((await get('/api/admin/overview')).status, 401);
+});
+
 let A, B;
 test('Sprint: locked before the window, answers never sent to the browser, graded on the server', async () => {
   A = client(); B = client();
@@ -230,6 +239,11 @@ test('leaderboard ranks by score then time, masks roll numbers', async () => {
   assert.equal(lb.body.rows[0].id, 'NIAT•••01');
   assert.equal(lb.body.me.rank, 2);
   assert.equal(lb.body.me.me, true);
+});
+
+test('a junk cookie next to a valid session does not log the student out', async () => {
+  const r = await fetch(base + '/api/me', { headers: { cookie: A.cookie() + '; other=%zz' } });
+  assert.equal(r.status, 200);
 });
 
 let ADM;

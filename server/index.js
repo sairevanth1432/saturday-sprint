@@ -34,6 +34,9 @@ import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
 import { periodOf } from './periods.js';
+import { reportError, installProcessHandlers } from './alerts.js';
+
+installProcessHandlers();
 
 const PUBLIC = path.join(ROOT, 'public');
 // Topics of the next Sprint (content/next-sprint.json → generated/ by npm run build), shown on the Learn page.
@@ -297,7 +300,7 @@ function clearBoardCacheSoon() {
 
 // Auto-submit sweep, throttled to one instance every 20 s (in addition to the per-minute cron).
 async function maybeFinalize() {
-  if (await kv.setNX('lock:finalize', '1', 20)) await finalizeExpired({ limit: 50, budgetMs: 5000 }).catch((e) => console.error('[sprint]', e.message));
+  if (await kv.setNX('lock:finalize', '1', 20)) await finalizeExpired({ limit: 50, budgetMs: 5000 }).catch((e) => reportError('auto-submit sweep', e));
 }
 
 // Photos on the leaderboard (logged-in users only; the link does not show the NIAT ID).
@@ -1218,8 +1221,9 @@ app.use((err, req, res, next) => {
   }
   if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'BAD_JSON', message: 'Invalid JSON.' });
   if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'TOO_LARGE', message: 'Upload too large.' });
-  console.error('[error]', req.method, req.originalUrl, err);
-  res.status(500).json({ error: 'SERVER', message: 'Something went wrong. Please try again.' });
+  const ref = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); // quoted by the student, found in the log
+  reportError('http', err, { method: req.method, url: req.originalUrl, id: ref });
+  res.status(500).json({ error: 'SERVER', message: 'Something went wrong. Please try again.', ref });
 });
 
 // ===================================================================== local server
@@ -1234,7 +1238,7 @@ export async function start() {
       const slot = new Map();
       const fork = (i) => slot.set(cluster.fork({ WORKER_INDEX: String(i) }).id, i);
       for (let i = 0; i < config.webConcurrency; i++) fork(i);
-      cluster.on('exit', (w, code) => { console.error(`[cluster] worker ${w.process.pid} exited (${code}); restarting`); fork(slot.get(w.id) ?? 1); slot.delete(w.id); });
+      cluster.on('exit', (w, code) => { reportError('cluster', new Error(`worker ${w.process.pid} exited (${code}); restarting`)); fork(slot.get(w.id) ?? 1); slot.delete(w.id); });
       return null;
     }
   }
@@ -1242,7 +1246,7 @@ export async function start() {
   await ready();
   startGrader();
   if (lead) watchStudentsFile();
-  const t = setInterval(() => { if (lead) finalizeExpired().catch((e) => console.error('[sprint]', e.message)); }, 20000);
+  const t = setInterval(() => { if (lead) finalizeExpired().catch((e) => reportError('auto-submit sweep', e)); }, 20000);
   t.unref();
   const c = setInterval(() => { if (lead) cleanupExpired().catch(() => {}); }, 3600000);
   c.unref();

@@ -138,13 +138,20 @@ Check current prices on vercel.com/pricing.
 node loadtest/simulate.js make-csv 15000 > loadtest-students.csv
 ```
 
-1. Import `loadtest-students.csv` into a **staging** deployment that has its own database. Set `ALLOW_TEST_OTP=true` there (it is refused on production) and open the Sprint window.
+1. Import `loadtest-students.csv` into a **staging** deployment that has its own database, and open the Sprint window. The default `--login name` uses the NIAT ID + name log-in. For `--login otp`, also set `ALLOW_TEST_OTP=true` there (it is refused on production) and tick *Auto-approve registrations*. Never point the simulator at production.
 2. Run from several machines, ~3,000 students each, using `--offset` so each machine gets different students:
    ```bash
    node loadtest/simulate.js run --url https://staging.example.com --students 3000 --offset 0    --ramp 120
    node loadtest/simulate.js run --url https://staging.example.com --students 3000 --offset 3000 --ramp 120
    ```
 3. Watch p95/p99 latency and errors in the output, and Neon / Upstash / Vercel Observability dashboards.
+4. Name log-in allows 3,000 log-ins per network address per 15 minutes, so one machine can log in at most 3,000 students per 15 minutes; spread larger runs over several machines.
+
+## Error alerts
+
+Set `ALERT_WEBHOOK_URL` to an incoming-webhook URL (Slack, Microsoft Teams, Discord or Google Chat). Every unexpected server error (HTTP 500s, failed auto-submits, failed OTP delivery, crashes) is then posted to that channel within seconds: where it happened, the method and path, and the error message, with phone numbers masked. The same error is sent at most once per 10 minutes (repeats are counted), and at most 20 alerts per hour per server instance. Every error is also written to the log as one JSON line, and a 500 response carries a `ref` that matches the log line.
+
+For uptime, point any monitor (UptimeRobot, Better Stack, Vercel checks) at `GET /api/health`, which answers `{"ok":true,…}`.
 
 ## How the pieces fit
 

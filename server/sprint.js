@@ -9,6 +9,7 @@ import { runTests } from './grader.js';
 import crypto from 'node:crypto';
 import { maskRoll, photoToken } from './security.js';
 import { universityOf } from './universities.js';
+import { reportError } from './alerts.js';
 
 // Marks per question type. MCQ: 1 each. Coding: partial credit by hidden tests passed.
 // Written problems ("reviewed by panel"): awarded by an admin, 0..MARKS.text each.
@@ -319,7 +320,7 @@ export async function finalizeExpired({ limit = 300, budgetMs = 45000 } = {}) {
   let done = 0;
   for (let i = 0; i < due.length && Date.now() - t0 < budgetMs; i += 8) {
     await Promise.all(due.slice(i, i + 8).map(async (a) => {
-      try { await finalize(a, cleanAnswers(await readDraft(a), await getQuestions(a.sprint_id)), true); done++; } catch (e) { if (e.code !== 'BUSY') console.error('[sprint] auto-submit failed', a.id, e.message); }
+      try { await finalize(a, cleanAnswers(await readDraft(a), await getQuestions(a.sprint_id)), true); done++; } catch (e) { if (e.code !== 'BUSY') reportError('auto-submit', e, { id: 'attempt ' + a.id }); }
     }));
   }
   if (done) await clearBoardCache();
