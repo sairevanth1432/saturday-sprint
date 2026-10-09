@@ -23,6 +23,23 @@ ALTER TABLE students_master ADD COLUMN IF NOT EXISTS lms_id TEXT NOT NULL DEFAUL
 ALTER TABLE students_master ADD COLUMN IF NOT EXISTS university TEXT NOT NULL DEFAULT ''; -- the student's university / campus ("University" column)
 CREATE INDEX IF NOT EXISTS students_university ON students_master(university);
 
+-- Archives: a frozen copy of the data and analyses (Admin → Archives), e.g. "Sprint 1" before the master list is replaced.
+CREATE TABLE IF NOT EXISTS archives (
+  id          BIGSERIAL PRIMARY KEY,
+  label       TEXT NOT NULL UNIQUE,
+  created_at  BIGINT NOT NULL,
+  created_by  TEXT,
+  summary     TEXT
+);
+CREATE TABLE IF NOT EXISTS archive_files (
+  archive_id   BIGINT NOT NULL,
+  name         TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  body         TEXT NOT NULL,
+  size         BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (archive_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id             BIGSERIAL PRIMARY KEY,
   roll_no        TEXT NOT NULL UNIQUE REFERENCES students_master(roll_no),  -- one account per roll number

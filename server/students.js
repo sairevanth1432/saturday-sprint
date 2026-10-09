@@ -7,6 +7,7 @@ import path from 'node:path';
 import { config } from './config.js';
 import { one, all, run, tx, getSetting, setSetting } from './db.js';
 import { normRoll, validRoll, normPhone, sha256 } from './security.js';
+import { universityOf } from './universities.js';
 
 // Header names we recognise (case/spacing/punctuation-insensitive).
 const ALIASES = {
@@ -91,7 +92,7 @@ export function readStudents(input) {
     seen.set(roll, line);
     if (phone && phones.has(phone)) warnings.push({ line, roll, warning: 'Same phone as ' + phones.get(phone) });
     else if (phone) phones.set(phone, roll);
-    students.push({ roll_no: roll, name: get(r, 'name'), phone: phone || '', batch: get(r, 'batch'), email: get(r, 'email').toLowerCase(), lms_id: get(r, 'lms_id'), university: get(r, 'university') });
+    students.push({ roll_no: roll, name: get(r, 'name'), phone: phone || '', batch: get(r, 'batch'), email: get(r, 'email').toLowerCase(), lms_id: get(r, 'lms_id'), university: get(r, 'university') || universityOf(roll) });
   });
   return { error: null, students, errors, warnings, rowsTotal: rows.length - 1 };
 }

@@ -436,7 +436,9 @@ test('master data: university column (the university-wise sheet), split by unive
   assert.deepEqual({ ...g }, { name: 'Geeta Three', university: 'Geeta University - Panipat', lms_id: 'uid-3' });
   const im = await ADM('GET', '/api/admin/imports');
   const alard = im.body.universities.find((u) => u.university === 'ALARD - Pune');
-  assert.equal(Number(alard.active), 2);
+  // the 2 rows of this sheet, plus N26P02A… students imported earlier (university from the NIAT ID prefix)
+  assert.equal(Number(alard.active), Number((await db.one("SELECT COUNT(*) AS n FROM students_master WHERE university = 'ALARD - Pune' AND active = 1")).n));
+  assert.ok(Number(alard.active) >= 2);
   assert.ok(im.body.universities.some((u) => u.university === 'Geeta University - Panipat'));
   // replace with Geeta only: the merged ALARD students go (they have a university); students added one by one stay
   await ADM('POST', '/api/admin/import', { csv: 'NIAT ID,Student Name\nUNIV0009,Added By Hand\n', fileName: 'one.csv', mode: 'merge' });
@@ -450,6 +452,27 @@ test('master data: university column (the university-wise sheet), split by unive
   assert.equal(await act('UNIV0002'), 0);
   assert.equal(await act('UNIV0003'), 1);
   assert.equal(await act('UNIV0009'), 1, 'a student without a university is not part of a university list');
+});
+
+test('archives: "Sprint 1" keeps a frozen copy of students, results and analyses; students list shows and filters universities', async () => {
+  // university from the NIAT ID when none is given
+  assert.equal((await ADM('POST', '/api/admin/students', { roll_no: 'N26HY03A999', name: 'Prefix Geeta' })).status, 200);
+  assert.equal((await db.one('SELECT university FROM students_master WHERE roll_no = ?', 'N26HY03A999')).university, 'Geeta University - Panipat');
+  const list = await ADM('GET', '/api/admin/students?university=' + encodeURIComponent('Geeta University - Panipat'));
+  assert.ok(list.body.rows.length >= 1 && list.body.rows.every((r) => r.university === 'Geeta University - Panipat'));
+  assert.ok(list.body.universities.includes('Geeta University - Panipat'));
+  assert.equal((await A('GET', '/api/admin/archives')).status, 401, 'students cannot see archives');
+  const mk = await ADM('POST', '/api/admin/archives', { label: 'Sprint 1' });
+  assert.equal(mk.status, 200, JSON.stringify(mk.body));
+  assert.equal((await ADM('POST', '/api/admin/archives', { label: 'Sprint 1' })).status, 409);
+  const ar = (await ADM('GET', '/api/admin/archives')).body.rows.find((a) => a.label === 'Sprint 1');
+  const names = ar.files.map((f) => f.name);
+  for (const n of ['students.csv', 'feedback.csv', 'business-metrics.json', 'practice-analytics.json']) assert.ok(names.includes(n), n + ' in ' + names);
+  assert.ok(names.some((n) => /^results-.+\.csv$/.test(n)), 'results of every Sprint');
+  const st = await ADM('GET', '/api/admin/archives/' + ar.id + '/students.csv');
+  assert.equal(st.status, 200);
+  assert.match(st.text.split('\n')[0], /university/);
+  assert.match(st.text, /N26HY03A999,.*Prefix Geeta,Geeta University - Panipat/);
 });
 
 test('units: 6 units, each ONE lesson with Watch → Play → Read; files are served by this server with seeking', async () => {

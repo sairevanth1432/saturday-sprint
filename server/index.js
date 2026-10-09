@@ -32,6 +32,7 @@ import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
 import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, setArchivedMany, importPractice } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto } from './photos.js';
+import { universityOf } from './universities.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 // Topics of the next Sprint (content/next-sprint.json → generated/ by npm run build), shown on the Learn page.
@@ -469,7 +470,9 @@ adm.get('/students', async (req, res) => {
   const filter = String(req.query.filter || 'all');
   const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100)), offset = Math.max(0, Number(req.query.offset) || 0);
   const where = [], p = [sprint.id];
-  if (q) { where.push('(m.roll_no ILIKE ? OR m.name ILIKE ? OR m.phone ILIKE ? OR m.batch ILIKE ? OR m.email ILIKE ?)'); const l = '%' + q + '%'; p.push(l, l, l, l, l); }
+  if (q) { where.push('(m.roll_no ILIKE ? OR m.name ILIKE ? OR m.phone ILIKE ? OR m.batch ILIKE ? OR m.email ILIKE ? OR m.university ILIKE ?)'); const l = '%' + q + '%'; p.push(l, l, l, l, l, l); }
+  const uni = String(req.query.university || '');
+  if (uni) { where.push('m.university = ?'); p.push(uni); }
   if (filter === 'registered') where.push('u.id IS NOT NULL');
   if (filter === 'unregistered') where.push('u.id IS NULL AND m.active = 1');
   if (filter === 'pending') where.push("u.id IS NULL AND m.roll_no IN (SELECT roll_no FROM registration_requests WHERE status = 'pending')");
@@ -486,7 +489,8 @@ adm.get('/students', async (req, res) => {
         a.id AS attempt_id, a.status AS attempt_status, a.total, a.max_total, a.used_ms, pr.data AS progress ${sql}
         ORDER BY m.roll_no LIMIT ? OFFSET ?`, ...p, limit, offset)
   ]);
-  res.json({ total: cnt.n, rows: rows.map(({ progress, ...r }) => ({ ...r, progress: progressSummary(progress) })) });
+  const universities = (await all("SELECT DISTINCT university FROM students_master WHERE university <> '' ORDER BY university")).map((r) => r.university);
+  res.json({ total: cnt.n, universities, rows: rows.map(({ progress, ...r }) => ({ ...r, university: r.university || universityOf(r.roll_no), progress: progressSummary(progress) })) });
 });
 
 adm.get('/students/:roll', async (req, res) => {
@@ -512,7 +516,8 @@ function cleanStudent(b, roll) {
   const phone = b.phone ? normPhone(b.phone) : '';
   if (b.phone && !phone) throw new AuthError('BAD_PHONE', 'Enter a valid phone number, or leave it empty.', 400);
   return { roll_no: roll, name: String(b.name || '').trim().slice(0, 120), phone,
-    batch: String(b.batch || '').trim().slice(0, 80), email: String(b.email || '').trim().toLowerCase().slice(0, 160) };
+    batch: String(b.batch || '').trim().slice(0, 80), email: String(b.email || '').trim().toLowerCase().slice(0, 160),
+    university: String(b.university || '').trim().slice(0, 160) || universityOf(roll) };
 }
 
 adm.post('/students', async (req, res) => {
@@ -520,8 +525,8 @@ adm.post('/students', async (req, res) => {
   if (!validRoll(roll)) throw new AuthError('BAD_ROLL', 'Enter a valid NIAT ID.', 400);
   if (await one('SELECT 1 AS x FROM students_master WHERE roll_no = ?', roll)) throw new AuthError('EXISTS', 'That NIAT ID already exists.', 409);
   const s = cleanStudent(req.body, roll);
-  await run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, ?, ?, ?, 1, 'admin', ?)",
-    s.roll_no, s.name, s.phone, s.batch, s.email, Date.now());
+  await run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'admin', ?)",
+    s.roll_no, s.name, s.phone, s.batch, s.email, s.university, Date.now());
   await audit(req, 'student.created', roll, s);
   res.json({ ok: true });
 });
@@ -532,11 +537,11 @@ adm.patch('/students/:roll', async (req, res) => {
   if (!m) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such NIAT ID.' });
   const s = cleanStudent({ ...m, ...req.body }, roll);
   const active = req.body.active === undefined ? m.active : (req.body.active ? 1 : 0);
-  await run('UPDATE students_master SET name = ?, phone = ?, batch = ?, email = ?, active = ?, updated_at = ? WHERE roll_no = ?',
-    s.name, s.phone, s.batch, s.email, active, Date.now(), roll);
+  await run('UPDATE students_master SET name = ?, phone = ?, batch = ?, email = ?, university = ?, active = ?, updated_at = ? WHERE roll_no = ?',
+    s.name, s.phone, s.batch, s.email, s.university, active, Date.now(), roll);
   if (!active) { const u = await one('SELECT id FROM users WHERE roll_no = ?', roll); if (u) await revokeSessions('student', u.id); }
   await clearBoardCache();
-  await audit(req, 'student.updated', roll, { before: { name: m.name, phone: m.phone, batch: m.batch, email: m.email, active: m.active }, after: { ...s, active } });
+  await audit(req, 'student.updated', roll, { before: { name: m.name, phone: m.phone, batch: m.batch, email: m.email, university: m.university, active: m.active }, after: { ...s, active } });
   res.json({ ok: true });
 });
 
@@ -961,39 +966,85 @@ const toCSV = (cols, rows) => [cols.map((c) => HEAD[c] || c).join(','), ...rows.
 const iso = (ms) => (ms ? new Date(ms).toISOString() : '');
 const mmss = (ms) => (ms == null ? '' : Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0'));
 
-adm.get('/export/:what', async (req, res) => {
-  const sprint = await getSprint();
+// One export file ({ name, body }, or null for an unknown name): the download buttons and the archives use it.
+async function buildExport(what, { sprintId = '', days = 30 } = {}) {
   let name, body;
-  if (req.params.what === 'results.csv') {
-    const rankOf = new Map((await leaderboardRows(sprint.id)).map((r) => [r.roll_no, r.rank]));
-    const rows = (await all(`${ATTEMPT_LIST} WHERE a.sprint_id = ? AND a.roll_no NOT LIKE 'ADMIN-%' ORDER BY a.total DESC NULLS LAST, a.used_ms ASC`, sprint.id))
+  if (what === 'results.csv') {
+    const sid = sprintId || (await getSprint()).id;
+    const rankOf = new Map((await leaderboardRows(sid)).map((r) => [r.roll_no, r.rank]));
+    const rows = (await all(`${ATTEMPT_LIST} WHERE a.sprint_id = ? AND a.roll_no NOT LIKE 'ADMIN-%' ORDER BY a.total DESC NULLS LAST, a.used_ms ASC`, sid))
       .map((r) => ({ ...r, rank: rankOf.get(r.roll_no) || '', time_used: mmss(r.used_ms), started: iso(r.started_at), submitted: iso(r.submitted_at), auto: r.auto_submitted ? 'yes' : '', reviewed: r.text_reviewed ? 'yes' : 'no', ended_by_violations: proctorView(r).endedBy === 'violations' ? 'yes' : '' }));
-    name = `results-${sprint.id}.csv`;
+    name = `results-${sid}.csv`;
     body = toCSV(['rank', 'roll_no', 'name', 'batch', 'status', 'total', 'max_total', 'mcq_score', 'code_score', 'text_score', 'reviewed', 'time_used', 'started', 'submitted', 'auto', 'violations', 'ended_by_violations'], rows);
-  } else if (req.params.what === 'students.csv') {
+  } else if (what === 'students.csv') {
     const rows = (await all(`SELECT m.*, u.status AS account, u.created_at AS reg_at, u.last_login_at, pr.data FROM students_master m
       LEFT JOIN users u ON u.roll_no = m.roll_no LEFT JOIN progress pr ON pr.roll_no = m.roll_no ORDER BY m.roll_no`))
-      .map((r) => ({ ...r, ...progressSummary(r.data), active: r.active ? 'yes' : 'no', account: r.account || 'not registered', registered: iso(r.reg_at), last_login: iso(r.last_login_at) }));
+      .map((r) => ({ ...r, ...progressSummary(r.data), university: r.university || universityOf(r.roll_no), active: r.active ? 'yes' : 'no', account: r.account || 'not registered', registered: iso(r.reg_at), last_login: iso(r.last_login_at) }));
     name = 'students.csv';
     body = toCSV(['roll_no', 'lms_id', 'name', 'university', 'phone', 'batch', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
-  } else if (req.params.what === 'feedback.csv') {
+  } else if (what === 'feedback.csv') {
     const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id'))
       .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, at: iso(r.created_at), ai_use: d.aiUse || '', ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });
     name = 'feedback.csv';
     body = toCSV(['at', 'roll_no', 'name', 'kind', 'rating', 'ai_use', 'ai_sprint', 'ai_practice', 'text'], rows);
-  } else if (req.params.what === 'activity.csv') {
-    if (req.admin.role !== 'super_admin') return res.status(403).json({ error: 'FORBIDDEN', message: 'Super admins only.' });
-    const d = await studentRows({ days: daysOf(req), limit: 100000 });
+  } else if (what === 'activity.csv') {
+    const d = await studentRows({ days, limit: 100000 });
     const mins = (ms) => Math.round(ms / 6000) / 10;
     const rows = d.rows.map((r) => ({ ...r, portal_minutes: mins(r.portal_ms), unit_minutes: mins(r.ms), learn_minutes: mins(r.learn_ms), practice_minutes: mins(r.practice_ms), video_minutes: mins(r.video_ms), sprint_minutes: mins(r.sprint_ms),
       last_active: iso(r.last_active), last_login: iso(r.last_login_at), registered: r.registered ? 'yes' : 'no' }));
     name = `activity-last-${d.days}-days.csv`;
     body = toCSV(['roll_no', 'name', 'batch', 'registered', 'logins', 'last_login', 'last_active', 'days_active', 'portal_minutes', 'unit_minutes', 'learn_minutes', 'video_minutes', 'practice_minutes', 'sprint_minutes',
       'units_opened', 'unit_clicks', 'steps_done', 'units_completed', 'practice_answered', 'practice_correct', 'coding_solved'], rows);
-  } else return res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown export.' });
+  } else return null;
+  return { name, body };
+}
+
+adm.get('/export/:what', async (req, res) => {
+  if (req.params.what === 'activity.csv' && req.admin.role !== 'super_admin') return res.status(403).json({ error: 'FORBIDDEN', message: 'Super admins only.' });
+  const f = await buildExport(req.params.what, { days: daysOf(req) });
+  if (!f) return res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown export.' });
   await audit(req, 'export', req.params.what);
-  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}"` });
-  res.send('﻿' + body);
+  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${f.name}"` });
+  res.send('﻿' + f.body);
+});
+
+// ---------- archives (super admin): a frozen copy of the data and analyses, e.g. "Sprint 1" before the master list is replaced.
+// Every file is stored in the database when the archive is made and never changes; analyses count the students active then.
+adm.get('/archives', requireSuper, async (req, res) => {
+  const files = await all('SELECT archive_id, name, size FROM archive_files ORDER BY archive_id, name');
+  res.json({ rows: (await all('SELECT id, label, created_at, created_by, summary FROM archives ORDER BY id DESC')).map((a) => ({ ...a, summary: parseJSON(a.summary, {}),
+    files: files.filter((f) => Number(f.archive_id) === Number(a.id)).map((f) => ({ name: f.name, size: Number(f.size) })) })) });
+});
+adm.post('/archives', requireSuper, async (req, res) => {
+  const label = String(req.body.label || '').trim().slice(0, 80);
+  if (label.length < 2) return res.status(400).json({ error: 'BAD_LABEL', message: 'Give the archive a name, e.g. Sprint 1.' });
+  if (await one('SELECT 1 AS x FROM archives WHERE label = ?', label)) return res.status(409).json({ error: 'EXISTS', message: 'An archive with that name already exists.' });
+  const files = [], csv = (f) => f && files.push({ name: f.name, type: 'text/csv', body: '﻿' + f.body });
+  const json = (name, v) => files.push({ name, type: 'application/json', body: JSON.stringify(v, null, 1) });
+  csv(await buildExport('students.csv'));
+  const sprints = (await all("SELECT sprint_id FROM attempts WHERE roll_no NOT LIKE 'ADMIN-%' GROUP BY sprint_id ORDER BY MIN(started_at)")).map((r) => r.sprint_id);
+  for (const s of sprints) csv(await buildExport('results.csv', { sprintId: s }));
+  csv(await buildExport('feedback.csv'));
+  csv(await buildExport('activity.csv', { days: 365 }));
+  json('business-metrics.json', await businessMetrics({ fresh: true }));
+  json('analytics-overview.json', await analyticsOverview({ days: 365 }));
+  json('practice-analytics.json', await practiceAnalytics({ fresh: true }));
+  json('integrity-flags.json', await listFlags({}));
+  json('video-likes.json', await likesAnalytics());
+  const c = await studentCounts();
+  const summary = { students: Number(c.master_active), inactive: Number(c.master_inactive), registered: Number(c.registered), sprints };
+  await tx(async () => {
+    const a = await one('INSERT INTO archives (label, created_at, created_by, summary) VALUES (?, ?, ?, ?) RETURNING id', label, Date.now(), req.admin.email, JSON.stringify(summary));
+    for (const f of files) await run('INSERT INTO archive_files (archive_id, name, content_type, body, size) VALUES (?, ?, ?, ?, ?)', a.id, f.name, f.type, f.body, Buffer.byteLength(f.body));
+  });
+  await audit(req, 'archive.created', label, { files: files.length, ...summary });
+  res.json({ ok: true, label, files: files.length, summary });
+});
+adm.get('/archives/:id/:name', requireSuper, async (req, res) => {
+  const f = await one('SELECT name, content_type, body FROM archive_files WHERE archive_id = ? AND name = ?', Number(req.params.id) || 0, String(req.params.name));
+  if (!f) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such archive file.' });
+  res.set({ 'Content-Type': f.content_type + '; charset=utf-8', 'Content-Disposition': `attachment; filename="${f.name}"` });
+  res.send(f.body);
 });
 
 // ---------- settings (super admin)
