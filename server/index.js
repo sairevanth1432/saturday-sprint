@@ -773,13 +773,18 @@ adm.get('/leaderboard', async (req, res) => {
 // ---------- master data
 adm.get('/imports', async (req, res) => {
   res.json({ studentsFile: config.isVercel ? null : studentsFilePath(), exists: !config.isVercel && fs.existsSync(studentsFilePath()), vercel: config.isVercel,
-    rows: (await all('SELECT * FROM imports ORDER BY id DESC LIMIT 50')).map((r) => ({ ...r, errors: parseJSON(r.errors, {}) })) });
+    rows: (await all('SELECT * FROM imports ORDER BY id DESC LIMIT 50')).map((r) => ({ ...r, errors: parseJSON(r.errors, {}) })),
+    // the master list split by university (students without one are grouped under '')
+    universities: await all(`SELECT m.university, SUM(CASE WHEN m.active = 1 THEN 1 ELSE 0 END) AS active, SUM(CASE WHEN m.active = 0 THEN 1 ELSE 0 END) AS inactive,
+      COUNT(u.roll_no) AS registered, SUM(CASE WHEN m.active = 1 AND m.name = '' THEN 1 ELSE 0 END) AS no_name
+      FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no GROUP BY m.university ORDER BY active DESC, m.university`) });
 });
 adm.post('/import/preview', async (req, res) => {
   const r = readStudents(await rowsFrom(req.body));
   const existing = new Set((await all('SELECT roll_no FROM students_master')).map((x) => x.roll_no));
   res.json({ error: r.error, rowsTotal: r.rowsTotal || 0, valid: r.students.length, errors: r.errors.slice(0, 200), warnings: r.warnings.slice(0, 200),
-    newCount: r.students.filter((s) => !existing.has(s.roll_no)).length, sample: r.students.slice(0, 8) });
+    newCount: r.students.filter((s) => !existing.has(s.roll_no)).length, sample: r.students.slice(0, 8),
+    byUniversity: Object.entries(r.students.reduce((m, s) => { m[s.university] = (m[s.university] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]) });
 });
 // "replace": this upload becomes the master list (students not in it are deactivated). "merge": add/update only.
 adm.post('/import', requireSuper, async (req, res) => {
@@ -970,7 +975,7 @@ adm.get('/export/:what', async (req, res) => {
       LEFT JOIN users u ON u.roll_no = m.roll_no LEFT JOIN progress pr ON pr.roll_no = m.roll_no ORDER BY m.roll_no`))
       .map((r) => ({ ...r, ...progressSummary(r.data), active: r.active ? 'yes' : 'no', account: r.account || 'not registered', registered: iso(r.reg_at), last_login: iso(r.last_login_at) }));
     name = 'students.csv';
-    body = toCSV(['roll_no', 'lms_id', 'name', 'phone', 'batch', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
+    body = toCSV(['roll_no', 'lms_id', 'name', 'university', 'phone', 'batch', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
   } else if (req.params.what === 'feedback.csv') {
     const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id'))
       .map((r) => { const d = parseJSON(r.data, {}) || {}; return { ...r, at: iso(r.created_at), ai_use: d.aiUse || '', ai_sprint: d.aiSprint || '', ai_practice: d.aiPractice || '' }; });

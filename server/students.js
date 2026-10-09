@@ -12,11 +12,12 @@ import { normRoll, validRoll, normPhone, sha256 } from './security.js';
 const ALIASES = {
   // The student's login ID. "NIAT ID" is used by the Alard/NIAT sheets; the others are accepted for other sources.
   roll_no: ['niatid', 'niat', 'rollno', 'rollnumber', 'roll', 'studentid', 'id', 'registrationno', 'registrationnumber', 'regno', 'admissionno', 'enrollmentno', 'enrolmentno', 'uid'],
-  lms_id: ['userid', 'lmsid', 'lmsuserid'],
-  name: ['name', 'studentname', 'fullname', 'student'],
-  phone: ['phone', 'phoneno', 'phonenumber', 'mobile', 'mobileno', 'mobilenumber', 'contact', 'contactno', 'contactnumber', 'whatsapp', 'whatsappnumber'],
+  lms_id: ['userid', 'lmsid', 'lmsuserid', 'registeredaccountsuid'],
+  name: ['name', 'studentname', 'studentnames', 'fullname', 'student'],
+  phone: ['phone', 'phoneno', 'studentmobilenumber', 'phonenumber', 'mobile', 'mobileno', 'mobilenumber', 'contact', 'contactno', 'contactnumber', 'whatsapp', 'whatsappnumber'],
   batch: ['batch', 'section', 'class', 'cohort', 'group', 'campus'],
-  email: ['email', 'emailid', 'emailids', 'emailaddress', 'mail']
+  email: ['email', 'emailid', 'emailids', 'emailaddress', 'mail', 'studentpersonalmailid', 'personalmailid', 'personalemail'],
+  university: ['university', 'universityname', 'college', 'collegename', 'institute', 'institutename', 'institution']
 };
 const keyOf = (h) => {
   const k = String(h).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -90,7 +91,7 @@ export function readStudents(input) {
     seen.set(roll, line);
     if (phone && phones.has(phone)) warnings.push({ line, roll, warning: 'Same phone as ' + phones.get(phone) });
     else if (phone) phones.set(phone, roll);
-    students.push({ roll_no: roll, name: get(r, 'name'), phone: phone || '', batch: get(r, 'batch'), email: get(r, 'email').toLowerCase(), lms_id: get(r, 'lms_id') });
+    students.push({ roll_no: roll, name: get(r, 'name'), phone: phone || '', batch: get(r, 'batch'), email: get(r, 'email').toLowerCase(), lms_id: get(r, 'lms_id'), university: get(r, 'university') });
   });
   return { error: null, students, errors, warnings, rowsTotal: rows.length - 1 };
 }
@@ -104,12 +105,14 @@ export async function importStudents(input, { source = 'file', fileName = '', ad
   if (!parsed.students.length) { res.error = 'No valid rows found, nothing was imported.'; return res; }
   const now = Date.now();
   await tx(async () => {
-    const existing = new Map((await all('SELECT roll_no, name, phone, batch, email, lms_id, active FROM students_master')).map((r) => [r.roll_no, r]));
+    const existing = new Map((await all('SELECT roll_no, name, phone, batch, email, lms_id, university, active FROM students_master')).map((r) => [r.roll_no, r]));
     const changed = [];
     for (const s of parsed.students) {
       const cur = existing.get(s.roll_no);
+      // merge: an empty cell keeps what is stored (a sheet without names or phones must not wipe them)
+      if (cur && !fullSync) for (const f of ['name', 'phone', 'batch', 'email', 'lms_id', 'university']) if (!s[f] && cur[f]) s[f] = cur[f];
       if (!cur) { res.inserted++; changed.push(s); }
-      else if (cur.name !== s.name || cur.phone !== s.phone || cur.batch !== s.batch || cur.email !== s.email || (cur.lms_id || '') !== s.lms_id || !cur.active) {
+      else if (cur.name !== s.name || cur.phone !== s.phone || cur.batch !== s.batch || cur.email !== s.email || (cur.lms_id || '') !== s.lms_id || (cur.university || '') !== s.university || !cur.active) {
         if (!cur.active) res.reactivated++;
         res.updated++; changed.push(s);
       } else res.unchanged++;
@@ -117,10 +120,10 @@ export async function importStudents(input, { source = 'file', fileName = '', ad
     // Batched upsert: 500 rows per statement keeps 15k-row files fast.
     for (let i = 0; i < changed.length; i += 500) {
       const chunk = changed.slice(i, i + 500), vals = [], params = [];
-      for (const s of chunk) { vals.push('(?, ?, ?, ?, ?, ?, 1, ?, ?)'); params.push(s.roll_no, s.name, s.phone, s.batch, s.email, s.lms_id, source, now); }
-      await run(`INSERT INTO students_master (roll_no, name, phone, batch, email, lms_id, active, source, updated_at) VALUES ${vals.join(', ')}
+      for (const s of chunk) { vals.push('(?, ?, ?, ?, ?, ?, ?, 1, ?, ?)'); params.push(s.roll_no, s.name, s.phone, s.batch, s.email, s.lms_id, s.university, source, now); }
+      await run(`INSERT INTO students_master (roll_no, name, phone, batch, email, lms_id, university, active, source, updated_at) VALUES ${vals.join(', ')}
         ON CONFLICT (roll_no) DO UPDATE SET name = excluded.name, phone = excluded.phone, batch = excluded.batch, email = excluded.email,
-        lms_id = excluded.lms_id, active = 1, source = excluded.source, updated_at = excluded.updated_at`, ...params);
+        lms_id = excluded.lms_id, university = excluded.university, active = 1, source = excluded.source, updated_at = excluded.updated_at`, ...params);
     }
     if (fullSync) {
       const keep = new Set(parsed.students.map((s) => s.roll_no));

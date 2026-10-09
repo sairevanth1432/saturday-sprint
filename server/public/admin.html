@@ -1125,6 +1125,14 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         return h('div', { class: 'tablewrap', style: 'max-height:260px' }, h('table', null, h('thead', null, h('tr', null, h('th', null, 'Line'), h('th', null, 'NIAT ID'), h('th', null, key === 'error' ? 'Problem' : 'Warning'))),
           h('tbody', null, list.map(function (e) { return h('tr', null, h('td', { class: 'mono' }, e.line), h('td', { class: 'mono' }, e.roll || '–'), h('td', null, e[key])); }))));
       }
+      // rows: [{ university, ...counts }]; cols: [[key, label], ...]; a total row at the bottom
+      function uniTable(rows, cols) {
+        var tot = {}; cols.forEach(function (c) { tot[c[0]] = rows.reduce(function (n, r) { return n + Number(r[c[0]] || 0); }, 0); });
+        return h('div', { class: 'tablewrap', style: 'max-height:420px' }, h('table', null,
+          h('thead', null, h('tr', null, h('th', null, 'University'), cols.map(function (c) { return h('th', null, c[1]); }))),
+          h('tbody', null, rows.map(function (r) { return h('tr', null, h('td', null, r.university || h('span', { class: 'muted' }, 'No university')), cols.map(function (c) { return h('td', { class: 'mono' }, Number(r[c[0]] || 0)); })); }),
+            h('tr', null, h('td', { style: 'font-weight:800' }, 'Total · ' + rows.length + ' universities'), cols.map(function (c) { return h('td', { class: 'mono', style: 'font-weight:800' }, tot[c[0]]); })))));
+      }
       function preview(payload, name) {
         result.replaceChildren(h('div', { class: 'muted' }, 'Checking ' + name + '…'));
         api('POST', '/api/admin/import/preview', payload).then(function (p) {
@@ -1139,8 +1147,9 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           result.replaceChildren(h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:12px' },
             h('h2', { style: 'margin:0' }, 'Preview: ' + name),
             h('div', { class: 'row' }, pill(p.rowsTotal + ' rows'), pill(p.valid + ' valid', 'ok'), pill(p.newCount + ' new', 'info'), p.errors.length ? pill(p.errors.length + ' rejected', 'bad') : null, p.warnings.length ? pill(p.warnings.length + ' warnings', 'warn') : null),
-            p.sample.length ? h('div', { class: 'tablewrap', style: 'max-height:240px' }, h('table', null, h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Phone', 'Batch', 'Email'].map(function (t) { return h('th', null, t); }))),
-              h('tbody', null, p.sample.map(function (s) { return h('tr', null, h('td', { class: 'mono' }, s.roll_no), h('td', null, s.name), h('td', { class: 'mono' }, s.phone), h('td', null, s.batch), h('td', null, s.email)); })))) : null,
+            p.sample.length ? h('div', { class: 'tablewrap', style: 'max-height:240px' }, h('table', null, h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'University', 'Phone', 'Batch', 'Email'].map(function (t) { return h('th', null, t); }))),
+              h('tbody', null, p.sample.map(function (s) { return h('tr', null, h('td', { class: 'mono' }, s.roll_no), h('td', null, s.name), h('td', null, s.university || '–'), h('td', { class: 'mono' }, s.phone), h('td', null, s.batch), h('td', null, s.email)); })))) : null,
+            p.byUniversity && p.byUniversity.length ? h('div', null, h('div', { class: 'soft', style: 'font-weight:800;margin-bottom:6px' }, 'Valid rows by university'), uniTable(p.byUniversity.map(function (x) { return { university: x[0], file: x[1] }; }), [['file', 'In this file']])) : null,
             p.errors.length ? h('div', null, h('div', { class: 'soft', style: 'font-weight:800;margin-bottom:6px' }, 'Rejected rows (fix them in the file and upload again)'), errorTable(p.errors, 'error')) : null,
             p.warnings.length ? h('div', null, h('div', { class: 'soft', style: 'font-weight:800;margin-bottom:6px' }, 'Warnings'), errorTable(p.warnings, 'warning')) : null,
             isSuper() ? h('div', { class: 'row' }, h('button', { class: 'btn pri', disabled: p.valid ? null : true, onclick: function () { doImport('replace'); } }, 'Replace master list'),
@@ -1166,9 +1175,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'row' }, im.exists ? pill('file present', 'ok') : pill('file not found', 'bad'),
               isSuper() ? h('button', { class: 'btn sm', onclick: function () { api('POST', '/api/admin/import/reload').then(function (r) { toast('Reloaded: ' + r.inserted + ' new, ' + r.updated + ' updated, ' + r.deactivated + ' deactivated, ' + r.errors.length + ' rejected.'); refresh(); }, fail); } }, 'Reload now') : null)),
           h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:10px' }, h('h2', { style: 'margin:0' }, 'Option 2 · Upload here'),
-            h('div', { class: 'soft', style: 'line-height:1.55' }, 'Upload the Excel sheet (.xlsx) or a CSV. Columns: ', h('b', null, 'NIAT ID, Phone No.'), ' (required), Student Name, Email IDs, User id (LMS). Only the first sheet is read.'),
+            h('div', { class: 'soft', style: 'line-height:1.55' }, 'Upload the Excel sheet (.xlsx) or a CSV. Columns: ', h('b', null, 'NIAT ID'), ' (required), Student Name, University, Phone No., Email IDs, Section, User id (LMS). Only the first sheet is read.'),
             file, h('div', { class: 'muted' }, 'You will see a preview before anything changes.'))),
         result,
+        (im.universities || []).length ? h('div', { class: 'card' }, h('h2', null, 'Students by university'),
+          uniTable(im.universities, [['active', 'In master list'], ['registered', 'Registered'], ['no_name', 'No name'], ['inactive', 'Inactive']])) : null,
         h('div', { class: 'card' }, h('h2', null, 'Import history'), im.rows.length ? h('table', null,
           h('thead', null, h('tr', null, ['When', 'Source', 'Rows', 'New', 'Updated', 'Deactivated', 'Rejected', ''].map(function (t) { return h('th', null, t); }))),
           h('tbody', null, im.rows.map(function (r) {

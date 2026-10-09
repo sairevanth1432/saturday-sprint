@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS students_master (
 );
 CREATE INDEX IF NOT EXISTS students_phone ON students_master(phone);
 ALTER TABLE students_master ADD COLUMN IF NOT EXISTS lms_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE students_master ADD COLUMN IF NOT EXISTS university TEXT NOT NULL DEFAULT ''; -- the student's university / campus ("University" column)
+CREATE INDEX IF NOT EXISTS students_university ON students_master(university);
 
 CREATE TABLE IF NOT EXISTS users (
   id             BIGSERIAL PRIMARY KEY,

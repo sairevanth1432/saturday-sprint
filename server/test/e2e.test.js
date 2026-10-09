@@ -417,6 +417,29 @@ test('Excel master data: NIAT ID sheet (numeric phones, LMS user id) imports and
   assert.match(bad.body.message, /NIAT ID/);
 });
 
+test('master data: university column (the university-wise sheet), split by university, merge keeps stored values', async () => {
+  const csv = ',NIAT ID,Registered Accounts UID,Student Personal Mail ID,Student mobile number,student names,\n'
+    .replace(/^,/, 'University,').replace(/,\n$/, ',Section\n') +
+    'ALARD - Pune,UNIV0001,uid-1,a@x.com,9876511111,Alard One,\n' +
+    'ALARD - Pune,UNIV0002,uid-2,b@x.com,,Alard Two,\n' +
+    'Geeta University - Panipat,UNIV0003,uid-3,c@x.com,9876533333,,S-01\n';
+  const pv = await ADM('POST', '/api/admin/import/preview', { csv });
+  assert.equal(pv.body.valid, 3, JSON.stringify(pv.body));
+  assert.equal(pv.body.sample[0].university, 'ALARD - Pune');
+  assert.equal(pv.body.sample[0].email, 'a@x.com', '"Student Personal Mail ID" is the email');
+  assert.equal(pv.body.sample[2].batch, 'S-01', '"Section" is the batch');
+  assert.deepEqual(pv.body.byUniversity, [['ALARD - Pune', 2], ['Geeta University - Panipat', 1]]);
+  // UNIV0003 already has a name; the sheet has none for them: merge keeps the stored name
+  await ADM('POST', '/api/admin/import', { csv: 'NIAT ID,Student Name\nUNIV0003,Geeta Three\n', fileName: 'n.csv', mode: 'merge' });
+  assert.equal((await ADM('POST', '/api/admin/import', { csv, fileName: 'u.csv', mode: 'merge' })).status, 200);
+  const g = await db.one('SELECT name, university, lms_id FROM students_master WHERE roll_no = ?', 'UNIV0003');
+  assert.deepEqual({ ...g }, { name: 'Geeta Three', university: 'Geeta University - Panipat', lms_id: 'uid-3' });
+  const im = await ADM('GET', '/api/admin/imports');
+  const alard = im.body.universities.find((u) => u.university === 'ALARD - Pune');
+  assert.equal(Number(alard.active), 2);
+  assert.ok(im.body.universities.some((u) => u.university === 'Geeta University - Panipat'));
+});
+
 test('units: 6 units, each ONE lesson with Watch → Play → Read; files are served by this server with seeking', async () => {
   const boot = await A('GET', '/api/bootstrap');
   assert.equal(boot.body.units.mode, 'replace');
