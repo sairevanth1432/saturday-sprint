@@ -1540,3 +1540,16 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = fro
   assert.ok(o1.units.every((u) => !u.id.startsWith('u-')) && o2.units.every((u) => u.id.startsWith('u-')), 'built-in topics are Sprint 1, added topics Sprint 2');
   assert.equal((await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s1')).body.period.id, 's1');
 });
+
+test('9 Oct cleanup: of the first list only ALARD stays active; later uploads and students without a university are untouched', async () => {
+  const old = db.KEEP_ONLY_ALARD_BEFORE - 60000, later = db.KEEP_ONLY_ALARD_BEFORE + 60000;
+  const rows = [['CLEAN01', 'ALARD - Pune', old], ['CLEAN02', 'GMR Institute Of Technology - Vizianagaram', old], ['CLEAN03', 'Geeta University - Panipat', later], ['CLEAN04', '', old]];
+  for (const [r, u, at] of rows) await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, '', '', '', '', ?, 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", r, u, at);
+  await db.keepOnlyAlard();
+  const act = async (r) => (await db.one('SELECT active FROM students_master WHERE roll_no = ?', r)).active;
+  assert.deepEqual([await act('CLEAN01'), await act('CLEAN02'), await act('CLEAN03'), await act('CLEAN04')], [1, 0, 1, 1]);
+  const list = (await ADM('GET', '/api/admin/students?filter=all&q=CLEAN0')).body.rows.map((r) => r.roll_no).sort();
+  assert.deepEqual(list, ['CLEAN01', 'CLEAN03', 'CLEAN04'], 'the Students list shows active records');
+  assert.equal((await ADM('GET', '/api/admin/students?filter=everyone&q=CLEAN0')).body.rows.length, 4);
+  await db.run("UPDATE students_master SET active = 1 WHERE roll_no = 'CLEAN02'");
+});

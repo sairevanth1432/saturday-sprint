@@ -495,6 +495,10 @@ adm.get('/students', async (req, res) => {
   if (filter === 'pending') where.push("u.id IS NULL AND m.roll_no IN (SELECT roll_no FROM registration_requests WHERE status = 'pending')");
   if (filter === 'disabled') where.push("u.status = 'disabled'");
   if (filter === 'inactive') where.push('m.active = 0');
+  if (filter === 'all') where.push('m.active = 1'); // inactive records only under their own filter
+  if (filter === 'everyone') { /* active and inactive */ }
+  const SP = periodOf(String(req.query.period || ''));
+  if (SP) { where.push(SP.students); p[0] = (await sprintOfPeriod(SP.id)) || p[0]; }
   if (filter === 'submitted') where.push("a.status = 'submitted'");
   if (filter === 'not_submitted') where.push("u.id IS NOT NULL AND (a.id IS NULL OR a.status != 'submitted')");
   const sql = `FROM students_master m LEFT JOIN users u ON u.roll_no = m.roll_no
@@ -768,9 +772,16 @@ const ATTEMPT_LIST = `SELECT a.id, a.roll_no, m.name, m.batch, a.status, a.start
   a.mcq_score, a.code_score, a.text_score, a.text_reviewed, a.total, a.max_total, a.used_ms, a.violations, a.proctor
   FROM attempts a LEFT JOIN students_master m ON m.roll_no = a.roll_no`;
 
+// The Sprint test taken in a period (periods.js): the one most students started then.
+async function sprintOfPeriod(period) {
+  const P = periodOf(period);
+  if (!P) return null;
+  const r = await one("SELECT sprint_id FROM attempts WHERE started_at >= ? AND started_at < ? AND roll_no NOT LIKE 'ADMIN-%' GROUP BY sprint_id ORDER BY COUNT(*) DESC LIMIT 1", P.from, P.to);
+  return r ? r.sprint_id : P.id === 's2' ? (await getSprint()).id : 'none';
+}
 adm.get('/attempts', async (req, res) => {
   await maybeFinalize();
-  const sprintId = String(req.query.sprint || (await getSprint()).id);
+  const sprintId = String(req.query.sprint || (await sprintOfPeriod(String(req.query.period || ''))) || (await getSprint()).id);
   const where = ['a.sprint_id = ?', "a.roll_no NOT LIKE 'ADMIN-%'"], p = [sprintId];
   if (req.query.status) { where.push('a.status = ?'); p.push(String(req.query.status)); }
   if (req.query.review === 'pending') where.push("a.status = 'submitted' AND a.text_reviewed = 0");
@@ -816,6 +827,7 @@ adm.get('/leaderboard', async (req, res) => {
   await maybeFinalize();
   const sprint = await getSprint();
   const university = req.query.university === undefined || req.query.university === '*' ? null : String(req.query.university);
+  if (!req.query.sprint && req.query.period) req.query.sprint = await sprintOfPeriod(String(req.query.period));
   const universities = (await all("SELECT DISTINCT university FROM students_master WHERE university <> '' ORDER BY university")).map((r) => r.university);
   res.json({ rule: RANK_RULE, sprint, sprints: await boardSprints(null), universities, university, sprintId: String(req.query.sprint || sprint.id),
     rows: await leaderboardRows(String(req.query.sprint || sprint.id), 20000, university) });

@@ -544,12 +544,15 @@ replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px
   '<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">', 'learn media width');
 replaceOnce('<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F; max-width: 1040px">',
   '<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">', 'learn bottom bar width');
-// ---------- 4g. NIAT crest above the Saturday Sprint wordmark in the sidebar (public/niat-logo.png)
+// ---------- 4g. NIAT crest beside the Saturday Sprint wordmark in the sidebar, in one row (public/niat-logo.png)
 replaceOnce(`<div style="display: flex; flex-direction: column; gap: 6px">
 <button class="k3" onClick="{{ nav.brand }}"`,
-  `<div style="display: flex; flex-direction: column; gap: 10px">
-<img src="/niat-logo.png" alt="NIAT" width="46" height="44" style="display: block; width: 46px; height: auto; border-radius: 6px" />
+  `<div style="display: flex; flex-direction: row; align-items: center; gap: 10px">
+<img src="/niat-logo.png" alt="NIAT" width="42" height="40" style="display: block; flex-shrink: 0; width: 42px; height: auto; border-radius: 6px" />
 <button class="k3" onClick="{{ nav.brand }}"`, 'NIAT crest');
+// the wordmark is smaller so both fit the sidebar width
+replaceOnce("font-family: 'Silkscreen', monospace; font-weight: 700; font-size: 30px; line-height: 0.95",
+  "font-family: 'Silkscreen', monospace; font-weight: 700; font-size: 22px; line-height: 0.95", 'wordmark size');
 // ---------- 4e. Learn bottom bar: Previous / Next centred at the bottom of the content (.ss-nav CSS below)
 replaceOnce(`<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">
 <span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>

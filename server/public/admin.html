@@ -110,7 +110,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   var ME = null, VIEW = (location.hash || '#overview').slice(1), CACHE = {};
   // Sprint filter of the analytics pages (server: periods.js). Sprint 1 = before Fri 9 Oct 2026, Sprint 2 = from then.
   try { CACHE.period = localStorage.getItem('ss-admin-period') || ''; } catch (e) { CACHE.period = ''; }
-  var PERIOD_VIEWS = { analytics: 1, practice: 1, likes: 1, integrity: 1, feedback: 1 };
+  var PERIOD_VIEWS = { students: 1, results: 1, leaderboard: 1, analytics: 1, practice: 1, likes: 1, integrity: 1, feedback: 1 };
   var per = function () { return CACHE.period ? '&period=' + CACHE.period : ''; };
   function periodBar() {
     var sel = h('select', { onchange: function () { CACHE.period = sel.value; try { localStorage.setItem('ss-admin-period', sel.value); } catch (e) {} refresh(); } },
@@ -355,11 +355,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var search = h('input', { type: 'search', placeholder: 'Search NIAT ID, name, university, phone, email', value: st.q,
       oninput: debounce(function () { st.q = search.value; st.offset = 0; load(); }, 300) });
     var filter = h('select', { onchange: function () { st.filter = filter.value; st.offset = 0; load(); } },
-      [['all', 'All students'], ['registered', 'Registered'], ['pending', 'Waiting for approval'], ['unregistered', 'Not registered'], ['submitted', 'Submitted Sprint'], ['not_submitted', 'Registered, not submitted'], ['disabled', 'Disabled accounts'], ['inactive', 'Inactive (not in master file)']]
+      [['all', 'All students (active)'], ['registered', 'Registered'], ['pending', 'Waiting for approval'], ['unregistered', 'Not registered'], ['submitted', 'Submitted Sprint'], ['not_submitted', 'Registered, not submitted'], ['disabled', 'Disabled accounts'], ['inactive', 'Inactive (not in master file)'], ['everyone', 'Everyone (active and inactive)']]
         .map(function (o) { return h('option', { value: o[0], selected: st.filter === o[0] ? true : null }, o[1]); }));
     function load() {
       tableHolder.replaceChildren(h('div', { class: 'muted' }, 'Loading…'));
-      api('GET', '/api/admin/students?limit=100&offset=' + st.offset + '&filter=' + st.filter + '&q=' + encodeURIComponent(st.q) + '&university=' + encodeURIComponent(st.university)).then(function (d) {
+      api('GET', '/api/admin/students?limit=100&offset=' + st.offset + '&filter=' + st.filter + '&q=' + encodeURIComponent(st.q) + '&university=' + encodeURIComponent(st.university) + per()).then(function (d) {
         if (uniSel.options.length !== (d.universities || []).length + 1) uniSel.replaceChildren.apply(uniSel, [h('option', { value: '' }, 'All universities')]
           .concat((d.universities || []).map(function (u) { return h('option', { value: u, selected: st.university === u ? true : null }, u); })));
         var rows = d.rows.map(function (r) {
@@ -490,7 +490,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var holder = h('div');
     var load = function () {
       var qs = '?sprint=' + encodeURIComponent(st.sprint) + (st.status === 'pending' ? '&review=pending' : st.status === 'flagged' ? '&flagged=1' : st.status ? '&status=' + st.status : '') + '&q=' + encodeURIComponent(st.q);
-      api('GET', '/api/admin/attempts' + qs).then(function (d) {
+      api('GET', '/api/admin/attempts' + qs + per()).then(function (d) {
         if (!st.sprint && d.sprints.length) st.sprint = '';
         holder.replaceChildren(
           h('div', { class: 'toolbar' },
@@ -617,7 +617,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   CACHE.lb = { sprint: '', university: '*' };
   VIEWS.leaderboard = function () {
     var F = CACHE.lb;
-    return api('GET', '/api/admin/leaderboard?sprint=' + encodeURIComponent(F.sprint) + '&university=' + encodeURIComponent(F.university)).then(function (b) {
+    return api('GET', '/api/admin/leaderboard?sprint=' + encodeURIComponent(F.sprint) + '&university=' + encodeURIComponent(F.university) + per()).then(function (b) {
       var sprints = (b.sprints || []).map(function (s) { return s.id; });
       if (sprints.indexOf(b.sprint.id) < 0) sprints.unshift(b.sprint.id);
       var filters = h('div', { class: 'toolbar' },

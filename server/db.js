@@ -359,6 +359,13 @@ let readyPromise = null;
 // Students listed before the University column (e.g. the first ALARD list) get their university from the NIAT ID prefix.
 const BACKFILL_UNIVERSITIES = UNIVERSITY_PREFIXES.map(([p, u]) =>
   `UPDATE students_master SET university = '${u.replace(/'/g, "''")}' WHERE university = '' AND roll_no LIKE '${p}%';`).join('\n');
+// 9 Oct 2026: of the first (ID-only) list only ALARD stays; the other universities' records are deactivated (kept, not
+// deleted: Sprint 1 analytics still count them). Only records not changed since then are touched, so universities
+// added or merged afterwards stay active. Students without a university (TEST, added one by one) are not touched.
+export const KEEP_ONLY_ALARD_BEFORE = Date.parse('2026-10-09T14:15:00Z');
+const KEEP_ONLY_ALARD = `UPDATE students_master SET active = 0 WHERE active = 1 AND university <> '' AND university <> 'ALARD - Pune' AND updated_at < ${KEEP_ONLY_ALARD_BEFORE};`;
+
+export const keepOnlyAlard = () => query(KEEP_ONLY_ALARD);
 export async function backfillUniversities() {
   for (const [p, u] of UNIVERSITY_PREFIXES) await query("UPDATE students_master SET university = ? WHERE university = '' AND roll_no LIKE ?", [u, p + '%']);
 }
@@ -374,10 +381,12 @@ export function ready() {
           await c.query('SELECT pg_advisory_xact_lock(72631001)');
           await c.query(SCHEMA);
           await c.query(BACKFILL_UNIVERSITIES);
+          await c.query(KEEP_ONLY_ALARD);
         });
       } else {
         await backend.exec(SCHEMA);
         await backend.exec(BACKFILL_UNIVERSITIES);
+        await backend.exec(KEEP_ONLY_ALARD);
       }
       return backend;
     })().catch((e) => { readyPromise = null; throw e; });
