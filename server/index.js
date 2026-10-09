@@ -70,6 +70,10 @@ app.use((req, res, next) => {
 app.use(async (req, res, next) => { await ready(); next(); });
 
 const noStore = (res) => res.set('Cache-Control', 'no-store');
+// The Sprint test cannot be taken on a phone (tablets are allowed). Same rule as ssIsPhone() in public/portal-bridge.js.
+const PHONE_UA = /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|Opera Mini|BlackBerry/i;
+const isPhone = (req) => req.get('sec-ch-ua-mobile') === '?1' || PHONE_UA.test(req.get('user-agent') || '');
+const phoneBlocked = (req) => req.who && req.who.kind === 'student' && isPhone(req);
 
 // ===================================================================== pages (local server; on Vercel the CDN serves public/)
 const sendPage = (file) => (req, res) => { noStore(res); res.sendFile(path.join(PUBLIC, file)); };
@@ -205,7 +209,8 @@ api.get('/bootstrap', who, async (req, res) => {
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
       preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id), previewOf: sprint.previewOf || null },
     violations: a && a.status === 'running' ? a.violations || 0 : 0,
-    attempt: await attemptView(a, { withQuestions: true }),
+    attempt: await attemptView(a, { withQuestions: !phoneBlocked(req) }),
+    phoneBlocked: phoneBlocked(req),
     testFeedbackDone: !!fb,
     progress: prog ? parseJSON(prog.data, {}) : {},
     unitContent: bytes,
@@ -219,6 +224,7 @@ api.get('/bootstrap', who, async (req, res) => {
 });
 
 api.post('/sprint/start', who, async (req, res) => {
+  if (phoneBlocked(req)) throw new SprintError('PHONE_BLOCKED', 'The Sprint test can only be taken on a laptop or desktop computer.', 403);
   const a = await startAttempt(req.who);
   res.json({ serverNow: Date.now(), attempt: await attemptView(a, { withQuestions: true }) });
 });

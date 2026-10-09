@@ -536,6 +536,24 @@ replaceOnce('<div class="d3 pop" style="background: #151515; border-radius: 18px
   '<div class="d3 pop" style="background: #151515; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">', 'learn media width');
 replaceOnce('<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F; max-width: 1040px">',
   '<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">', 'learn bottom bar width');
+// ---------- 4e. Learn bottom bar: Previous / Next centred at the bottom of the content (.ss-nav CSS below)
+replaceOnce(`<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>
+`, `<div class="ss-nav">
+<span class="ss-nav-hint">{{ cur.stepHint }}</span>
+<div class="ss-nav-row">
+`, 'learn nav bar');
+replaceOnce('{{ cur.stepLabel }}</button>\n</div>\n</article>', '{{ cur.stepLabel }}</button>\n</div>\n</div>\n</article>', 'learn nav row end');
+// ---------- 4f. Phones cannot take the Sprint test: the Test tab shows this card instead (portal-bridge.js → show.phoneTest)
+replaceOnce('<sc-if value="{{ show.test }}" hint-placeholder-val="{{ false }}">', `<sc-if value="{{ show.phoneTest }}" hint-placeholder-val="{{ false }}">
+<div class="d3 pop" style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 36px 24px; border-radius: 18px; background: #151515; text-align: center">
+<svg width="72" height="72" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="6" y="12" width="40" height="28" rx="4" stroke="#FFE45C" stroke-width="4"></rect><path d="M2 46h48" stroke="#FFE45C" stroke-width="4" stroke-linecap="round"></path><rect x="44" y="26" width="16" height="28" rx="3" fill="#050505" stroke="#8A8A8A" stroke-width="3"></rect><path d="M47 29l10 22" stroke="#FF7A7A" stroke-width="3" stroke-linecap="round"></path></svg>
+<div style="font-family: 'VT323', monospace; font-size: 22px; color: #FFE45C">laptop or desktop only</div>
+<div style="font-size: 24px; font-weight: 800; color: #FFFFFF">Open the Sprint on a computer</div>
+<div style="font-size: 15px; color: #BDBDBD; max-width: 460px; line-height: 1.55">The Sprint test can't be taken on a phone. Log in on a laptop or desktop to start or continue it. Learning and practice still work here.</div>
+</div>
+</sc-if>
+<sc-if value="{{ show.test }}" hint-placeholder-val="{{ false }}">`, 'test phone card');
 // Toolbar above the step's media: a full-screen icon button (Watch, Play, Read)
 replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">\n<sc-if value="{{ wt.isVideo }}" hint-placeholder-val="{{ true }}">',
   (a) => a.split('\n')[0] + `
@@ -575,6 +593,10 @@ replaceOnce('</head>', `<style>
 #ss-reel:fullscreen video, #ss-reel.ss-reel-max video { border-radius: 0 !important; }
 #ss-reel:-webkit-full-screen video { border-radius: 0 !important; }
 .ss-like-btn:active svg { transform: scale(0.88); }
+.ss-nav { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 16px; border-top: 1px solid #1F1F1F; }
+.ss-nav-hint { font-size: 13px; font-weight: 700; color: #8A8A8A; text-align: center; }
+.ss-nav-row { display: flex; justify-content: center; gap: 14px; width: 100%; }
+@media (max-width: 640px) { .ss-nav-row > * { flex: 1; max-width: 220px; } .ss-nav-row button { width: 100%; padding: 0 12px !important; } }
 .ss-like-btn svg { transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ss-like-pop { animation: ss-like-pop 420ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ss-split-bar:hover span, .ss-split-bar:focus-visible span, .ss-split-bar.on span { background: #FFE45C !important; height: 72px !important; }

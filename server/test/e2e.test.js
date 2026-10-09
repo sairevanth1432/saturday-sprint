@@ -495,6 +495,9 @@ test('proctoring: events are logged, violations counted, a second tab is flagged
   }
   const P = client();
   await signup(P, 'PRTEST01', '9222200001');
+  // off by default; switched on here to test it
+  assert.deepEqual((await P('GET', '/api/bootstrap')).body.sprint.proctor, { enabled: false, fullscreen: false, maxViolations: 3, blockCopy: false });
+  assert.equal((await ADM('PATCH', '/api/admin/settings', { proctor_enabled: true, proctor_fullscreen: true, proctor_block_copy: true })).status, 200);
   const boot = await P('GET', '/api/bootstrap');
   assert.deepEqual(boot.body.sprint.proctor, { enabled: true, fullscreen: true, maxViolations: 3, blockCopy: true });
   assert.equal((await P('POST', '/api/sprint/events', { instance: 'tab1', events: [{ type: 'start' }] })).body.error, 'NOT_STARTED');
@@ -537,7 +540,36 @@ test('proctoring: events are logged, violations counted, a second tab is flagged
   for (let i = 0; i < 5; i++) r = await Q2('POST', '/api/sprint/events', { instance: 'x', events: [{ type: 'window_blur' }] });
   assert.equal(r.body.status, 'running');
   assert.equal(r.body.violations, 5);
-  await ADM('PATCH', '/api/admin/settings', { proctor_max_violations: 3, proctor_fullscreen: true });
+  await ADM('PATCH', '/api/admin/settings', { proctor_max_violations: 3, proctor_enabled: false, proctor_fullscreen: false, proctor_block_copy: false });
+});
+
+test('phones cannot start or continue the Sprint test; tablets and computers can', async () => {
+  const now = Date.now();
+  for (const r of ['PHTEST01', 'PHTEST02']) {
+    await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, '', 'A', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", r, 'Ph ' + r, now);
+  }
+  const IPHONE = { 'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' };
+  const PIXEL = { 'user-agent': 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36' };
+  const IPAD = { 'user-agent': 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' };
+  const P = client();
+  await signup(P, 'PHTEST01', '9222300001');
+  let r = await P('POST', '/api/sprint/start', undefined, IPHONE);
+  assert.equal(r.status, 403); assert.equal(r.body.error, 'PHONE_BLOCKED');
+  assert.equal((await P('POST', '/api/sprint/start', undefined, PIXEL)).body.error, 'PHONE_BLOCKED');
+  assert.equal((await P('POST', '/api/sprint/start', undefined, { 'sec-ch-ua-mobile': '?1' })).body.error, 'PHONE_BLOCKED');
+  // started on a computer, then opened on a phone: no questions are sent
+  r = await P('POST', '/api/sprint/start');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.ok(r.body.attempt.questions.length > 0);
+  const pb = await P('GET', '/api/bootstrap', undefined, IPHONE);
+  assert.equal(pb.body.phoneBlocked, true);
+  assert.equal(pb.body.attempt.status, 'running');
+  assert.equal(pb.body.attempt.questions, undefined);
+  assert.equal((await P('GET', '/api/bootstrap')).body.phoneBlocked, false);
+  // tablets are allowed
+  const T = client();
+  await signup(T, 'PHTEST02', '9222300002');
+  assert.equal((await T('POST', '/api/sprint/start', undefined, IPAD)).status, 200);
 });
 
 test('practice analytics: attempts, correct answers and option spread per question; coding solves', async () => {

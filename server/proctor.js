@@ -18,10 +18,11 @@ const LOGGED = new Set(['start', 'resume', 'tab_visible', 'fs_enter', 'fs_denied
 export const EVENT_TYPES = new Set([...Object.keys(VIOLATIONS), ...LOGGED]);
 const MAX_EVENTS_PER_ATTEMPT = 3000;
 
+// Off by default (the test is unproctored; phones are blocked in index.js). Admins can turn it on in Sprint settings.
 export async function proctorSettings() {
   const [enabled, fullscreen, maxViolations, blockCopy] = await Promise.all([
-    getSetting('proctor_enabled', true), getSetting('proctor_fullscreen', true),
-    getSetting('proctor_max_violations', 3), getSetting('proctor_block_copy', true)
+    getSetting('proctor_enabled', false), getSetting('proctor_fullscreen', false),
+    getSetting('proctor_max_violations', 3), getSetting('proctor_block_copy', false)
   ]);
   return { enabled: !!enabled, fullscreen: !!fullscreen, maxViolations: Math.max(0, Number(maxViolations) || 0), blockCopy: !!blockCopy };
 }

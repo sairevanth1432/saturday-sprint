@@ -63,6 +63,11 @@
       return { course: t.course, type: 'text', q: '' };
     });
   }
+  // The Sprint test cannot be taken on a phone (tablets are allowed). Same rule as isPhone() in index.js.
+  function ssIsPhone() {
+    try { if (navigator.userAgentData && navigator.userAgentData.mobile) return true; } catch (e) {}
+    return /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|Opera Mini|BlackBerry/i.test(navigator.userAgent || '');
+  }
   function fromServer(qs) {
     return qs.map(function (q) {
       var o = { course: q.course, type: q.type, q: q.q };
@@ -91,6 +96,7 @@
       super();
       var B = window.__ssBoot, S = this.state;
       this.ss = B;
+      S.ssPhone = B.user.kind === 'student' && (!!B.phoneBlocked || ssIsPhone());
       this.OPEN = toLocal(B.sprint.openMs);
       this.CLOSE = toLocal(B.sprint.closeMs);
       this.DUR = B.sprint.durMs;
@@ -106,7 +112,7 @@
       if (pack.mode === 'replace') (pack.replaced || pack.units.map(function (u) { return u.course; })).forEach(function (c) { var f = field(c); if (f && !self['_ssReplaced' + f]) { self[f] = []; self['_ssReplaced' + f] = true; } });
       pack.units.forEach(function (u) {
         var f = field(u.course);
-        if (f && !self[f].some(function (m) { return m._pack && m.name === u.name; })) self[f].push({ name: u.name, color: u.color, lessons: u.lessons, _pack: true });
+        if (f && !self[f].some(function (m) { return m._pack && m.name === u.name; })) self[f].push({ name: u.name, color: u.color, lessons: u.lessons, practiceTopic: u.practiceTopic || '', _pack: true });
       });
       // Lesson progress is stored by position; when the course content changes, old ticks would land on new lessons.
       this._ssContentV = this.courseList().map(function (c) { return c.id + ':' + c.modules.map(function (m) { return m.lessons.map(function (l) { return l.id; }).join(','); }).join('|'); }).join(';');
@@ -150,6 +156,7 @@
       var PX = B.practiceExtra || {};
       if (Array.isArray(PX.mcq) && PX.mcq.length) this.genaiQuiz = this.genaiQuiz.concat(PX.mcq);
       if (Array.isArray(PX.code) && PX.code.length) this.ccbpCoding = this.ccbpCoding.concat(PX.code);
+      this.ssPracticeFollowsLearn();
       // Video likes: my likes and the counts per topic.
       var LK = B.likes || {};
       S.ssLiked = {}; (LK.mine || []).forEach(function (id) { S.ssLiked[id] = true; });
@@ -157,7 +164,9 @@
       this.ssHpListen();
 
       var a = B.attempt;
-      if (a && a.status === 'running') {
+      if (a && a.status === 'running' && S.ssPhone) {
+        S.tab = 'test'; // shows the "use a laptop" card; the server sent no questions
+      } else if (a && a.status === 'running') {
         this.test = fromServer(a.questions);
         var d = draftToState(a.draft);
         S.tStart = toLocal(a.startedAt); S.tAns = d.tAns; S.tText = d.tText; S.code = Object.assign({}, S.code, d.code);
@@ -250,6 +259,7 @@
           return { tStart: toLocal(a.startedAt), now: Date.now(), tCur: 0, tAns: d.tAns, tText: d.tText, code: Object.assign({}, s.code, d.code) };
         });
       }, function (e) {
+        if (e.code === 'PHONE_BLOCKED') { self.setState({ ssPhone: true }); return; }
         self.ssToast(e.message, true);
         if (e.code === 'ALREADY_SUBMITTED') setTimeout(function () { location.reload(); }, 1500);
       }).then(function () { self._ssStarting = false; });
@@ -959,6 +969,27 @@
       return { on: true, req: 'All questions are required.', use: group('use') };
     }
 
+    // Practice follows Learn: practice topics take the name of the Learn topic they match (its "Practice topic" set in
+    // Admin → Courses & topics, else a similar name: "Type Conversions" → "Type Conversion"), and topics that are not in
+    // Learn now are hidden. Items keep their position, because answers are stored by it. If nothing matches (no Learn
+    // content yet), Practice is left as it is.
+    ssPracticeFollowsLearn() {
+      var key = function (s) {
+        return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/\binro\b|\bintroduction\b/g, 'intro')
+          .replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, '');
+      };
+      var learn = {};
+      this.courseList().forEach(function (c) { c.modules.forEach(function (m) { if (m.name) learn[key(m.name)] = m.name; }); });
+      this.courseList().forEach(function (c) { c.modules.forEach(function (m) { if (m.name && m.practiceTopic) learn[key(m.practiceTopic)] = m.name; }); });
+      var lists = ['practice', 'ccbpQuiz', 'genaiQuiz'], self = this;
+      var any = lists.some(function (n) { return (self[n] || []).some(function (p) { return p.sess && learn[key(p.sess)]; }); });
+      if (!any) return;
+      lists.forEach(function (n) {
+        self[n] = (self[n] || []).map(function (p) { return p.sess ? Object.assign({}, p, { sess: learn[key(p.sess)] || '' }) : p; });
+      });
+      this.ccbpCoding = (this.ccbpCoding || []).map(function (p) { return p.topic ? Object.assign({}, p, { topic: learn[key(p.topic)] || '' }) : p; });
+    }
+
     // Built-in courses, then the courses admins added that have at least one topic.
     courseList() {
       // Built-in courses an admin removed, or left without topics, are not shown.
@@ -975,9 +1006,14 @@
       var v = super.renderVals(), S = this.state, self = this, U = this.ss.user;
       // the practice topic on screen (the portal picks a default when the student has not chosen one)
       if (v.pq && v.pq.topicLabel && v.pq.topicLabel !== 'Topic') this._ssPTopic = v.pq.topicLabel;
+      // a course with no practice topics (e.g. none of its Learn topics has questions yet) is not listed
+      if (v.pq && Array.isArray(v.pq.groups)) v.pq.groups = v.pq.groups.filter(function (g) { return g.topics.length; });
       var on = S.tab === 'board';
       v.nav.board = { go: function () { self.xpStop(); self.setState({ tab: 'board' }); self.ssLoadBoard(true); }, bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#FFFFFF' };
       v.show.board = on;
+      // Phones: the test tab shows a "use a laptop or desktop" card instead of the test (results stay visible).
+      v.show.phoneTest = !!(S.ssPhone && v.show.test && !S.tDone);
+      if (v.show.phoneTest) v.show.test = false;
       if (on) v.crumb = '~/leaderboard';
 
       // Server-side results replace the in-browser score.

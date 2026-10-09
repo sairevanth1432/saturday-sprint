@@ -1856,7 +1856,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('h2', { style: 'margin:8px 0 0' }, 'Proctoring'),
           h('div', { class: 'grid g2' },
             h('label', { class: 'row' }, f.proctor_enabled, h('span', null, 'Proctor the Sprint ', h('span', { class: 'muted' }, '(tab-switch detection, activity log, warnings)'))),
-            h('label', { class: 'row' }, f.proctor_fullscreen, h('span', null, 'Require full screen ', h('span', { class: 'muted' }, '(computers; phones cannot)'))),
+            h('label', { class: 'row' }, f.proctor_fullscreen, h('span', null, 'Require full screen ', h('span', { class: 'muted' }, '(computers; phones are always blocked from the test)'))),
             h('label', { class: 'row' }, f.proctor_block_copy, h('span', null, 'Block copy, right-click, select and print')),
             h('div', { class: 'field' }, h('label', null, 'Auto-submit after this many violations (0 = never)'), f.proctor_max_violations)),
           h('div', { class: 'note' }, 'Violations: leaving the test tab, switching to another window or app, leaving full screen, opening the test in a second tab or device. Each one shows the student a warning with the count. Every attempt has a timeline under Results.'),

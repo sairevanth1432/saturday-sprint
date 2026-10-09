@@ -21,7 +21,8 @@ function checkMcq(b) {
   if (topic.length < 2) throw new PracticeError('BAD_TOPIC', 'Give the topic name.');
   if (q.length < 3) throw new PracticeError('BAD_QUESTION', 'Write the question.');
   if (o.length < 2 || o.length > 6) throw new PracticeError('BAD_OPTIONS', 'Give 2 to 6 options.');
-  if (new Set(o.map((x) => x.toLowerCase())).size !== o.length) throw new PracticeError('BAD_OPTIONS', 'Two options are the same.');
+  // case-sensitive: in code, type() and Type() are different answers
+  if (new Set(o).size !== o.length) throw new PracticeError('BAD_OPTIONS', 'Two options are the same.');
   if (!Number.isInteger(c) || c < 0 || c >= o.length) throw new PracticeError('BAD_ANSWER', 'Choose the correct option.');
   return { course, topic, data: { q, code, o, c, why } };
 }
