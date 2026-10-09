@@ -1064,7 +1064,7 @@
           : day(sp.openMs) + ', ' + tm(sp.openMs) + ' – ' + day(sp.closeMs) + ', ' + tm(sp.closeMs) + ' IST',
         dur: mins + ' minutes', durCap: mins + ' minutes', close: sameDay ? tm(sp.closeMs) : day(sp.closeMs) + ', ' + tm(sp.closeMs)
       };
-      if (v.status && /closes 11:30 AM/.test(v.status.top || '')) v.status.top = 'Sprint is live · closes ' + when.close;
+      if (v.status && /closes 11:30 AM/.test(v.status.top || '')) v.status.top = 'The test is open · closes ' + when.close;
       if (this.ss.sprint.preview) v.t.readyNote = '(Admin preview' + (sp.previewOf ? ' of Sprint "' + sp.previewOf + '"' : '') + ': opens any time, ' + mins + '-minute timer, not ranked.)';
 
       // Lessons: units are one lesson with three steps (Watch → Play → Read); older lessons keep their own media.

@@ -366,6 +366,17 @@ export const KEEP_ONLY_ALARD_BEFORE = Date.parse('2026-10-09T14:15:00Z');
 const KEEP_ONLY_ALARD = `UPDATE students_master SET active = 0 WHERE active = 1 AND university <> '' AND university <> 'ALARD - Pune' AND updated_at < ${KEEP_ONLY_ALARD_BEFORE};`;
 
 export const keepOnlyAlard = () => query(KEEP_ONLY_ALARD);
+// The 10 Oct 2026 Sprint, set once on the live site: open 11:00–23:00 IST, 20 minutes per student, not proctored.
+// Applied once (marker row); changes made later in Admin → Sprint settings win.
+const PIN_SPRINT_10_OCT = [
+  "INSERT INTO settings (key, value) SELECT 'sprint_open', '\"2026-10-10T05:30:00.000Z\"' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'pinned_sprint_2026_10_10') ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+  "INSERT INTO settings (key, value) SELECT 'sprint_close', '\"2026-10-10T17:30:00.000Z\"' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'pinned_sprint_2026_10_10') ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+  "INSERT INTO settings (key, value) SELECT 'sprint_duration_min', '20' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'pinned_sprint_2026_10_10') ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+  "INSERT INTO settings (key, value) SELECT 'proctor_enabled', 'false' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'pinned_sprint_2026_10_10') ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+  "INSERT INTO settings (key, value) SELECT 'proctor_fullscreen', 'false' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'pinned_sprint_2026_10_10') ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+  "INSERT INTO settings (key, value) SELECT 'proctor_block_copy', 'false' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'pinned_sprint_2026_10_10') ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+  "INSERT INTO settings (key, value) VALUES ('pinned_sprint_2026_10_10', 'true') ON CONFLICT (key) DO NOTHING;"
+].join('\n');
 export async function backfillUniversities() {
   for (const [p, u] of UNIVERSITY_PREFIXES) await query("UPDATE students_master SET university = ? WHERE university = '' AND roll_no LIKE ?", [u, p + '%']);
 }
@@ -382,6 +393,7 @@ export function ready() {
           await c.query(SCHEMA);
           await c.query(BACKFILL_UNIVERSITIES);
           await c.query(KEEP_ONLY_ALARD);
+          if (config.isVercel) await c.query(PIN_SPRINT_10_OCT);
         });
       } else {
         await backend.exec(SCHEMA);

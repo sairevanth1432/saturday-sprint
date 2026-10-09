@@ -553,6 +553,9 @@ replaceOnce(`<div style="display: flex; flex-direction: column; gap: 6px">
 // the wordmark is smaller so both fit the sidebar width
 replaceOnce("font-family: 'Silkscreen', monospace; font-weight: 700; font-size: 30px; line-height: 0.95",
   "font-family: 'Silkscreen', monospace; font-weight: 700; font-size: 22px; line-height: 0.95", 'wordmark size');
+// ---------- 4h. Sprint wording: "The test is open" while the window is open
+replaceOnce("font-weight: 700; line-height: 0.95; \">The Sprint is open.</h2>", "font-weight: 700; line-height: 0.95; \">The test is open.</h2>", 'test open heading');
+replaceOnce("headline: 'The Sprint is open now'", "headline: 'The test is open'", 'test open headline');
 // ---------- 4e. Learn bottom bar: Previous / Next centred at the bottom of the content (.ss-nav CSS below)
 replaceOnce(`<div style="display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid #1F1F1F">
 <span style="flex-grow: 1; font-size: 14px; font-weight: 700; color: #8A8A8A">{{ cur.stepHint }}</span>
