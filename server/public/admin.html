@@ -1138,7 +1138,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         api('POST', '/api/admin/import/preview', payload).then(function (p) {
           if (p.error) return result.replaceChildren(h('div', { class: 'note bad' }, p.error));
           var doImport = function (mode) {
-            var msg = mode === 'replace' ? 'Replace the master list with ' + name + '? Students not in this file can no longer register or log in (their data is kept).' : 'Add/update the ' + p.valid + ' valid rows from ' + name + '? Nobody is removed.';
+            var msg = mode === 'replace' ? 'Replace the master list with ' + name + '? Students not in this file (from earlier lists, or with a university) can no longer register or log in (their data is kept).' : 'Add/update the ' + p.valid + ' valid rows from ' + name + '? Nobody is removed.';
             if (!confirm(msg)) return;
             api('POST', '/api/admin/import', Object.assign({}, payload, { fileName: name, mode: mode })).then(function (r) {
               toast('Imported: ' + r.inserted + ' new, ' + r.updated + ' updated, ' + r.deactivated + ' deactivated, ' + r.errors.length + ' rejected.'); refresh();

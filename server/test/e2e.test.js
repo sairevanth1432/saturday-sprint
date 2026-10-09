@@ -417,7 +417,7 @@ test('Excel master data: NIAT ID sheet (numeric phones, LMS user id) imports and
   assert.match(bad.body.message, /NIAT ID/);
 });
 
-test('master data: university column (the university-wise sheet), split by university, merge keeps stored values', async () => {
+test('master data: university column (the university-wise sheet), split by university, merge keeps stored values', async (t) => {
   const csv = ',NIAT ID,Registered Accounts UID,Student Personal Mail ID,Student mobile number,student names,\n'
     .replace(/^,/, 'University,').replace(/,\n$/, ',Section\n') +
     'ALARD - Pune,UNIV0001,uid-1,a@x.com,9876511111,Alard One,\n' +
@@ -438,6 +438,18 @@ test('master data: university column (the university-wise sheet), split by unive
   const alard = im.body.universities.find((u) => u.university === 'ALARD - Pune');
   assert.equal(Number(alard.active), 2);
   assert.ok(im.body.universities.some((u) => u.university === 'Geeta University - Panipat'));
+  // replace with Geeta only: the merged ALARD students go (they have a university); students added one by one stay
+  await ADM('POST', '/api/admin/import', { csv: 'NIAT ID,Student Name\nUNIV0009,Added By Hand\n', fileName: 'one.csv', mode: 'merge' });
+  // a replace deactivates everyone else in the file-sourced list too; later tests need them, so put them back after
+  const wasActive = (await db.all("SELECT roll_no FROM students_master WHERE active = 1 AND roll_no NOT LIKE 'UNIV%'")).map((r) => r.roll_no);
+  t.after(async () => { for (const r of wasActive) await db.run('UPDATE students_master SET active = 1 WHERE roll_no = ?', r); });
+  const rp = await ADM('POST', '/api/admin/import', { csv: 'University,NIAT ID,Student Name\nGeeta University - Panipat,UNIV0003,Geeta Three\n', fileName: 'g.csv', mode: 'replace' });
+  assert.equal(rp.status, 200, JSON.stringify(rp.body));
+  const act = async (r) => (await db.one('SELECT active FROM students_master WHERE roll_no = ?', r)).active;
+  assert.equal(await act('UNIV0001'), 0);
+  assert.equal(await act('UNIV0002'), 0);
+  assert.equal(await act('UNIV0003'), 1);
+  assert.equal(await act('UNIV0009'), 1, 'a student without a university is not part of a university list');
 });
 
 test('units: 6 units, each ONE lesson with Watch → Play → Read; files are served by this server with seeking', async () => {
