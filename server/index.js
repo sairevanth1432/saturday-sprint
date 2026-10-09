@@ -604,7 +604,19 @@ adm.get('/integrity', async (req, res) => res.json(await listFlags({ type: req.q
 adm.get('/likes', async (req, res) => res.json(await likesAnalytics()));
 
 // ---------- student photographs (accounts and registration requests)
-adm.get('/photos/student/:roll', async (req, res) => sendPhoto(res, await studentPhoto(normRoll(req.params.roll))));
+adm.get('/photos/student/:roll', async (req, res) => {
+  const roll = normRoll(req.params.roll);
+  if (req.query.download) res.set('Content-Disposition', `attachment; filename="${roll}.jpg"`);
+  sendPhoto(res, await studentPhoto(roll));
+});
+// An admin changes a student's photo (the student sees the new one in the portal).
+adm.put('/photos/student/:roll', async (req, res) => {
+  const roll = normRoll(req.params.roll);
+  if (!(await one('SELECT 1 AS x FROM students_master WHERE roll_no = ?', roll))) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such NIAT ID.' });
+  await saveStudentPhoto(roll, checkPhoto((req.body || {}).photo));
+  await audit(req, 'student.photo_changed', roll);
+  res.json({ ok: true, photoAt: await photoStamp(roll) });
+});
 adm.get('/photos/request/:id', async (req, res) => sendPhoto(res, await requestPhoto(Number(req.params.id) || 0)));
 
 // ---------- registration approvals

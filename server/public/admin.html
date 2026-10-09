@@ -101,6 +101,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
 </head>
 <body>
 <div id="root"></div>
+<script src="/photo.js"></script>
 <script>
 (function () {
   'use strict';
@@ -421,7 +422,17 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         };
         d.set(h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
           h('div', { class: 'row', style: 'gap:16px;align-items:center;justify-content:flex-start' },
-            photo(s.photoAt ? '/api/admin/photos/student/' + encodeURIComponent(m.roll_no) + '?v=' + s.photoAt : null, 88),
+            h('div', { style: 'display:flex;flex-direction:column;gap:6px;align-items:center' },
+              photo(s.photoAt ? '/api/admin/photos/student/' + encodeURIComponent(m.roll_no) + '?v=' + s.photoAt : null, 88),
+              h('button', { class: 'btn sm', onclick: function () {
+                var inp = h('input', { type: 'file', accept: 'image/*' });
+                inp.onchange = function () {
+                  window.SSPhoto.fromFile(inp.files[0]).then(function (d) { return api('PUT', '/api/admin/photos/student/' + encodeURIComponent(m.roll_no), { photo: d }); })
+                    .then(function () { toast('Photo updated.'); openStudent(roll, after); }, fail);
+                };
+                inp.click();
+              } }, s.photoAt ? 'Change photo' : 'Add photo'),
+              s.photoAt ? h('button', { class: 'btn sm', onclick: function () { download('/api/admin/photos/student/' + encodeURIComponent(m.roll_no) + '?download=1&v=' + s.photoAt); } }, 'Download') : null),
             h('div', { style: 'flex-grow:1' }, header('~/admin/students/' + m.roll_no, m.name || m.roll_no, m.roll_no + (m.batch ? ' · ' + m.batch : '') + ' · ' + m.phone))),
           h('div', { class: 'card' }, h('h2', null, 'Account'),
             u ? h('div', { style: 'display:flex;flex-direction:column;gap:10px' },

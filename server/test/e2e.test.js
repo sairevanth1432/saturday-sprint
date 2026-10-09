@@ -499,6 +499,17 @@ test('photo update request: students of the chosen university with an older phot
   assert.equal((await ADM('GET', '/api/admin/imports')).body.photoUpdate.university, 'ALARD - Pune');
   await ADM('POST', '/api/admin/photo-update', { cancel: true });
   assert.equal((await ADM('GET', '/api/admin/imports')).body.photoUpdate, null);
+  // admins change and download a student's photo; the student's portal gets the new one
+  const before = (await al('GET', '/api/bootstrap')).body.user.photoAt;
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal((await A('PUT', '/api/admin/photos/student/N26P02A0977', { photo: PHOTO })).status, 401);
+  const ch = await ADM('PUT', '/api/admin/photos/student/N26P02A0977', { photo: PHOTO });
+  assert.equal(ch.status, 200, JSON.stringify(ch.body));
+  assert.ok((await al('GET', '/api/bootstrap')).body.user.photoAt > before);
+  assert.equal((await ADM('PUT', '/api/admin/photos/student/NOSUCH01', { photo: PHOTO })).status, 404);
+  const dl = await ADM('GET', '/api/admin/photos/student/N26P02A0977?download=1');
+  assert.equal(dl.status, 200);
+  assert.match(dl.headers.get('content-disposition'), /attachment; filename="N26P02A0977\.jpg"/);
 });
 
 test('simple login: a NIAT ID listed without a name accepts any name; the record keeps no name', async () => {
@@ -1156,8 +1167,10 @@ test('Sprint question sets per Sprint ID: content/sprint-sets is used for that S
   const next = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'sprint-schedule.json'), 'utf8'));
   if (next) {
     const qs = await sp.getQuestions(next.id);
-    assert.equal(qs.length, 20, 'the next Sprint has its own 20 questions');
-    for (const lv of ['easy', 'medium', 'hard']) assert.ok(qs.filter((q) => q.level === lv).length >= 5, 'mixed difficulty: ' + lv);
+    assert.equal(qs.length, 18, 'the next Sprint has its own 18 questions');
+    const count = (k, v) => qs.filter((q) => q[k] === v).length;
+    assert.deepEqual([count('level', 'easy'), count('level', 'medium'), count('level', 'hard')], [3, 10, 5], 'mixed difficulty');
+    assert.deepEqual([count('course', 'pf'), count('course', 'wad'), count('course', 'genai')], [7, 7, 4]);
     assert.ok(qs.every((q) => !JSON.stringify(q).includes('—')), 'no em dashes');
   }
   assert.notDeepEqual(await sp.getQuestions('some-other-sprint'), await sp.getQuestions(next ? next.id : 'x'));
