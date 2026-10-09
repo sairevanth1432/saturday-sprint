@@ -350,8 +350,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     function load() {
       tableHolder.replaceChildren(h('div', { class: 'muted' }, 'Loading…'));
       api('GET', '/api/admin/students?limit=100&offset=' + st.offset + '&filter=' + st.filter + '&q=' + encodeURIComponent(st.q) + '&university=' + encodeURIComponent(st.university)).then(function (d) {
-        if (uniSel.options.length !== (d.universities || []).length + 1) uniSel.replaceChildren(h('option', { value: '' }, 'All universities'),
-          (d.universities || []).map(function (u) { return h('option', { value: u, selected: st.university === u ? true : null }, u); }));
+        if (uniSel.options.length !== (d.universities || []).length + 1) uniSel.replaceChildren.apply(uniSel, [h('option', { value: '' }, 'All universities')]
+          .concat((d.universities || []).map(function (u) { return h('option', { value: u, selected: st.university === u ? true : null }, u); })));
         var rows = d.rows.map(function (r) {
           var acct = !r.active ? pill('inactive', '') : !r.user_id ? pill('not registered', 'info') : r.user_status === 'disabled' ? pill('disabled', 'bad') : r.has_password ? pill('registered', 'ok') : pill('registered · no password', 'warn');
           var test = r.attempt_status === 'submitted' ? h('span', { class: 'mono' }, sc(r.total) + '/' + sc(r.max_total)) : r.attempt_status === 'running' ? pill('in progress', 'warn') : h('span', { class: 'muted' }, '–');
@@ -620,7 +620,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('thead', null, h('tr', null, ['Rank', 'NIAT ID', 'Name', 'University', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t); }))),
           h('tbody', null, b.rows.length ? b.rows.map(function (r) {
             return h('tr', { class: 'click', onclick: function () { openAttempt(r.id, refresh); } }, h('td', { class: 'mono', style: r.rank <= 3 ? 'color:var(--accent)' : null }, '#' + r.rank), h('td', { class: 'mono' }, r.roll_no),
-              h('td', null, h('div', { class: 'row', style: 'gap:8px;justify-content:flex-start;flex-wrap:nowrap' }, photo(r.photo_at ? '/api/admin/photos/student/' + encodeURIComponent(r.roll_no) + '?v=' + r.photo_at : null, 32), r.name || '–')),
+              h('td', null, h('div', { class: 'row', style: 'gap:8px;justify-content:flex-start;flex-wrap:nowrap' }, photo(r.photo_at ? '/api/admin/photos/student/' + encodeURIComponent(r.roll_no) + '?v=' + r.photo_at : null, 32), r.name || '–',
+                r.photo_at ? h('button', { class: 'btn sm', title: 'Download photo (' + r.roll_no + '.jpg)', onclick: function (e) { e.stopPropagation(); download('/api/admin/photos/student/' + encodeURIComponent(r.roll_no) + '?download=1&v=' + r.photo_at); } }, 'Photo ↓') : null)),
               h('td', null, r.university || r.batch || '–'),
               h('td', { class: 'num mono' }, sc(r.mcq_score)), h('td', { class: 'num mono' }, sc(r.code_score)), h('td', { class: 'num' }, r.text_reviewed ? h('span', { class: 'mono' }, sc(r.text_score)) : pill('to mark', 'warn')),
               h('td', { class: 'num mono', style: 'color:var(--accent)' }, sc(r.total) + '/' + sc(r.max_total)), h('td', { class: 'num mono' }, mmss(r.used_ms)), h('td', { class: 'muted' }, dt(r.submitted_at)));
