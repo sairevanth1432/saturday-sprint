@@ -1553,3 +1553,13 @@ test('9 Oct cleanup: of the first list only ALARD stays active; later uploads an
   assert.equal((await ADM('GET', '/api/admin/students?filter=everyone&q=CLEAN0')).body.rows.length, 4);
   await db.run("UPDATE students_master SET active = 1 WHERE roll_no = 'CLEAN02'");
 });
+
+test('past Sprint leaderboards keep everyone who took them, with their names, also after they are deactivated', async () => {
+  const now = Date.now(), past = 'past-board-test';
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES ('PASTB001', 'Gone Student', '', '', '', 'ALARD - Pune', 0, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", now);
+  await db.run("INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, submitted_at, total, max_total, used_ms, updated_at) VALUES (?, 'PASTB001', 'submitted', ?, ?, ?, 12, 18, 60000, ?)", past, now, now + 1, now, now);
+  const rows = (await ADM('GET', '/api/admin/leaderboard?sprint=' + past)).body.rows;
+  assert.deepEqual(rows.map((r) => r.name), ['Gone Student'], 'a past Sprint lists students deactivated since');
+  const cur = (await ADM('GET', '/api/admin/leaderboard')).body.rows;
+  assert.ok(!cur.some((r) => r.roll_no === 'PASTB001'), 'the current Sprint ranks the current list');
+});

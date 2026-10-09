@@ -354,8 +354,12 @@ export async function setTextMarks(attemptId, marks) {
 // Rank: higher score first; equal score → less time (whole seconds) first; equal score AND time share a rank.
 export const RANK_RULE = 'Ranked by total score (high to low). Ties are broken by time taken (less is better). Equal score and equal time share a rank.';
 // In production, test students (batch TEST, see scripts/test-accounts.js) never appear on the leaderboard.
+// The current Sprint ranks the students in the list now; a past Sprint keeps everyone who took it (also students
+// deactivated since, e.g. when the master list was replaced), so earlier leaderboards do not change.
+const eligibleFor = async (sprintId) => (sprintId === (await getSprint()).id ? ELIGIBLE : ELIGIBLE_PAST);
 const ELIGIBLE = `a.sprint_id = ? AND a.status = 'submitted' AND m.active = 1 AND (u.status IS NULL OR u.status = 'active')` +
   (config.isLive ? ` AND m.batch <> 'TEST'` : '');
+const ELIGIBLE_PAST = ELIGIBLE.replace(' AND m.active = 1', '');
 const FROM = `FROM attempts a JOIN students_master m ON m.roll_no = a.roll_no LEFT JOIN users u ON u.roll_no = a.roll_no`;
 // Boards are per Sprint and, for students, per university: students are ranked among their own university only.
 // university null = everyone; '' = students without a university.
@@ -364,10 +368,11 @@ const uniArgs = (university) => (university == null ? [] : [university]);
 
 // Full ranked list (admin views, exports).
 export async function leaderboardRows(sprintId, limit = 100000, university = null) {
+  const E = await eligibleFor(sprintId);
   return all(`SELECT a.id, a.roll_no, m.name, m.batch, m.university, (SELECT p.updated_at FROM student_photos p WHERE p.roll_no = a.roll_no) AS photo_at,
            a.total, a.max_total, a.used_ms, a.submitted_at, a.mcq_score, a.code_score, a.text_score, a.text_reviewed,
            RANK() OVER (ORDER BY a.total DESC, (a.used_ms / 1000) ASC) AS rank
-    ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)} ORDER BY rank ASC, a.submitted_at ASC LIMIT ?`, sprintId, ...uniArgs(university), limit);
+    ${FROM} WHERE ${E}${uniWhere(university)} ORDER BY rank ASC, a.submitted_at ASC LIMIT ?`, sprintId, ...uniArgs(university), limit);
 }
 
 const publicRow = (r, meRoll) => ({
@@ -388,7 +393,7 @@ async function boardTop(sprintId, university) {
   return kv.cached(boardKey(sprintId, university), 5, async () => {
     const [rows, cnt] = await Promise.all([
       leaderboardRows(sprintId, 100, university),
-      one(`SELECT COUNT(*) AS n ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)}`, sprintId, ...uniArgs(university))
+      eligibleFor(sprintId).then((E) => one(`SELECT COUNT(*) AS n ${FROM} WHERE ${E}${uniWhere(university)}`, sprintId, ...uniArgs(university)))
     ]);
     return { rows: rows.map((r) => ({ rank: r.rank, roll_no: r.roll_no, name: r.name, batch: r.batch, university: r.university, photo_at: r.photo_at, total: r.total, max_total: r.max_total, used_ms: r.used_ms })),
       participants: Number(cnt.n), at: Date.now() };
@@ -400,11 +405,12 @@ const myRank = new Map();
 async function rankOf(sprintId, roll, university) {
   const k = sprintId + '|' + roll + '|' + university, hit = myRank.get(k);
   if (hit && Date.now() - hit.at < 10000) return hit.v;
+  const E = await eligibleFor(sprintId);
   const me = await one(`SELECT a.roll_no, m.name, m.batch, m.university, (SELECT p.updated_at FROM student_photos p WHERE p.roll_no = a.roll_no) AS photo_at, a.total, a.max_total, a.used_ms
-    ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)} AND a.roll_no = ?`, sprintId, ...uniArgs(university), roll);
+    ${FROM} WHERE ${E}${uniWhere(university)} AND a.roll_no = ?`, sprintId, ...uniArgs(university), roll);
   let v = null;
   if (me) {
-    const ahead = await one(`SELECT COUNT(*) AS n ${FROM} WHERE ${ELIGIBLE}${uniWhere(university)} AND (a.total > ? OR (a.total = ? AND (a.used_ms / 1000) < ?))`,
+    const ahead = await one(`SELECT COUNT(*) AS n ${FROM} WHERE ${E}${uniWhere(university)} AND (a.total > ? OR (a.total = ? AND (a.used_ms / 1000) < ?))`,
       sprintId, ...uniArgs(university), me.total, me.total, Math.floor(me.used_ms / 1000));
     v = { ...me, rank: Number(ahead.n) + 1 };
   }
