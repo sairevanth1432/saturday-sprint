@@ -83,6 +83,7 @@ Students register with their **NIAT ID** and **their own mobile number** (verifi
 | Phone No. | no | optional; shown to admins to compare with the number the student registers |
 | Student Name, Email IDs | no | shown to admins; name appears on the leaderboard |
 | User id | no | LMS user id, stored for future LMS linking |
+| University | no | also read as *University Name*, *College* or *Institute*. Fills the **University** tab of the leaderboard (a dropdown of every university in the sheet; ranks restart at #1 within each). A sheet without this column leaves each student's university unchanged. |
 
 - **Admin → Master data →** upload the `.xlsx` → preview → *Replace* (students not in the file are deactivated) or *Merge*.
 - **From your computer:** `npm run import-students -- "Alard Student Data __ Final count .xlsx"` (with the production DATABASE_URL in server/.env).

@@ -619,20 +619,45 @@
       var S = this.state;
       return S.tab === 'home' || S.tab === 'board' || (S.tab === 'test' && S.tGraded);
     }
+    // The overall board always loads (Home card, post-test standings); on the Leaderboard's University tab
+    // the chosen university's board loads too. The tab and university stay chosen across auto-refreshes.
     ssLoadBoard(force) {
       if (this._ssBoardBusy && !force) return;
       this._ssBoardBusy = true;
       var self = this;
       api('GET', '/api/leaderboard?limit=100').then(function (b) {
         self.setState({ ssBoard: b, ssBoardAt: Date.now() });
-      }, function () {}).then(function () { self._ssBoardBusy = false; });
+        var S = self.state;
+        if (S.tab !== 'board' || S.ssBoardTab !== 'uni' || b.hidden) return;
+        var uni = self.ssBoardUni(b);
+        if (!uni) return;
+        return api('GET', '/api/leaderboard?limit=100&university=' + encodeURIComponent(uni)).then(function (u) {
+          if (self.ssBoardUni(self.state.ssBoard) === uni) self.setState({ ssBoardUniData: u, ssBoardAt: Date.now() });
+        });
+      }).then(null, function () {}).then(function () { self._ssBoardBusy = false; });
+    }
+    // The university on the University tab: the one picked, else the student's own, else the first in the master data.
+    ssBoardUni(B) {
+      var list = (B && B.universities) || [], pick = this.state.ssBoardUniPick;
+      if (pick && list.indexOf(pick) >= 0) return pick;
+      var mine = (B && B.myUniversity) || this.ss.user.university || '';
+      return list.indexOf(mine) >= 0 ? mine : list[0] || '';
+    }
+    ssBoardTabTo(tab, uni) {
+      var patch = { ssBoardTab: tab };
+      if (uni !== undefined) patch.ssBoardUniPick = uni;
+      this.setState(patch);
+      this.ssLoadBoard(true); // reads the new tab when the overall board comes back
     }
     ssBoardVals() {
-      var B = this.state.ssBoard, self = this, S = this.state;
+      // Home card and post-test standings always use the overall board; the University tab is on the Leaderboard page only.
+      var S = this.state, self = this, all = S.ssBoard, onUni = S.tab === 'board' && S.ssBoardTab === 'uni' && !(all && all.hidden);
+      var uniName = this.ssBoardUni(all), U = S.ssBoardUniData;
+      var B = !onUni ? all : !uniName ? all && Object.assign({}, all, { rows: [], me: null, participants: 0 }) : U && U.university === uniName ? U : null;
       var row = function (r) {
         var top = r.rank <= 3, tone = r.rank === 1 ? '#FFE45C' : r.rank === 2 ? '#EDEDED' : '#FF7A7A';
         return {
-          rank: '#' + r.rank, name: r.name, id: r.id, batch: r.batch || '–',
+          rank: '#' + r.rank, name: r.name, id: r.id, batch: (onUni ? r.batch : r.university || r.batch) || '–',
           score: fmtScore(r.score) + ' / ' + fmtScore(r.maxTotal), time: self.mmss(r.usedMs || 0),
           youTag: r.me ? '· you' : '', ring: r.me ? '#FFE45C' : '#262626', bg: r.me ? 'rgba(255,228,92,.08)' : '#0D0D0D',
           rankBg: top ? tone : 'transparent', rankFg: top ? '#050505' : '#FFFFFF', rankRing: top ? tone : '#333333', rankText: top ? tone : '#BDBDBD'
@@ -641,14 +666,30 @@
       var rows = B && B.rows ? B.rows.map(row) : [];
       var me = B && B.me, inTop = function (n) { return me && rows.slice(0, n).some(function (r, i) { return B.rows[i].me; }); };
       var submitted = !!S.ssResult, student = this.ss.user.kind === 'student';
-      var my = me ? { rank: '#' + me.rank, note: 'of ' + B.participants + ' on the board', score: fmtScore(me.score) + ' / ' + fmtScore(me.maxTotal), time: 'time ' + this.mmss(me.usedMs || 0) }
-        : { rank: '–', note: !student ? 'Admin preview is not ranked' : submitted ? 'Updating…' : 'Submit the Sprint to get a rank', score: submitted ? fmtScore(S.ssResult.score) + ' / ' + fmtScore(S.ssResult.maxTotal) : '–', time: '' };
-      var homeLine = !B ? 'Loading standings…' : B.hidden ? 'The leaderboard opens after the Sprint.' : me ? 'You are #' + me.rank + ' of ' + B.participants
-        : rows.length ? 'Top of the board right now' : 'No results yet. Be the first on the board.';
+      var my = me ? { rank: '#' + me.rank, note: 'of ' + B.participants + (onUni ? ' in ' + uniName : ' on the board'), score: fmtScore(me.score) + ' / ' + fmtScore(me.maxTotal), time: 'time ' + this.mmss(me.usedMs || 0) }
+        : { rank: '–', note: !student ? 'Admin preview is not ranked' : onUni && submitted && uniName !== this.ss.user.university ? 'You are not in ' + uniName : submitted ? 'Updating…' : 'Submit the Sprint to get a rank', score: submitted ? fmtScore(S.ssResult.score) + ' / ' + fmtScore(S.ssResult.maxTotal) : '–', time: '' };
+      var homeLine = !all ? 'Loading standings…' : all.hidden ? 'The leaderboard opens after the Sprint.' : all.me ? 'You are #' + all.me.rank + ' of ' + all.participants
+        : all.rows.length ? 'Top of the board right now' : 'No results yet. Be the first on the board.';
+      var unis = (all && all.universities) || [], tabOn = function (on) { return { bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#FFFFFF', ring: on ? '#FFE45C' : '#333333' }; };
+      var mineSet = !!this.ss.user.university && unis.indexOf(this.ss.user.university) >= 0;
       return {
+        tabs: {
+          on: !!all && !all.hidden,
+          overall: Object.assign(tabOn(!onUni), { go: function () { self.ssBoardTabTo('overall'); } }),
+          uni: Object.assign(tabOn(onUni), { go: function () { self.ssBoardTabTo('uni'); } })
+        },
+        uni: {
+          on: onUni, has: unis.length > 0, value: uniName,
+          options: unis.map(function (u) { return { label: u + (u === self.ss.user.university ? ' (yours)' : ''), value: u }; }),
+          onPick: function (e) { self.ssBoardTabTo('uni', e.target.value); },
+          note: !unis.length ? 'No universities in the master data yet. Ask your admin to add the University column.'
+            : student && !mineSet ? 'Your university is not set in the master data, so pick one to view its board.' : '',
+          noteOn: onUni && (!unis.length || (student && !mineSet))
+        },
+        colLabel: onUni ? 'Batch' : 'University',
         loading: !B, hidden: !!(B && B.hidden), rows: rows, top5: rows.slice(0, 5), top10: rows.slice(0, 10),
         hasRows: rows.length > 0, empty: !!B && rows.length === 0,
-        emptyNote: B && B.hidden ? 'The leaderboard is hidden right now. It will appear here once the admins publish it.' : 'The board fills as soon as the first Sprint is submitted. It updates automatically.',
+        emptyNote: B && B.hidden ? 'The leaderboard is hidden right now. It will appear here once the admins publish it.' : onUni ? 'No one from ' + uniName + ' has submitted this Sprint yet. It updates automatically.' : 'The board fills as soon as the first Sprint is submitted. It updates automatically.',
         meRows: me ? [row(me)] : [], meBelow: !!me && !inTop(100), meBelow10: !!me && !inTop(10),
         my: my, participants: B ? B.participants : 0, homeLine: homeLine,
         rule: (B && B.rule) || '', kicker: (B && B.title ? B.title + ' · ' : '') + 'auto-refreshes every 30s',

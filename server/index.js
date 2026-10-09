@@ -18,7 +18,7 @@ import { normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword
 import { readStudents, rowsFrom, importStudents, syncStudentsFile, watchStudentsFile, studentsFilePath, studentCounts, logImport } from './students.js';
 import {
   SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
-  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, clearBoardCache, readDraft, MARKS, RANK_RULE
+  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, universities, clearBoardCache, readDraft, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
@@ -131,7 +131,7 @@ async function who(req, res, next) {
 
 api.get('/me', who, (req, res) => {
   const w = req.who;
-  res.json(w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, phone: maskPhone(w.phone), hasPassword: !!w.hasPassword }
+  res.json(w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, university: w.university, phone: maskPhone(w.phone), hasPassword: !!w.hasPassword }
     : { kind: 'admin', name: w.name, email: w.email, role: w.role });
 });
 
@@ -177,7 +177,7 @@ api.get('/bootstrap', who, async (req, res) => {
   ]);
   res.json({
     serverNow: Date.now(),
-    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, photoAt }
+    user: w.kind === 'student' ? { kind: 'student', rollNo: w.roll_no, name: w.name, batch: w.batch, university: w.university, photoAt }
       : { kind: 'admin', name: w.name || w.email, email: w.email, role: w.role },
     sprint: { id: sprint.id, title: sprint.title, openMs: sprint.openMs, closeMs: sprint.closeMs, durMs: sprint.durMs,
       preview: w.kind === 'admin', leaderboard: sprint.leaderboardVisible, types: await questionTypes(sprint.id), proctor, reviewMode: await reviewMode(sprint.id), previewOf: sprint.previewOf || null },
@@ -247,10 +247,15 @@ async function maybeFinalize() {
 api.get('/leaderboard', who, async (req, res) => {
   noStore(res);
   const sprint = await getSprint();
-  if (!sprint.leaderboardVisible && req.who.kind !== 'admin') return res.json({ hidden: true, rows: [], me: null, rule: RANK_RULE, participants: 0 });
+  if (!sprint.leaderboardVisible && req.who.kind !== 'admin') return res.json({ hidden: true, rows: [], me: null, rule: RANK_RULE, participants: 0, universities: [] });
   await maybeFinalize();
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-  res.json(await leaderboard(req.who.kind === 'student' ? req.who.roll_no : null, limit));
+  // ?university= picks one university's board; only names from the master data are accepted.
+  const unis = await universities(), want = String(req.query.university || '').trim().slice(0, 120);
+  const university = want && unis.some((u) => u.name === want) ? want : '';
+  if (want && !university) return res.status(404).json({ error: 'NO_UNIVERSITY', message: 'No such university in the master data.' });
+  const board = await leaderboard(req.who.kind === 'student' ? req.who.roll_no : null, limit, { university });
+  res.json({ ...board, universities: unis.map((u) => u.name), myUniversity: req.who.kind === 'student' ? req.who.university || '' : '' });
 });
 
 api.put('/progress', who, async (req, res) => {
@@ -423,7 +428,7 @@ adm.get('/students', async (req, res) => {
   const filter = String(req.query.filter || 'all');
   const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100)), offset = Math.max(0, Number(req.query.offset) || 0);
   const where = [], p = [sprint.id];
-  if (q) { where.push('(m.roll_no ILIKE ? OR m.name ILIKE ? OR m.phone ILIKE ? OR m.batch ILIKE ? OR m.email ILIKE ?)'); const l = '%' + q + '%'; p.push(l, l, l, l, l); }
+  if (q) { where.push('(m.roll_no ILIKE ? OR m.name ILIKE ? OR m.phone ILIKE ? OR m.batch ILIKE ? OR m.email ILIKE ? OR m.university ILIKE ?)'); const l = '%' + q + '%'; p.push(l, l, l, l, l, l); }
   if (filter === 'registered') where.push('u.id IS NOT NULL');
   if (filter === 'unregistered') where.push('u.id IS NULL AND m.active = 1');
   if (filter === 'pending') where.push("u.id IS NULL AND m.roll_no IN (SELECT roll_no FROM registration_requests WHERE status = 'pending')");
@@ -466,7 +471,8 @@ function cleanStudent(b, roll) {
   const phone = b.phone ? normPhone(b.phone) : '';
   if (b.phone && !phone) throw new AuthError('BAD_PHONE', 'Enter a valid phone number, or leave it empty.', 400);
   return { roll_no: roll, name: String(b.name || '').trim().slice(0, 120), phone,
-    batch: String(b.batch || '').trim().slice(0, 80), email: String(b.email || '').trim().toLowerCase().slice(0, 160) };
+    batch: String(b.batch || '').trim().slice(0, 80), email: String(b.email || '').trim().toLowerCase().slice(0, 160),
+    university: String(b.university || '').trim().replace(/\s+/g, ' ').slice(0, 120) };
 }
 
 adm.post('/students', async (req, res) => {
@@ -474,8 +480,9 @@ adm.post('/students', async (req, res) => {
   if (!validRoll(roll)) throw new AuthError('BAD_ROLL', 'Enter a valid NIAT ID.', 400);
   if (await one('SELECT 1 AS x FROM students_master WHERE roll_no = ?', roll)) throw new AuthError('EXISTS', 'That NIAT ID already exists.', 409);
   const s = cleanStudent(req.body, roll);
-  await run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, ?, ?, ?, 1, 'admin', ?)",
-    s.roll_no, s.name, s.phone, s.batch, s.email, Date.now());
+  await run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 'admin', ?)",
+    s.roll_no, s.name, s.phone, s.batch, s.email, s.university, Date.now());
+  await clearBoardCache();
   await audit(req, 'student.created', roll, s);
   res.json({ ok: true });
 });
@@ -486,11 +493,11 @@ adm.patch('/students/:roll', async (req, res) => {
   if (!m) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such NIAT ID.' });
   const s = cleanStudent({ ...m, ...req.body }, roll);
   const active = req.body.active === undefined ? m.active : (req.body.active ? 1 : 0);
-  await run('UPDATE students_master SET name = ?, phone = ?, batch = ?, email = ?, active = ?, updated_at = ? WHERE roll_no = ?',
-    s.name, s.phone, s.batch, s.email, active, Date.now(), roll);
+  await run('UPDATE students_master SET name = ?, phone = ?, batch = ?, email = ?, university = ?, active = ?, updated_at = ? WHERE roll_no = ?',
+    s.name, s.phone, s.batch, s.email, s.university, active, Date.now(), roll);
   if (!active) { const u = await one('SELECT id FROM users WHERE roll_no = ?', roll); if (u) await revokeSessions('student', u.id); }
   await clearBoardCache();
-  await audit(req, 'student.updated', roll, { before: { name: m.name, phone: m.phone, batch: m.batch, email: m.email, active: m.active }, after: { ...s, active } });
+  await audit(req, 'student.updated', roll, { before: { name: m.name, phone: m.phone, batch: m.batch, email: m.email, university: m.university, active: m.active }, after: { ...s, active } });
   res.json({ ok: true });
 });
 
@@ -633,7 +640,7 @@ adm.get('/practice/:gi', async (req, res) => {
   res.json(d);
 });
 
-const ATTEMPT_LIST = `SELECT a.id, a.roll_no, m.name, m.batch, a.status, a.started_at, a.deadline_at, a.submitted_at, a.auto_submitted,
+const ATTEMPT_LIST = `SELECT a.id, a.roll_no, m.name, m.batch, m.university, a.status, a.started_at, a.deadline_at, a.submitted_at, a.auto_submitted,
   a.mcq_score, a.code_score, a.text_score, a.text_reviewed, a.total, a.max_total, a.used_ms, a.violations, a.proctor
   FROM attempts a LEFT JOIN students_master m ON m.roll_no = a.roll_no`;
 
@@ -684,7 +691,9 @@ adm.delete('/attempts/:id', requireSuper, async (req, res) => {
 adm.get('/leaderboard', async (req, res) => {
   await maybeFinalize();
   const sprint = await getSprint();
-  res.json({ rule: RANK_RULE, sprint, rows: await leaderboardRows(String(req.query.sprint || sprint.id), 20000) });
+  const university = String(req.query.university || '').trim().slice(0, 120);
+  res.json({ rule: RANK_RULE, sprint, university, universities: (await universities()).map((u) => u.name),
+    rows: await leaderboardRows(String(req.query.sprint || sprint.id), 20000, { university }) });
 });
 
 // ---------- master data
@@ -875,13 +884,13 @@ adm.get('/export/:what', async (req, res) => {
     const rows = (await all(`${ATTEMPT_LIST} WHERE a.sprint_id = ? AND a.roll_no NOT LIKE 'ADMIN-%' ORDER BY a.total DESC NULLS LAST, a.used_ms ASC`, sprint.id))
       .map((r) => ({ ...r, rank: rankOf.get(r.roll_no) || '', time_used: mmss(r.used_ms), started: iso(r.started_at), submitted: iso(r.submitted_at), auto: r.auto_submitted ? 'yes' : '', reviewed: r.text_reviewed ? 'yes' : 'no', ended_by_violations: proctorView(r).endedBy === 'violations' ? 'yes' : '' }));
     name = `results-${sprint.id}.csv`;
-    body = toCSV(['rank', 'roll_no', 'name', 'batch', 'status', 'total', 'max_total', 'mcq_score', 'code_score', 'text_score', 'reviewed', 'time_used', 'started', 'submitted', 'auto', 'violations', 'ended_by_violations'], rows);
+    body = toCSV(['rank', 'roll_no', 'name', 'batch', 'university', 'status', 'total', 'max_total', 'mcq_score', 'code_score', 'text_score', 'reviewed', 'time_used', 'started', 'submitted', 'auto', 'violations', 'ended_by_violations'], rows);
   } else if (req.params.what === 'students.csv') {
     const rows = (await all(`SELECT m.*, u.status AS account, u.created_at AS reg_at, u.last_login_at, pr.data FROM students_master m
       LEFT JOIN users u ON u.roll_no = m.roll_no LEFT JOIN progress pr ON pr.roll_no = m.roll_no ORDER BY m.roll_no`))
       .map((r) => ({ ...r, ...progressSummary(r.data), active: r.active ? 'yes' : 'no', account: r.account || 'not registered', registered: iso(r.reg_at), last_login: iso(r.last_login_at) }));
     name = 'students.csv';
-    body = toCSV(['roll_no', 'lms_id', 'name', 'phone', 'batch', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
+    body = toCSV(['roll_no', 'lms_id', 'name', 'phone', 'batch', 'university', 'email', 'active', 'account', 'registered', 'last_login', 'lessons', 'practice', 'solved'], rows);
   } else if (req.params.what === 'feedback.csv') {
     const rows = (await all('SELECT f.*, m.name FROM feedback f LEFT JOIN students_master m ON m.roll_no = f.roll_no ORDER BY f.id')).map((r) => ({ ...r, at: iso(r.created_at) }));
     name = 'feedback.csv';

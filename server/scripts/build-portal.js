@@ -319,7 +319,7 @@ const BOARD_ROW = (list, as) => `<sc-for list="{{ ${list} }}" as="${as}" hint-pl
 </sc-for>`;
 
 const BOARD_HEAD = `<div style="display: grid; grid-template-columns: 76px minmax(0, 1fr) 150px 130px 92px; gap: 12px; padding: 0 18px; font-size: 13px; font-weight: 800; color: #8A8A8A">
-<span>Rank</span><span>Student</span><span>Batch</span><span style="text-align: right">Score</span><span style="text-align: right">Time</span>
+<span>Rank</span><span>Student</span><span>{{ lb.colLabel }}</span><span style="text-align: right">Score</span><span style="text-align: right">Time</span>
 </div>`;
 
 const BOARD_TAB = `<!-- ============ STATUS (auth bridge) ============ -->
@@ -343,6 +343,26 @@ const BOARD_TAB = `<!-- ============ STATUS (auth bridge) ============ -->
 </div>
 <button class="k3" onClick="{{ lb.refresh }}" style="flex-shrink: 0; min-height: 46px; padding: 0 18px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFFFFF; font-size: 15px; font-weight: 700">Refresh</button>
 </div>
+
+<sc-if value="{{ lb.tabs.on }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<div role="tablist" aria-label="Leaderboard view" style="display: flex; gap: 8px">
+<button class="k3" role="tab" onClick="{{ lb.tabs.overall.go }}" style="min-height: 44px; padding: 0 18px; border: 2px solid {{ lb.tabs.overall.ring }}; border-radius: 12px; background: {{ lb.tabs.overall.bg }}; color: {{ lb.tabs.overall.fg }}; font-size: 15px; font-weight: 700">Overall</button>
+<button class="k3" role="tab" onClick="{{ lb.tabs.uni.go }}" style="min-height: 44px; padding: 0 18px; border: 2px solid {{ lb.tabs.uni.ring }}; border-radius: 12px; background: {{ lb.tabs.uni.bg }}; color: {{ lb.tabs.uni.fg }}; font-size: 15px; font-weight: 700">University</button>
+</div>
+<sc-if value="{{ lb.uni.on }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ lb.uni.has }}" hint-placeholder-val="{{ true }}">
+<label style="display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; max-width: 520px">
+<span style="font-size: 14px; font-weight: 700; color: #BDBDBD; white-space: nowrap">University name</span>
+<select aria-label="University name" value="{{ lb.uni.value }}" onChange="{{ lb.uni.onPick }}" style="flex-grow: 1; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 2px solid #333333; border-radius: 10px; background: #050505; color: #FFFFFF; font-size: 15px; font-weight: 700">
+<sc-for list="{{ lb.uni.options }}" as="uo" hint-placeholder-count="3"><option value="{{ uo.value }}">{{ uo.label }}</option></sc-for>
+</select>
+</label>
+</sc-if>
+</sc-if>
+</div>
+<sc-if value="{{ lb.uni.noteOn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 14px; color: #FFE45C">{{ lb.uni.note }}</div></sc-if>
+</sc-if>
 
 <div class="well" style="background: #050505; border-radius: 22px; padding: 24px 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
 <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700; color: #BDBDBD">Your rank</span><span style="font-family: 'VT323', monospace; font-size: 52px; line-height: 1; color: #FFE45C">{{ lb.my.rank }}</span><span style="font-size: 13px; color: #8A8A8A">{{ lb.my.note }}</span></div>

@@ -1056,6 +1056,72 @@ test('leaderboard between Sprints: a new Sprint without results shows the last S
   assert.equal(after.body.previous, false);
 });
 
+test('University leaderboard: universities come from the master data; ranks restart at #1 within a university', async () => {
+  const sp = await import('../sprint.js'), { importStudents } = await import('../students.js'), { forgetSessions } = await import('../auth.js');
+  const oldId = await db.getSetting('sprint_id', null), SID = 'uni-board-sprint', now = Date.now();
+  await db.setSetting('sprint_id', SID);
+  db.clearSettingCache();
+  const people = [ // roll, university, total, seconds used
+    ['UNI0001', 'Alpha University', 9, 100], ['UNI0002', 'Beta University', 8, 50], ['UNI0003', 'Beta University', 7, 60],
+    ['UNI0004', '', 10, 40], [ROLL, 'Alpha University', 5, 30]
+  ];
+  const oldUni = (await db.one('SELECT university FROM students_master WHERE roll_no = ?', ROLL)).university;
+  for (const [roll, uni, total, sec] of people) {
+    if (roll === ROLL) await db.run('UPDATE students_master SET university = ? WHERE roll_no = ?', uni, roll);
+    else await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, ?, '', 'B1', '', ?, 1, 'admin', ?)", roll, 'Student ' + roll, uni, now);
+    await db.run("INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, submitted_at, total, max_total, used_ms, updated_at) VALUES (?, ?, 'submitted', ?, ?, ?, ?, 10, ?, ?)",
+      SID, roll, now, now + 60000, now, total, sec * 1000, now);
+  }
+  forgetSessions();
+  await sp.clearBoardCache();
+  try {
+    const all = await A('GET', '/api/leaderboard');
+    assert.equal(all.body.participants, 5);
+    assert.equal(all.body.rows[0].university, '', 'blank university still on the overall board');
+    assert.equal(all.body.me.rank, 5);
+    assert.ok(['Alpha University', 'Beta University'].every((u) => all.body.universities.includes(u)));
+    assert.ok(!all.body.universities.includes(''), 'blank is not a university');
+    assert.equal(all.body.myUniversity, 'Alpha University');
+
+    const alpha = await A('GET', '/api/leaderboard?university=' + encodeURIComponent('Alpha University'));
+    assert.equal(alpha.status, 200);
+    assert.equal(alpha.body.university, 'Alpha University');
+    assert.equal(alpha.body.participants, 2);
+    assert.deepEqual(alpha.body.rows.map((r) => r.rank), [1, 2]);
+    assert.ok(alpha.body.rows.every((r) => r.university === 'Alpha University'));
+    assert.equal(alpha.body.me.rank, 2, 'my rank within my university');
+
+    const beta = await A('GET', '/api/leaderboard?university=' + encodeURIComponent('Beta University'));
+    assert.deepEqual(beta.body.rows.map((r) => [r.rank, r.name]), [[1, 'Student UNI0002'], [2, 'Student UNI0003']]);
+    assert.equal(beta.body.me, null, 'a student can view another university, unranked there');
+
+    assert.equal((await A('GET', '/api/leaderboard?university=Nowhere')).status, 404);
+    const adm = await ADM('GET', '/api/admin/leaderboard?university=' + encodeURIComponent('Beta University'));
+    assert.deepEqual(adm.body.rows.map((r) => r.roll_no), ['UNI0002', 'UNI0003']);
+
+    // A new result clears every university board too
+    await db.run('UPDATE attempts SET total = 10, used_ms = 1000 WHERE sprint_id = ? AND roll_no = ?', SID, 'UNI0003');
+    await sp.clearBoardCache();
+    assert.equal((await A('GET', '/api/leaderboard?university=' + encodeURIComponent('Beta University'))).body.rows[0].name, 'Student UNI0003');
+
+    // Import: a "University Name" column fills the field; a sheet without that column keeps it
+    let r = await importStudents({ csv: 'NIAT ID,Student Name,University Name\nUNI0001,One,Gamma University\n' }, { source: 'admin', fullSync: false });
+    assert.equal(r.error, null);
+    assert.equal((await db.one('SELECT university FROM students_master WHERE roll_no = ?', 'UNI0001')).university, 'Gamma University');
+    r = await importStudents({ csv: 'NIAT ID,Student Name\nUNI0001,One Renamed\n' }, { source: 'admin', fullSync: false });
+    const m = await db.one('SELECT name, university FROM students_master WHERE roll_no = ?', 'UNI0001');
+    assert.deepEqual([m.name, m.university], ['One Renamed', 'Gamma University']);
+  } finally {
+    await db.run('DELETE FROM attempts WHERE sprint_id = ?', SID);
+    await db.run("DELETE FROM students_master WHERE roll_no LIKE 'UNI%'");
+    await db.run('UPDATE students_master SET university = ? WHERE roll_no = ?', oldUni, ROLL);
+    if (oldId === null) await db.run("DELETE FROM settings WHERE key = 'sprint_id'"); else await db.setSetting('sprint_id', oldId);
+    db.clearSettingCache();
+    forgetSessions();
+    await sp.clearBoardCache();
+  }
+});
+
 test('every page script parses (a syntax error leaves the admin console or portal blank)', () => {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
   for (const f of ['admin.html', 'login.html', 'help.html', 'review.html']) {

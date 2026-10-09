@@ -222,7 +222,7 @@ If the HTTPS check fails, wait 1–2 minutes (Caddy is getting the certificate) 
    - Log in with the temporary password.
    - Scan the QR code with Google/Microsoft Authenticator and enter the code.
    - Set your own password.
-3. **Master data** → upload the student Excel sheet (`.xlsx` with columns *User id, NIAT ID, Student Name, Email IDs, Phone No.*, e.g. *Alard Student Data __ Final count.xlsx*) → check the preview → **Replace master list**.
+3. **Master data** → upload the student Excel sheet (`.xlsx` with columns *User id, NIAT ID, Student Name, Email IDs, Phone No., University*, e.g. *Alard Student Data __ Final count.xlsx*) → check the preview → **Replace master list**.
 4. **Learning bytes** → **Upload MP4** next to each lesson → **Preview** to check it plays.
 5. **Sprint settings** → set the open/close time, duration and Sprint ID.
 6. **Admins** → add your colleagues. Each gets a temporary password, shown once.

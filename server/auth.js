@@ -86,9 +86,9 @@ export async function loadStudent(req) {
   const s = await readSession(req, 'student');
   let v = null;
   if (s) {
-    const u = await one(`SELECT u.*, m.name, m.batch, m.email, m.active AS master_active FROM users u
+    const u = await one(`SELECT u.*, m.name, m.batch, m.university, m.email, m.active AS master_active FROM users u
                          JOIN students_master m ON m.roll_no = u.roll_no WHERE u.id = ?`, s.subject_id);
-    if (u && u.status === 'active' && u.master_active) v = { kind: 'student', id: u.id, roll_no: u.roll_no, name: u.name, batch: u.batch, phone: u.phone, hasPassword: !!u.password_hash };
+    if (u && u.status === 'active' && u.master_active) v = { kind: 'student', id: u.id, roll_no: u.roll_no, name: u.name, batch: u.batch, university: u.university || '', phone: u.phone, hasPassword: !!u.password_hash };
   }
   cacheSet(k, v);
   return v;

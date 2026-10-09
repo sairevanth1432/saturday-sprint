@@ -352,12 +352,12 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           var acct = !r.active ? pill('inactive', '') : !r.user_id ? pill('not registered', 'info') : r.user_status === 'disabled' ? pill('disabled', 'bad') : r.has_password ? pill('registered', 'ok') : pill('registered · no password', 'warn');
           var test = r.attempt_status === 'submitted' ? h('span', { class: 'mono' }, sc(r.total) + '/' + sc(r.max_total)) : r.attempt_status === 'running' ? pill('in progress', 'warn') : h('span', { class: 'muted' }, '–');
           return h('tr', { class: 'click', onclick: function () { openStudent(r.roll_no, load); } },
-            h('td', { class: 'mono' }, r.roll_no), h('td', null, r.name || '–'), h('td', { class: 'mono' }, r.phone), h('td', null, r.batch || '–'),
+            h('td', { class: 'mono' }, r.roll_no), h('td', null, r.name || '–'), h('td', { class: 'mono' }, r.phone), h('td', null, r.batch || '–', r.university ? h('div', { class: 'muted' }, r.university) : null),
             h('td', null, acct), h('td', { class: 'num' }, test), h('td', { class: 'num mono' }, r.progress.lessons + ' · ' + r.progress.practice), h('td', { class: 'muted' }, dt(r.last_login_at)));
         });
         tableHolder.replaceChildren(
           h('div', { class: 'tablewrap' }, h('table', null,
-            h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Phone', 'Batch', 'Account', 'Sprint', 'Lessons · practice', 'Last login'].map(function (t, i) { return h('th', { class: i === 5 || i === 6 ? 'num' : null }, t); }))),
+            h('thead', null, h('tr', null, ['NIAT ID', 'Name', 'Phone', 'Batch · university', 'Account', 'Sprint', 'Lessons · practice', 'Last login'].map(function (t, i) { return h('th', { class: i === 5 || i === 6 ? 'num' : null }, t); }))),
             h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 8, class: 'muted' }, 'No students match.'))))),
           h('div', { class: 'pager' }, h('span', { class: 'muted' }, d.total ? (st.offset + 1) + '–' + Math.min(d.total, st.offset + 100) + ' of ' + d.total : '0 results'),
             h('button', { class: 'btn sm', disabled: st.offset === 0 ? true : null, onclick: function () { st.offset = Math.max(0, st.offset - 100); load(); } }, '← Prev'),
@@ -377,13 +377,14 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       name: h('input', { type: 'text', value: m.name || '' }),
       phone: h('input', { type: 'text', value: m.phone || '', placeholder: '9876543210' }),
       batch: h('input', { type: 'text', value: m.batch || '' }),
+      university: h('input', { type: 'text', value: m.university || '', placeholder: 'As in the master sheet' }),
       email: h('input', { type: 'email', value: m.email || '' }),
       active: h('input', { type: 'checkbox', checked: isNew || !!m.active })
     };
     var err = errBox();
     return h('form', { class: 'card', style: 'display:flex;flex-direction:column;gap:12px', onsubmit: function (e) {
       e.preventDefault(); err.hidden = true;
-      onSave({ roll_no: f.roll_no.value, name: f.name.value, phone: f.phone.value, batch: f.batch.value, email: f.email.value, active: f.active.checked }).catch(function (e) { showErr(err, e); });
+      onSave({ roll_no: f.roll_no.value, name: f.name.value, phone: f.phone.value, batch: f.batch.value, university: f.university.value, email: f.email.value, active: f.active.checked }).catch(function (e) { showErr(err, e); });
     } },
       h('h2', { style: 'margin:0' }, isNew ? 'New student' : 'Master record'),
       h('div', { class: 'grid g2' },
@@ -391,6 +392,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         h('div', { class: 'field' }, h('label', null, 'Name'), f.name),
         h('div', { class: 'field' }, h('label', null, 'Phone (OTP goes here)'), f.phone),
         h('div', { class: 'field' }, h('label', null, 'Batch / section'), f.batch),
+        h('div', { class: 'field' }, h('label', null, 'University'), f.university),
         h('div', { class: 'field' }, h('label', null, 'Email'), f.email),
         isNew ? null : h('label', { class: 'row', style: 'margin-top:22px' }, f.active, 'Active (can register and log in)')),
       isNew ? h('p', { class: 'muted', style: 'margin:0' }, 'Added here, the student stays even if they are missing from the master file. A later file import with the same NIAT ID updates this record.') :
@@ -588,14 +590,21 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   }
 
   // ---------- leaderboard
+  CACHE.leaderboard = { university: '' };
   VIEWS.leaderboard = function () {
-    return api('GET', '/api/admin/leaderboard').then(function (b) {
+    var st = CACHE.leaderboard;
+    return api('GET', '/api/admin/leaderboard?university=' + encodeURIComponent(st.university)).then(function (b) {
+      // All universities, or one university's board (ranks restart at #1 within it, as students see it).
+      var uni = h('select', { onchange: function () { st.university = this.value; refresh(); } },
+        [['', 'All universities']].concat(b.universities.map(function (u) { return [u, u]; }))
+          .map(function (o) { return h('option', { value: o[0], selected: st.university === o[0] ? true : null }, o[1]); }));
       return h('div', null, header('~/admin/leaderboard', 'Leaderboard', b.rule,
         [b.sprint.leaderboardVisible ? pill('visible to students', 'ok') : pill('hidden from students', 'bad'), h('button', { class: 'btn', onclick: refresh }, 'Refresh'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/results.csv'); } }, 'Export CSV')]),
+        b.universities.length ? h('div', { class: 'toolbar' }, uni) : null,
         h('div', { class: 'tablewrap' }, h('table', null,
-          h('thead', null, h('tr', null, ['Rank', 'NIAT ID', 'Name', 'Batch', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t); }))),
+          h('thead', null, h('tr', null, ['Rank', 'NIAT ID', 'Name', 'Batch · university', 'MCQ', 'Coding', 'Written', 'Total', 'Time', 'Submitted'].map(function (t, i) { return h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t); }))),
           h('tbody', null, b.rows.length ? b.rows.map(function (r) {
-            return h('tr', { class: 'click', onclick: function () { openAttempt(r.id, refresh); } }, h('td', { class: 'mono', style: r.rank <= 3 ? 'color:var(--accent)' : null }, '#' + r.rank), h('td', { class: 'mono' }, r.roll_no), h('td', null, r.name), h('td', null, r.batch || '–'),
+            return h('tr', { class: 'click', onclick: function () { openAttempt(r.id, refresh); } }, h('td', { class: 'mono', style: r.rank <= 3 ? 'color:var(--accent)' : null }, '#' + r.rank), h('td', { class: 'mono' }, r.roll_no), h('td', null, r.name), h('td', null, r.batch || '–', r.university ? h('div', { class: 'muted' }, r.university) : null),
               h('td', { class: 'num mono' }, sc(r.mcq_score)), h('td', { class: 'num mono' }, sc(r.code_score)), h('td', { class: 'num' }, r.text_reviewed ? h('span', { class: 'mono' }, sc(r.text_score)) : pill('to mark', 'warn')),
               h('td', { class: 'num mono', style: 'color:var(--accent)' }, sc(r.total) + '/' + sc(r.max_total)), h('td', { class: 'num mono' }, mmss(r.used_ms)), h('td', { class: 'muted' }, dt(r.submitted_at)));
           }) : h('tr', null, h('td', { colspan: 10, class: 'muted' }, 'No submissions yet.'))))));
@@ -1149,7 +1158,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         }, fail);
       }
       var tpl = function () {
-        var blob = new Blob(['User id,NIAT ID,Student Name,Email IDs,Phone No.\r\n,N26P02A0001,Asha Kumar,asha@example.com,9876543210\r\n'], { type: 'text/csv' });
+        var blob = new Blob(['User id,NIAT ID,Student Name,Email IDs,Phone No.,University\r\n,N26P02A0001,Asha Kumar,asha@example.com,9876543210,Alard University\r\n'], { type: 'text/csv' });
         var u = URL.createObjectURL(blob); download(u); setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
       };
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
@@ -1166,7 +1175,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             h('div', { class: 'row' }, im.exists ? pill('file present', 'ok') : pill('file not found', 'bad'),
               isSuper() ? h('button', { class: 'btn sm', onclick: function () { api('POST', '/api/admin/import/reload').then(function (r) { toast('Reloaded: ' + r.inserted + ' new, ' + r.updated + ' updated, ' + r.deactivated + ' deactivated, ' + r.errors.length + ' rejected.'); refresh(); }, fail); } }, 'Reload now') : null)),
           h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:10px' }, h('h2', { style: 'margin:0' }, 'Option 2 · Upload here'),
-            h('div', { class: 'soft', style: 'line-height:1.55' }, 'Upload the Excel sheet (.xlsx) or a CSV. Columns: ', h('b', null, 'NIAT ID, Phone No.'), ' (required), Student Name, Email IDs, User id (LMS). Only the first sheet is read.'),
+            h('div', { class: 'soft', style: 'line-height:1.55' }, 'Upload the Excel sheet (.xlsx) or a CSV. Columns: ', h('b', null, 'NIAT ID, Phone No.'), ' (required), Student Name, Email IDs, User id (LMS), University (for the University leaderboard). Only the first sheet is read.'),
             file, h('div', { class: 'muted' }, 'You will see a preview before anything changes.'))),
         result,
         h('div', { class: 'card' }, h('h2', null, 'Import history'), im.rows.length ? h('table', null,
