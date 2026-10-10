@@ -6,6 +6,7 @@
 import { config } from '../config.js';
 import { ready, one, run, close, setSetting } from '../db.js';
 import { hashPassword } from '../security.js';
+import { TEST_UNIVERSITY_STUDENTS } from '../universities.js';
 
 if (config.isProd || config.isVercel || (config.databaseUrl && !process.argv.includes('--allow-remote-db'))) {
   console.error('Refusing: seed-test is for the local database only (NODE_ENV=production or DATABASE_URL is set).');
@@ -24,7 +25,9 @@ const STUDENTS = [
   { roll: 'TEST0002', name: 'Test Student Two', phone: '+919000000002', state: 'approved' },
   { roll: 'TEST0003', name: 'Test Student Three', phone: '+919000000003', state: 'approved' },
   { roll: 'TEST0004', name: 'Test Pending Student', phone: '+919000000004', state: 'pending' },
-  { roll: 'TEST0005', name: 'Test New Student', phone: '+919000000005', state: 'new' }
+  { roll: 'TEST0005', name: 'Test New Student', phone: '+919000000005', state: 'new' },
+  // one approved student per university (TEST-N26P02A = ALARD, …): each sees its own university's leaderboard
+  ...TEST_UNIVERSITY_STUDENTS.map((u, i) => ({ ...u, phone: '+91910000' + String(i + 1).padStart(4, '0'), state: 'approved' }))
 ];
 
 await ready();
@@ -39,9 +42,9 @@ for (const a of ADMINS) {
 }
 
 for (const s of STUDENTS) {
-  await run(`INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, ?, ?, 'TEST', ?, 1, 'admin', ?)
-             ON CONFLICT (roll_no) DO UPDATE SET name = excluded.name, phone = excluded.phone, batch = 'TEST', active = 1, source = 'admin', updated_at = excluded.updated_at`,
-    s.roll, s.name, s.phone, s.roll.toLowerCase() + '@test.local', now);
+  await run(`INSERT INTO students_master (roll_no, name, phone, batch, email, university, active, source, updated_at) VALUES (?, ?, ?, 'TEST', ?, ?, 1, 'admin', ?)
+             ON CONFLICT (roll_no) DO UPDATE SET name = excluded.name, phone = excluded.phone, batch = 'TEST', university = excluded.university, active = 1, source = 'admin', updated_at = excluded.updated_at`,
+    s.roll, s.name, s.phone, s.roll.toLowerCase() + '@test.local', s.university || '', now);
   // reset to the intended state
   await run("DELETE FROM sessions WHERE kind = 'student' AND subject_id IN (SELECT id FROM users WHERE roll_no = ?)", s.roll);
   await run('DELETE FROM users WHERE roll_no = ?', s.roll);
@@ -71,9 +74,12 @@ line('Email', 'Password', 'Role');
 for (const a of ADMINS) line(a.email, a.password, a.role === 'super_admin' ? 'super admin (everything)' : 'admin (no imports/settings/admins)');
 console.log('\nSTUDENTS  (http://localhost:3000/login; approved accounts use the password ' + STUDENT_PASSWORD + '; codes are shown on screen locally)');
 line('NIAT ID', 'Phone', 'State');
-for (const s of STUDENTS) line(s.roll, s.phone.replace('+91', ''), {
+for (const s of STUDENTS.filter((x) => !x.university)) line(s.roll, s.phone.replace('+91', ''), {
   approved: 'approved → Log in', pending: 'waiting → approve it in Admin → Approvals', new: 'not registered → use Register'
 }[s.state]);
+console.log('\nUNIVERSITY STUDENTS  (approved; log in with NIAT ID + name, or NIAT ID + password ' + STUDENT_PASSWORD + ')');
+line('NIAT ID', 'Name', 'University');
+for (const s of STUDENTS.filter((x) => x.university)) line(s.roll, s.name, s.university);
 console.log(process.argv.includes('--no-sprint') ? '\nSprint settings unchanged.' :
   '\nA test Sprint ("local-test") is open for the next 24 hours. Change it in Admin → Sprint settings.');
 console.log('Run this again any time to reset the test accounts.\n');

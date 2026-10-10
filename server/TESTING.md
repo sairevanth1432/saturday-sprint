@@ -12,6 +12,9 @@ Create or reset them any time with `npm run seed-test` (local database only; it 
 | Student, already approved | `TEST0001`, `TEST0002`, `TEST0003` | password `Sprint2026` (or *Log in with a code*: code shown on screen) |
 | Student, waiting for approval | `TEST0004` | approve in Admin → Approvals |
 | Student, not registered yet | `TEST0005` + any 10-digit mobile number + a password you choose | code shown on screen |
+| One student per university (approved) | `TEST-<NIAT ID prefix>` with name `Test <first word of the university>`: `TEST-N26P02A` / `Test ALARD`, `TEST-N26AP01A` / `Test GMR`, `TEST-N26H02A` / `Test Malla`… (all 27 are printed by the seed) | name login, or password `Sprint2026` |
+
+- University test students carry their university, so each sees **its own university's leaderboard**. A full student-sheet import never deactivates them (batch `TEST`).
 
 - The seed also opens a separate test Sprint called `local-test` for 24 hours, so you can take the test. `npm run seed-test -- --no-sprint` leaves the Sprint settings alone.
 - Locally, `server/.env` turns off the authenticator step for admins. To test it, set `ADMIN_REQUIRE_TOTP=true` and restart.
@@ -20,6 +23,7 @@ Create or reset them any time with `npm run seed-test` (local database only; it 
 Real SMS is sent there, so test students need phones your testers hold:
 ```bash
 docker compose exec app node scripts/test-accounts.js add --phones 98XXXXXXXX,97XXXXXXXX --password Sprint2026
+docker compose exec app node scripts/test-accounts.js universities   # TEST-N26P02A / Test ALARD … one per university, no phone needed
 docker compose exec app node scripts/test-accounts.js list
 docker compose exec app node scripts/test-accounts.js remove      # before the real Sprint
 ```

@@ -99,7 +99,7 @@ export function readStudents(input) {
 
 // Upsert into students_master. fullSync: list students missing from this upload are deactivated: file-sourced ones and
 // anyone with a university (university sheets are lists, even when merged earlier). Students added one by one and TEST
-// accounts have no university and stay.
+// accounts (batch TEST, including the per-university test students) stay.
 export async function importStudents(input, { source = 'file', fileName = '', adminId = null, fullSync = true } = {}) {
   const parsed = readStudents(await rowsFrom(input));
   const res = { rowsTotal: parsed.rowsTotal || 0, inserted: 0, updated: 0, unchanged: 0, reactivated: 0, deactivated: 0,
@@ -130,7 +130,7 @@ export async function importStudents(input, { source = 'file', fileName = '', ad
     }
     if (fullSync) {
       const keep = new Set(parsed.students.map((s) => s.roll_no));
-      const gone = (await all("SELECT roll_no FROM students_master WHERE active = 1 AND (source = 'file' OR university <> '')")).map((r) => r.roll_no).filter((r) => !keep.has(r));
+      const gone = (await all("SELECT roll_no FROM students_master WHERE active = 1 AND (source = 'file' OR university <> '') AND batch IS DISTINCT FROM 'TEST'")).map((r) => r.roll_no).filter((r) => !keep.has(r));
       for (let i = 0; i < gone.length; i += 1000) {
         const chunk = gone.slice(i, i + 1000);
         await run(`UPDATE students_master SET active = 0, updated_at = ? WHERE roll_no IN (${chunk.map(() => '?').join(', ')})`, now, ...chunk);

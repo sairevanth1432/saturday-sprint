@@ -35,3 +35,11 @@ export const universityOf = (roll) => {
   const hit = UNIVERSITY_PREFIXES.find(([p]) => r.startsWith(p));
   return hit ? hit[1] : '';
 };
+
+// One test student per university: NIAT ID TEST-<prefix>, name "Test <first word of the university>", batch TEST.
+// They sit on their university's leaderboard (hidden on production, like every TEST account). Used by the test scripts.
+export const TEST_UNIVERSITY_STUDENTS = UNIVERSITY_PREFIXES.map(([prefix, university]) => ({
+  roll: 'TEST-' + prefix,
+  name: 'Test ' + (university.split(/[^A-Za-z]+/).find((w) => w.length >= 3) || 'Student').replace(/^./, (c) => c.toUpperCase()),
+  university
+}));
