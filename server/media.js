@@ -343,6 +343,11 @@ export async function restoreBuiltin(kind, id) {
 
 // Every topic that ever existed, for the admin analytics: the portal's current topics first, then the ones that were
 // hidden or deleted (removed: true), so students' time, steps and likes on them stay visible after content changes.
+// When an admin added a topic (ms), for the Sprint 2 / Sprint 3 split in analytics (periods.js); built-in topics: null.
+export function unitCreatedAt(id) {
+  const u = custom.units.concat(custom.deletedUnits || []).find((x) => x.id === id);
+  return u ? Number(u.created_at) || null : null;
+}
 export function unitRegistry() {
   const names = Object.fromEntries(BUILTIN_COURSES.concat(custom.courses, custom.deletedCourses || []).map((c) => [c.id, c.name]));
   const current = (packUnits().units || []).map((u) => ({ id: u.id, course: u.course, courseName: names[u.course] || u.course, title: u.name || u.title || u.id, practiceTopic: u.practiceTopic || '', removed: false }));

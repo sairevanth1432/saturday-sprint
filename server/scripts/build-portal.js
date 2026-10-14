@@ -271,6 +271,17 @@ console.log(`Lessons     → ${path.relative(ROOT, config.lessonsFile)} (${lesso
   console.log(`Videos      → ${Object.keys(found).length} learning byte(s) in public/learning-bytes/` + (stray.length ? ` (ignored, no such lesson: ${stray.join(', ')})` : ''));
 }
 
+// ---------- 1h. Hiring questions for the Practice "Hiring" tab (content/hiring-questions.json → generated/, served by GET /api/hiring-questions)
+{
+  const src = path.join(ROOT, 'content', 'hiring-questions.json');
+  if (fs.existsSync(src)) {
+    const h = JSON.parse(fs.readFileSync(src, 'utf8'));
+    if (!Array.isArray(h.topics)) throw new Error('content/hiring-questions.json: needs a "topics" list.');
+    fs.writeFileSync(path.join(ROOT, 'generated', 'hiring-questions.json'), JSON.stringify(h));
+    console.log(`Hiring      → ${h.topics.reduce((n, t) => n + t.questions.length, 0)} interview question(s) in ${h.topics.length} topic(s)`);
+  }
+}
+
 // ---------- 2. boot through the bridge
 const bootRe = /\n\/\*[^\n]*preview=1[^\n]*\*\/\n?bootPortal\(Component[^\n]*\n|\nbootPortal\(Component[^\n]*\n/;
 if (!bootRe.test(html)) throw new Error('Could not find the bootPortal(Component, …) call.');
@@ -766,6 +777,16 @@ replaceOnce('</head>', `<style>
 .ss-map-trophy:hover { box-shadow: 0 0 0 2px #FFE45C, 0 0 18px -4px rgba(255,228,92,.6); }
 .ss-map-trophy svg { width: 22px; height: 22px; }
 @media (prefers-reduced-motion: reduce) { .ss-map-avatar { transition: none; } }
+/* Practice "Hiring" tab */
+.ss-hq-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .ss-hq-grid { grid-template-columns: 1fr; } }
+.ss-hq { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 16px; background: #151515; border: 1px solid #222222; min-width: 0; }
+.ss-hq-n { flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px; background: #262626; color: #BDBDBD; font-family: 'VT323', monospace; font-size: 17px; display: flex; align-items: center; justify-content: center; }
+.ss-hq-lvl { flex-shrink: 0; padding: 2px 8px; border: 1px solid; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.ss-hq-asked { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 36px; }
+.ss-hq-co { padding: 4px 10px; border-radius: 999px; background: #0D0D0D; border: 1px solid #262626; font-size: 12px; color: #8A8A8A; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-hq-co b { color: #EDEDED; font-weight: 800; }
+.ss-hq-more { padding: 4px 10px; font-size: 12px; font-weight: 700; color: #FFE45C; }
 /* Profile page: photo, streak, medals (values: portal-bridge.js ssProfileVals) */
 .ss-medal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .ss-medal-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid; border-radius: 14px; background: #151515; min-width: 0; }

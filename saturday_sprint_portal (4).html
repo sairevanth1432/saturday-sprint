@@ -1820,13 +1820,35 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 <div style="display: flex; align-items: center; gap: 16px">
 <div role="group" aria-label="Question type" class="well" style="flex-shrink: 0; display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #050505">
 <button onClick="{{ pq.toQuiz }}" aria-pressed="{{ pq.isQuizItem }}" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: {{ pq.qBg }}; color: {{ pq.qFg }}; font-size: 15px; font-weight: 800">Quiz · {{ pq.nQuiz }}</button>
+<sc-if value="{{ hq.has }}" hint-placeholder-val="{{ true }}"><button onClick="{{ hq.open }}" aria-pressed="{{ hq.on }}" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: {{ hq.bg }}; color: {{ hq.fg }}; font-size: 15px; font-weight: 800">Hiring · {{ hq.n }}</button></sc-if>
 <sc-if value="{{ pq.hasCoding }}" hint-placeholder-val="{{ true }}"><button onClick="{{ pq.toCode }}" aria-pressed="{{ pq.isCodeItem }}" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: {{ pq.cBg }}; color: {{ pq.cFg }}; font-size: 15px; font-weight: 800">Coding · {{ pq.nCode }}</button></sc-if>
 </div>
-<span style="font-size: 15px; font-weight: 800; color: #FFFFFF; white-space: nowrap">{{ pq.posLabel }}</span>
+<span style="display: {{ hq.inlineDisp }}; font-size: 15px; font-weight: 800; color: #FFFFFF; white-space: nowrap">{{ pq.posLabel }}</span>
 <div style="flex-grow: 1; height: 6px; border-radius: 3px; background: #262626; overflow: hidden"><div style="height: 100%; width: {{ pq.pct }}; background: #FFE45C; transition: width 260ms cubic-bezier(0.23, 1, 0.32, 1)"></div></div>
 </div>
 
-<div class="d3" style="background: #151515; border-radius: 22px; padding: 30px 34px; display: flex; flex-direction: column; gap: 18px">
+<sc-if value="{{ hq.on }}" hint-placeholder-val="{{ false }}">
+<div class="pop" style="display: flex; flex-direction: column; gap: 14px">
+<div style="font-size: 14px; color: #8A8A8A">{{ hq.note }}</div>
+<sc-if value="{{ hq.empty }}" hint-placeholder-val="{{ false }}"><div class="well" style="background: #050505; border-radius: 18px; padding: 28px; font-size: 15px; color: #BDBDBD">{{ hq.emptyNote }}</div></sc-if>
+<div class="ss-hq-grid">
+<sc-for list="{{ hq.items }}" as="hi" hint-placeholder-count="4">
+<div class="ss-hq">
+<div style="display: flex; align-items: flex-start; gap: 10px">
+<span class="ss-hq-n">{{ hi.n }}</span>
+<div style="flex-grow: 1; min-width: 0; font-size: 15px; font-weight: 700; line-height: 1.45; color: #FFFFFF; white-space: pre-wrap">{{ hi.q }}</div>
+<span class="ss-hq-lvl" style="color: {{ hi.lvlFg }}; border-color: {{ hi.lvlFg }}">{{ hi.level }}</span>
+</div>
+<div class="ss-hq-asked">
+<sc-for list="{{ hi.asked }}" as="ha" hint-placeholder-count="2"><span class="ss-hq-co" title="{{ ha.title }}"><b>{{ ha.company }}</b> · {{ ha.role }}</span></sc-for>
+<sc-if value="{{ hi.more }}" hint-placeholder-val="{{ false }}"><span class="ss-hq-more">{{ hi.moreLabel }}</span></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<div class="d3" style="background: #151515; border-radius: 22px; padding: 30px 34px; display: {{ hq.cardDisp }}; flex-direction: column; gap: 18px">
 <sc-if value="{{ pq.isQuizItem }}" hint-placeholder-val="{{ true }}">
 <div style="font-size: 19px; font-weight: 700; line-height: 1.4; white-space: pre-wrap">{{ pq.q }}</div>
 <sc-if value="{{ pq.isMulti }}" hint-placeholder-val="{{ false }}"><div style="margin-top: -8px; font-size: 14px; font-weight: 700; color: #FFE45C">Select all that apply</div></sc-if>
@@ -1861,7 +1883,7 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 </sc-if>
 </div>
 
-<div style="display: flex; justify-content: space-between">
+<div style="display: {{ hq.cardDisp }}; justify-content: space-between">
 <button class="k3" onClick="{{ pq.prev }}" style="min-height: 48px; padding: 0 20px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFFFFF; font-size: 16px; font-weight: 700">Previous</button>
 <div style="display: flex; align-items: center; gap: 10px">
 <sc-if value="{{ pq.canSkip }}" hint-placeholder-val="{{ true }}"><button class="k3" onClick="{{ pq.skip }}" style="min-height: 48px; padding: 0 20px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #BDBDBD; font-size: 16px; font-weight: 700">Skip</button></sc-if>

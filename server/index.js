@@ -33,7 +33,7 @@ import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPracti
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
-import { periodOf } from './periods.js';
+import { periodOf, LATEST_PERIOD } from './periods.js';
 import { journey } from './journey.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -315,6 +315,13 @@ api.get('/leaderboard', who, async (req, res) => {
   // students: their own university's board; admins previewing the portal: everyone
   const university = req.who.kind === 'student' ? await studentUniversity(req.who.roll_no) : null;
   res.json(await leaderboard(req.who.kind === 'student' ? req.who.roll_no : null, limit, { sprintId: String(req.query.sprint || ''), university }));
+});
+
+// Interview questions per topic for the Practice "Hiring" tab (built from content/hiring-questions.json).
+let hiringCache = null;
+api.get('/hiring-questions', who, (req, res) => {
+  if (!hiringCache) { const f = path.join(ROOT, 'generated', 'hiring-questions.json'); hiringCache = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '{"topics":[]}'; }
+  res.set('Cache-Control', 'private, max-age=300'); res.type('json').send(hiringCache);
 });
 
 // The student's race for the Home track: completion vs the cohort, streak, medals (journey.js).
@@ -794,7 +801,7 @@ async function sprintOfPeriod(period) {
   const P = periodOf(period);
   if (!P) return null;
   const r = await one("SELECT sprint_id FROM attempts WHERE started_at >= ? AND started_at < ? AND roll_no NOT LIKE 'ADMIN-%' GROUP BY sprint_id ORDER BY COUNT(*) DESC LIMIT 1", P.from, P.to);
-  return r ? r.sprint_id : P.id === 's2' ? (await getSprint()).id : 'none';
+  return r ? r.sprint_id : P.id === LATEST_PERIOD ? (await getSprint()).id : 'none';
 }
 adm.get('/attempts', async (req, res) => {
   await maybeFinalize();

@@ -1,0 +1,3769 @@
+{
+ "source": "Hiring Intelligence Dashboard export, 14 Oct 2026",
+ "topics": [
+  {
+   "course": "pf",
+   "topic": "For Loop",
+   "questions": [
+    {
+     "q": "Find the second largest number in an array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 5,
+     "asked": [
+      {
+       "company": "NowIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-20",
+       "ctc": "3–3.6 LPA"
+      },
+      {
+       "company": "Ashling Partners",
+       "role": "Associate L1 support consultant",
+       "round": "Technical Round 1",
+       "date": "2026-06-15",
+       "ctc": "3–3.25 LPA"
+      },
+      {
+       "company": "Odin AI",
+       "role": "SDE 1",
+       "round": "Technical Round 1",
+       "date": "2026-06-03",
+       "ctc": "5–6 LPA"
+      },
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      },
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-01-28",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to generate the Fibonacci series up to a given number.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 5,
+     "asked": [
+      {
+       "company": "LovasIT(GoLive Solutions)",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-18",
+       "ctc": "6–6.5 LPA"
+      },
+      {
+       "company": "Pragma Edge Inc",
+       "role": "Associate Trainee - EDI Analyst",
+       "round": "Technical Round 1",
+       "date": "2026-02-18",
+       "ctc": "4 LPA"
+      },
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-01-28",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Sharpsell",
+       "role": "Junior Product Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-01-27",
+       "ctc": "8 LPA"
+      },
+      {
+       "company": "Capillary Technologies",
+       "role": "Product Support Intern",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a code to generate the Fibonacci series up to a given number of terms.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 5,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      },
+      {
+       "company": "FINEXCORE Software Solutions",
+       "role": "Associate Developer (Java + Spring boot)",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Junior Python Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3–3.5 LPA"
+      },
+      {
+       "company": "LovasIT",
+       "role": "Oracle CPQ Delivery Support",
+       "round": "Technical Round 1",
+       "date": "2026-04-14",
+       "ctc": "2.4 LPA"
+      },
+      {
+       "company": "Sharpsell",
+       "role": "Junior Product Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-16",
+       "ctc": "8 LPA"
+      },
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-01-28",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python function to find the largest number in a list.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 3,
+     "asked": [
+      {
+       "company": "Growth Market Intelligence",
+       "role": "AI/ML Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-09",
+       "ctc": "3.5–4.5 LPA"
+      },
+      {
+       "company": "Sutherland",
+       "role": "Quality Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-06-16",
+       "ctc": "4–6 LPA"
+      },
+      {
+       "company": "Sharpsell",
+       "role": "Junior Product Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-16",
+       "ctc": "8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the largest number in a given array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Odin AI",
+       "role": "SDE 1",
+       "round": "Technical Round 1",
+       "date": "2026-06-03",
+       "ctc": "5–6 LPA"
+      },
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the second largest element in an array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "AADHI SOFTECH SOLUTIONS PVT LTD",
+       "role": "Junior Software Engineer",
+       "round": "Technical Round 2",
+       "date": "2026-07-03",
+       "ctc": ""
+      },
+      {
+       "company": "ANAROCK",
+       "role": "SDE Intern - Frontend",
+       "round": "Technical Round 1",
+       "date": "2026-07-01",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a function to find the factorial of a number.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Phenom Cloud",
+       "role": "Python Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-04-04",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to check if a given number is a prime number.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Ronin Labs",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3–4 LPA"
+      },
+      {
+       "company": "Capillary Technologies",
+       "role": "Product Support Intern",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program to calculate the factorial of a number.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Oracle CPQ Delivery Support",
+       "round": "Technical Round 1",
+       "date": "2026-04-20",
+       "ctc": "2.4 LPA"
+      },
+      {
+       "company": "TARDID Technologies Pvt Ltd",
+       "role": "AI Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-03-10",
+       "ctc": "4.5–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to check if a given number is an Armstrong number.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Hexagon",
+       "role": "Software Engineer (QA)",
+       "round": "Technical Round 1",
+       "date": "2026-01-13",
+       "ctc": "5.5 LPA"
+      },
+      {
+       "company": "BlackRock IT Solutions",
+       "role": "Python Developer",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "2.4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to reverse a number.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Freedom With AI",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-18",
+       "ctc": "2.4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the largest element in an array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Freedom With AI",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-18",
+       "ctc": "2.4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the sum of all elements in an array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "EIDIKO Systems Integrators",
+       "role": "Trainee Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-21",
+       "ctc": "3–4.7 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Print all prime numbers within a given range.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a function to print the Fibonacci series.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Phenom Cloud",
+       "role": "Python Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Count the number of unique elements in an array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "quantacus.ai",
+       "role": "Backend Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-03",
+       "ctc": "8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given an array, find the second-largest element.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Edgistify",
+       "role": "Quality",
+       "round": "Technical Round 2",
+       "date": "2026-08-26",
+       "ctc": "4.5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to generate the Fibonacci series.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print prime numbers using loops.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Bluesprings.Ai",
+       "role": "AI Freshers",
+       "round": "Technical Round 1",
+       "date": "2026-08-20",
+       "ctc": "4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the sum of all even numbers in the given array.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Smart Food Safe India",
+       "role": "MERN Stack Intern (Trainee)",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.6–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write the code to print the sum of a list of numbers",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program to generate Fibonacci numbers.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "AI Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-22",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print all even numbers from a list.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Digii",
+       "role": "Data Analyst Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-02",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Can you write a function to compute the factorial of 5?",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "ZET",
+       "role": "Full-stack Developer",
+       "round": "Unspecified",
+       "date": "2026-01-29",
+       "ctc": "8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print all prime numbers from 1 to N.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "LovasIT(GoLive Solutions)",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-18",
+       "ctc": "6–6.5 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "pf",
+   "topic": "String Methods",
+   "questions": [
+    {
+     "q": "Reverse a string in Python.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 15,
+     "asked": [
+      {
+       "company": "Sulopa",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-09-29",
+       "ctc": "3.5 LPA"
+      },
+      {
+       "company": "Crowe",
+       "role": "Jr. Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-08-19",
+       "ctc": "4.5 LPA"
+      },
+      {
+       "company": "Freedom With AI",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-18",
+       "ctc": "2.4–5 LPA"
+      },
+      {
+       "company": "Mavoix Technology Solutions - AI",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "EIDIKO Systems Integrator",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Caps Delivery",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3–4 LPA"
+      },
+      {
+       "company": "Odin AI",
+       "role": "SDE 1",
+       "round": "Technical Round 1",
+       "date": "2026-06-03",
+       "ctc": "5–6 LPA"
+      },
+      {
+       "company": "Zenwork Digital",
+       "role": "Scrum Master",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.5–4.2 LPA"
+      },
+      {
+       "company": "Enmovil",
+       "role": "Jnr Developer",
+       "round": "Technical Round 2",
+       "date": "2026-04-13",
+       "ctc": "3.6 LPA"
+      },
+      {
+       "company": "Pragma Edge Inc",
+       "role": "Programmer Analyst",
+       "round": "Technical Round 1",
+       "date": "2026-03-16",
+       "ctc": "4 LPA"
+      },
+      {
+       "company": "Neotas",
+       "role": "Junior Support Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-03-04",
+       "ctc": "3–5 LPA"
+      },
+      {
+       "company": "Sharpsell",
+       "role": "Junior Product Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-16",
+       "ctc": "8 LPA"
+      },
+      {
+       "company": "ADA Global",
+       "role": "Data Engineer/Data Analyst/Data Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-12",
+       "ctc": "3.5–4 LPA"
+      },
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-01-28",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Hexagon",
+       "role": "Software Engineer (QA)",
+       "round": "Technical Round 1",
+       "date": "2026-01-13",
+       "ctc": "5.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a code to check if a given string is a palindrome.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 6,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-04-04",
+       "ctc": "10–14 LPA"
+      },
+      {
+       "company": "Pragma Edge Inc",
+       "role": "Programmer Analyst",
+       "round": "Technical Round 1",
+       "date": "2026-03-16",
+       "ctc": "4 LPA"
+      },
+      {
+       "company": "Techolution",
+       "role": "MERN Stack Intern",
+       "round": "Technical Round 1",
+       "date": "2026-03-09",
+       "ctc": "7–8 LPA"
+      },
+      {
+       "company": "Sharpsell",
+       "role": "Junior Product Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-16",
+       "ctc": "8 LPA"
+      },
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-01-28",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Capillary Technologies",
+       "role": "Product Support Intern",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to check whether a string is a palindrome.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 4,
+     "asked": [
+      {
+       "company": "Freedom With AI",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-18",
+       "ctc": "2.4–5 LPA"
+      },
+      {
+       "company": "Growth Market Intelligence",
+       "role": "AI/ML Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-09",
+       "ctc": "3.5–4.5 LPA"
+      },
+      {
+       "company": "AADHI SOFTECH SOLUTIONS PVT LTD",
+       "role": "Junior Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-03",
+       "ctc": ""
+      },
+      {
+       "company": "CreditQ",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3.5–4.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to check whether a given string is a palindrome or not.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 4,
+     "asked": [
+      {
+       "company": "Wattmonk",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-30",
+       "ctc": "4–6 LPA"
+      },
+      {
+       "company": "Venturasecurities",
+       "role": "Application Support Intern / Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-07-28",
+       "ctc": "4–8 LPA"
+      },
+      {
+       "company": "Skywalk Global",
+       "role": "Software Engineer",
+       "round": "Assessment/Written Test",
+       "date": "2026-06-24",
+       "ctc": "3.6 LPA"
+      },
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-04-04",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Check if two strings are anagrams of each other.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 3,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Technical Round 1",
+       "date": "2026-04-14",
+       "ctc": "6 LPA"
+      },
+      {
+       "company": "Raja Software Labs",
+       "role": "Software Developer",
+       "round": "Technical Round 2",
+       "date": "2026-03-20",
+       "ctc": "7 LPA"
+      },
+      {
+       "company": "SNS Groups",
+       "role": "MERN Fullstack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-03-11",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the first non-repeating character in a string.",
+     "difficulty": "Medium",
+     "type": "Coding",
+     "companies": 3,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      },
+      {
+       "company": "Blend360",
+       "role": "All-Star",
+       "round": "Technical Round 1",
+       "date": "2026-09-02",
+       "ctc": "10–20 LPA"
+      },
+      {
+       "company": "Infyair",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the frequency of each letter in a string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      },
+      {
+       "company": "Blend360",
+       "role": "All-Star",
+       "round": "Technical Round 1",
+       "date": "2026-08-21",
+       "ctc": "10–20 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to count the frequency of each character in a string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "SD WoT",
+       "role": "Associate Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-08-21",
+       "ctc": "3.6–15 LPA"
+      },
+      {
+       "company": "Digitap.ai",
+       "role": "Python Backend Intern",
+       "round": "Technical Round 1",
+       "date": "2026-05-15",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the Longest Palindromic Substring in a given string.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Kotak",
+       "role": "SDE 1",
+       "round": "Technical Round 2",
+       "date": "2026-05-01",
+       "ctc": "10–12 LPA"
+      },
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-04-04",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the length of the longest substring without repeating characters in a given string.",
+     "difficulty": "Medium",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Investobull - Front end",
+       "role": "Frontend Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3.5–4 LPA"
+      },
+      {
+       "company": "Yellow.ai",
+       "role": "Software Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-02-17",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to find the longest substring without repeating characters in a given string.",
+     "difficulty": "Medium",
+     "type": "Coding",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-05-11",
+       "ctc": "10–14 LPA"
+      },
+      {
+       "company": "Winfo Solutions",
+       "role": "Trainee Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-18",
+       "ctc": "4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Convert the string 'hello world' into title case (e.g., 'Hello World').",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "ZET",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-02-04",
+       "ctc": "8 LPA"
+      },
+      {
+       "company": "DappLogix Software Pvt Ltd",
+       "role": "Full-stack Engineer",
+       "round": "Unspecified",
+       "date": "2026-01-27",
+       "ctc": "3.5–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Count the vowels in a string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a code snippet to loop through a string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "symplr",
+       "role": "SDE- Apprentice",
+       "round": "Technical Round 1",
+       "date": "2026-02-10",
+       "ctc": "7–7.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Find the non-repeating characters in a string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Prasthana Software Solutions",
+       "role": "Software Developer Engineer",
+       "round": "Technical Round 2",
+       "date": "2026-08-13",
+       "ctc": "4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a code snippet to reverse a given string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Zenwork Digital",
+       "role": "Scrum Master",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.5–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Check whether the given integer is a palindrome.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write the Python code to concatenate two strings.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Digitap.ai",
+       "role": "Python Backend Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-01",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Generate all unique permutations of a given string.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "SNS Groups",
+       "role": "MERN Fullstack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-03-11",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Check whether a given value/string is a palindrome.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to sort a string in ascending order.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Softility",
+       "role": "AI / ML (Fresher - Full Time)",
+       "round": "Technical Round 2",
+       "date": "2026-07-21",
+       "ctc": "4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a string, count the frequency of each character.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "Software Engineer Python",
+       "round": "Technical Round 1",
+       "date": "2026-09-09",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a string, find the first non-repeating character.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Amplicomm Solutions Private Limited",
+       "role": "Backend Developer",
+       "round": "Technical Round 1",
+       "date": "2026-09-27",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python function to reverse a string using slicing.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-06",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Solve programming problems related to string manipulation.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "EIDIKO Systems Integrator",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "pf",
+   "topic": "Nested Loops",
+   "questions": [
+    {
+     "q": "Write a program to print a reverse star pattern.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Freedom With AI",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-18",
+       "ctc": "2.4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print a rhombus star pattern.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "AI Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-22",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print a triangle star pattern.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Freedom With AI",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-18",
+       "ctc": "2.4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program to perform matrix multiplication.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-04-04",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Print a full pyramid using *. Example: * *** ***** *******",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Venturasecurities",
+       "role": "Application Support Intern / Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-07-29",
+       "ctc": "4–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program to print the multiplication table of 11.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Zenwork Digital",
+       "role": "Scrum Master",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.5–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Print a half pyramid using numbers. Example: 1 1 2 1 2 3 1 2 3 4",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Venturasecurities",
+       "role": "Application Support Intern / Consultant",
+       "round": "Technical Round 1",
+       "date": "2026-07-29",
+       "ctc": "4–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print an alphabet pattern based on user input.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "TGH Software Solutions Pvt. Ltd.",
+       "role": "Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-05",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print the following pattern: 1234321 12321 121 1",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "TGH Software Solutions Pvt. Ltd.",
+       "role": "Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-04",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print a specific pattern (details not provided).",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "ADA Global",
+       "role": "Data Engineer/Data Analyst/Data Engineer",
+       "round": "Technical Round 2",
+       "date": "2026-02-19",
+       "ctc": "3.5–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given an M*N matrix, write a Python program to print its transpose matrix.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "RightData",
+       "role": "Data Engineer",
+       "round": "Technical Round 2",
+       "date": "2026-01-01",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Pyramid Pattern: Write a Python program to print the given pyramid pattern.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Blend360",
+       "role": "All-Star",
+       "round": "Technical Round 2",
+       "date": "2026-08-25",
+       "ctc": "10–20 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program to print a right-angled triangle pattern using nested loops.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-06",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program to print the following pattern: 5 5 4 5 4 3 5 4 3 2 5 4 3 2 1",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "TARDID Technologies Pvt Ltd",
+       "role": "AI Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-03-10",
+       "ctc": "4.5–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a square matrix, calculate the absolute difference between the sums of its diagonals.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Mountblue",
+       "role": "Software Development Engineer",
+       "round": "Assessment/Written Test",
+       "date": "2026-02-19",
+       "ctc": "3.6–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Solve the problem of finding the largest rectangle containing only 1's in a binary matrix and return its area.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Clink",
+       "role": "SDE Intern",
+       "round": "Unspecified",
+       "date": "2026-02-05",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a 2D matrix of integers, calculate the sum of each row, add the row index to the sum, and store the result.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Telesoft",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 2",
+       "date": "2026-07-23",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a Python program that takes an integer n as input and prints a right-angled triangle pattern of stars (*) with n rows.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Infanion",
+       "role": "Jr. Software Developer",
+       "round": "Technical Round 1",
+       "date": "2026-01-27",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a program to print a star (*) pattern (e.g., a right-angled triangle or pyramid) in any programming language of your choice.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Ashvad Tech Private Limited",
+       "role": "Jr. Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-09",
+       "ctc": "4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a binary string, write a program to count the number of alternating bits (i.e., the pattern where no two adjacent bits are the same).",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "CashFree",
+       "role": "SDE 1",
+       "round": "Technical Round 1",
+       "date": "2026-04-28",
+       "ctc": "14–18 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a string and a pattern, how would you find the smallest substring in the string that contains all characters of the pattern (in any order)?",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "DappLogix Software Pvt Ltd",
+       "role": "Full-stack Engineer",
+       "round": "Unspecified",
+       "date": "2026-01-19",
+       "ctc": "3.5–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given an array of integers, find the maximum perimeter of a triangle that can be formed with three different elements of the array as sides. If no such triangle can be formed, return -1.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Mountblue",
+       "role": "Software Development Engineer",
+       "round": "Assessment/Written Test",
+       "date": "2026-02-19",
+       "ctc": "3.6–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write a function or program to check whether a given substring (pattern) is present in a main string (text) without using any built-in string functions or methods that directly solve this problem.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "AIRDIT Software Services Private Limited",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-01-20",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given an m x n matrix, return an array of all the elements of the matrix in a diagonal (zigzag) order. For example, for the matrix [[1,2,3],[4,5,6],[7,8,9]], the output should be [1,2,4,7,5,3,6,8,9].",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Posiflex Technology (India) Pvt. Ltd.",
+       "role": "Full Stack AI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-01-23",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Given a 3x3 2D array (matrix) of integers, calculate the sum of elements in the following pattern: (i,j), (i,j+1), (i,j+2), (i+1,j+1), (i+2,j), (i+2,j+1), (i+2,j+2). For example, for the input matrix: 2 4 4 5 2 3 1 2 4 The output should be 19, as the sum of the selected elements is 2 + 4 + 4 + 2 + 1 + 2 + 4.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "SNS Groups",
+       "role": "MERN Fullstack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-03-11",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "genai",
+   "topic": "Building Social Media Content Automation Workflow, Part 1",
+   "questions": [
+    {
+     "q": "What is Agentic AI?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 5,
+     "asked": [
+      {
+       "company": "Shift AI",
+       "role": "Software Freshers",
+       "round": "Technical Round 1",
+       "date": "2026-08-29",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "ANSR",
+       "role": "ServiceNow Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-10",
+       "ctc": "3–4 LPA"
+      },
+      {
+       "company": "Avira Digital",
+       "role": "GEN AI Fresher",
+       "round": "Technical Round 1",
+       "date": "2026-08-10",
+       "ctc": "3–6 LPA"
+      },
+      {
+       "company": "Mavoix Technology Solutions - AI",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Managerial Round",
+       "date": "2026-01-28",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Why is n8n used?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Mavoix Technology Solutions - AI",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain Agentic AI.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Growth Market Intelligence",
+       "role": "AI/ML Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-13",
+       "ctc": "3.5–4.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How will AI agents work?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "AI Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-22",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is Agentic AI Service?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "ANSR",
+       "role": "ServiceNow Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-10",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the role of an orchestrator in AI agents?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "NextBill",
+       "role": "AI Engineer - Intern",
+       "round": "Unspecified",
+       "date": "2026-04-13",
+       "ctc": "4–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "You have mentioned you have also used n8n automation. What does it do?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "AdSocial.ai",
+       "role": "Full Stack Developer (Front-end Opening)",
+       "round": "Technical Round 1",
+       "date": "2026-09-22",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Have you done anything related to AI or agentic features in any project?",
+     "difficulty": "Easy",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Palnesto",
+       "role": "AI Full Stack Engineer",
+       "round": "Unspecified",
+       "date": "2026-02-03",
+       "ctc": "3.5–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Have you worked on or studied Agentic AI?",
+     "difficulty": "Easy",
+     "type": "General",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "NextBill",
+       "role": "AI Engineer - Intern",
+       "round": "Unspecified",
+       "date": "2026-04-13",
+       "ctc": "4–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How does a webhook work?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Persistence",
+       "role": "FDE",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "10–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the concept of AI Agents.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "aiora.live",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-30",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between AI and Agentic AI?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Shift AI",
+       "role": "Software Freshers",
+       "round": "Technical Round 1",
+       "date": "2026-08-29",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between an AI Agent and an AI Model?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Deepija Telecom Pvt Ltd",
+       "role": "AI Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-22",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain how to create AI agents from a technical perspective.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Yellow.ai",
+       "role": "Software Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-02-17",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How did you get into AI agents, and how do they fit into your field?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Lloyds Technology Centre India",
+       "role": "Junior Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-05-05",
+       "ctc": "15 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain how Large Language Models (LLMs) work and how AI agents use them.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Lloyds Technology Centre India",
+       "role": "Junior Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-05-05",
+       "ctc": "15 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Describe the working mechanism of AI agents and their interaction with environments or tasks.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Yellow.ai",
+       "role": "Software Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-02-17",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How can you enhance your application with AI to provide agentic recommendations for multiple users with login functionality?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "SynxaIT",
+       "role": "Unspecified",
+       "round": "Technical Round 1",
+       "date": "2026-03-02",
+       "ctc": ""
+      }
+     ]
+    },
+    {
+     "q": "Explain the architecture of Webhooks and detail how you would configure a webhook integration to push real-time alerts to Slack.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Outbox Labs",
+       "role": "SDE Intern",
+       "round": "Technical Round 1",
+       "date": "2026-10-08",
+       "ctc": "10 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the AI agent you worked on.",
+     "difficulty": "Medium",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Persistence",
+       "role": "FDE",
+       "round": "Technical Round 1",
+       "date": "2026-08-31",
+       "ctc": "10–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain your AI Build Assistant workflow built using n8n.",
+     "difficulty": "Medium",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Zepto",
+       "role": "Data Analyst Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-28",
+       "ctc": "5–7 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Beyond simple automation tools (like n8n), what complex AI/ML projects have you deeply built?",
+     "difficulty": "Medium",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "YellowSense Technologies",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-08-10",
+       "ctc": "5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Build a webhook event processing system that removes duplicate events using eventId, keeps the earliest timestamp event, sorts events by timestamp, retries failed events using exponential backoff retry logic, and maintains processed event logs and retry logs.",
+     "difficulty": "Medium",
+     "type": "Project Assignment",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Smart Food Safe India",
+       "role": "MERN Stack Intern (Trainee)",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.6–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "DeskFlow — INTERMEDIATE A support team promises to respond in 4 working hours and resolve in 2 working days. Build the desk that routes every ticket and keeps that promise visible. What It Must Do Raise a ticket, and move it through a defined set of states. Auto-assign using rules an admin can change without code. An SLA clock per ticket that only runs during business hours. Escalate automatically when a ticket is about to breach. Three roles — customer, agent, manager — each seeing different things. A manager view of what is open, overdue and at risk. If You Still Have Time Email or webhook notifications Search across ticket history Agent workload balancing Holiday calendar in SLA maths Merge duplicate tickets",
+     "difficulty": "Medium",
+     "type": "Project Assignment",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Shift AI",
+       "role": "Software Freshers",
+       "round": "Live Coding Round",
+       "date": "2026-08-30",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Can you explain how Agentic AI functions, particularly its architecture, using an example like story writing?",
+     "difficulty": "Hard",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "NextBill",
+       "role": "AI Engineer - Intern",
+       "round": "Unspecified",
+       "date": "2026-04-13",
+       "ctc": "4–6 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "genai",
+   "topic": "Building Social Media Content Automation Workflow, Part 2",
+   "questions": [
+    {
+     "q": "What are AI Agents?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 3,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "aiora.live",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-30",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "Mavoix Technology Solutions - AI",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are webhooks?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Persistence",
+       "role": "FDE",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "10–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is Cursor AI Agent?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "aiora.live",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-30",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are Agentic Systems?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-04-04",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the workflow of an AI agent/tool.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "BookingJini",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-17",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between AI and an AI agent?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Sequelstring Solutions And Consultancy Pvt Ltd",
+       "role": "AI/ML Intern",
+       "round": "Technical Round 1",
+       "date": "2026-08-10",
+       "ctc": "3.5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain your AI Agent project.",
+     "difficulty": "Easy",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Can you describe the projects related to Agentic AI that you have worked on, including the technologies used and your specific contributions?",
+     "difficulty": "Easy",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Tecnod8",
+       "role": "Full Stack (Agentic AI Applications) Development",
+       "round": "Technical Round 1",
+       "date": "2026-03-14",
+       "ctc": "10–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How AI-native are you programming-wise? On your daily programming basis, how much do you use any of the agentic tools like Claude or ChatGPT?",
+     "difficulty": "Easy",
+     "type": "General",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Equal AI",
+       "role": "Unspecified",
+       "round": "Technical Round 1",
+       "date": "2026-08-22",
+       "ctc": "15 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do you build AI Agents?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the differences between AI & Agentic AI?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Sequelstring Solutions And Consultancy Pvt Ltd",
+       "role": "AI/ML Intern",
+       "round": "Technical Round 1",
+       "date": "2026-08-10",
+       "ctc": "3.5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between AI, GenAI, and Agentic AI?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Shift AI",
+       "role": "Software Freshers",
+       "round": "Technical Round 1",
+       "date": "2026-08-29",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do AI agents work and what is their underlying process?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Schlumberger",
+       "role": "Junior AI Application Developer",
+       "round": "Technical Round 1",
+       "date": "2026-09-22",
+       "ctc": "9–11 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are webhooks, and how do they function in a backend system?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Smart Food Safe India",
+       "role": "MERN Stack Intern (Trainee)",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.6–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain Agentic AI and the difference between Agentic AI and an AI Agent.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "NextBill",
+       "role": "AI Engineer - Intern",
+       "round": "Unspecified",
+       "date": "2026-04-13",
+       "ctc": "4–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between AI, AI Agents, AI Workflows, and Automation?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is agentic AI, and how does it differ from traditional AI systems? Provide examples of its applications.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "MeNeM Inc.",
+       "role": "AI Engineer - Intern",
+       "round": "Technical Round 1",
+       "date": "2026-04-15",
+       "ctc": "3.5–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the use of HTTP methods (GET, POST, PUT) in backend development. How do webhooks function, and what are their use cases?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Smart Food Safe India",
+       "role": "MERN Stack Intern (Trainee)",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.6–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do you schedule tasks in Node.js? Explain methods like `setTimeout`, `setInterval`, `node-cron`, and job queues (e.g., Bull/BullMQ, Agenda).",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Lloyds Technology Centre India",
+       "role": "Junior Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-05-05",
+       "ctc": "15 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the architecture of the AI agent you developed.",
+     "difficulty": "Medium",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Mavoix Technology Solutions - AI",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-06-29",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Have you implemented webhooks in any project or internship? Explain.",
+     "difficulty": "Medium",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Persistence",
+       "role": "FDE",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "10–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain how your autonomous AI workflow processes a request and generates the final output (e.g., summarization, sending emails).",
+     "difficulty": "Medium",
+     "type": "Projects Discussion",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Build a webhook event processing system that removes duplicate events using eventId, processes events in timestamp order, and retries failed events using exponential backoff retry logic. The system should maintain logs for processed events and retry attempts.",
+     "difficulty": "Medium",
+     "type": "Project Assignment",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Smart Food Safe India",
+       "role": "MERN Stack Intern (Trainee)",
+       "round": "Technical Round 1",
+       "date": "2026-05-01",
+       "ctc": "3.6–4.2 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do agentic systems work?",
+     "difficulty": "Hard",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Meraki Labs",
+       "role": "AI Engineer - Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-07",
+       "ctc": "15–16 LPA"
+      }
+     ]
+    },
+    {
+     "q": "An AI agent is deployed into production but is not performing accurately. How would you diagnose and resolve this issue?",
+     "difficulty": "Hard",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Yellow.ai",
+       "role": "Software Engineer Intern",
+       "round": "Managerial Round",
+       "date": "2026-02-17",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "genai",
+   "topic": "Advanced Prompt Engineering",
+   "questions": [
+    {
+     "q": "What is Prompt Engineering?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Growth Market Intelligence",
+       "role": "AI/ML Intern",
+       "round": "Final Round",
+       "date": "2026-08-06",
+       "ctc": "3.5–4.5 LPA"
+      },
+      {
+       "company": "MoEngage",
+       "role": "Software Engineer Intern",
+       "round": "Managerial Round",
+       "date": "2026-06-19",
+       "ctc": "13–15 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write effective prompts and optimize the solution for the spam detection system using LLMs.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Indiamart",
+       "role": "SDE 1",
+       "round": "Technical Round 1",
+       "date": "2026-04-28",
+       "ctc": "9–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are system prompts?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is hallucination in LLMs?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Thomson Reuter",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-18",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is a context window limit?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Palnesto",
+       "role": "AI Full Stack Engineer",
+       "round": "Unspecified",
+       "date": "2026-01-27",
+       "ctc": "3.5–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are hallucinations in LLMs?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Neurofin AI Technologies",
+       "role": "SDE",
+       "round": "Technical Round 1",
+       "date": "2026-09-23",
+       "ctc": "8.25 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Have you heard of few-shot prompting?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is Prompt Engineering / Prompting?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "InteligenAI",
+       "role": "AI Development Engineer",
+       "round": "HR Round",
+       "date": "2026-07-20",
+       "ctc": "8–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the different types of prompts?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Thomson Reuter",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-18",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are different prompting techniques?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Thomson Reuter",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-18",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the temperature range of GPT-4.1?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "UnleashX",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-05",
+       "ctc": "6–11 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the role of temperature in AI models?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Sutherland",
+       "role": "Junior Software Engineer – Delphi (Fresher)",
+       "round": "Technical Round 1",
+       "date": "2026-06-11",
+       "ctc": "5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Do you know what the temperature of an LLM is?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Can you give me the definition of temperature?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "UnleashX",
+       "role": "AI Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-05",
+       "ctc": "6–11 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is prompt engineering, and how is it used in AI-based development?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "GVCC Solutions Private Limited",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 2",
+       "date": "2026-01-08",
+       "ctc": "3–3.6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is a context window in the context of Large Language Models (LLMs)?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "CarWale",
+       "role": "Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-03-25",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What other prompt engineering techniques can be used besides system prompts?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Stapubox",
+       "role": "AI Product Engineer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "4–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Demonstrate your writing skills by composing a coherent and grammatically correct response to a given prompt.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Delta Technology",
+       "role": "Associate Consultant",
+       "round": "Assessment/Written Test",
+       "date": "2026-01-25",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "For a basic user with a simple prompt, how many nodes in a workflow would be perfect without needing manual adjustments?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Freedom With AI",
+       "role": "Fresher Developer",
+       "round": "Unspecified",
+       "date": "2026-04-07",
+       "ctc": "2.4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is prompt engineering in the context of AI/ML? How would you write effective prompts for training or interacting with large language models?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "BluePond.AI Technology Pvt Ltd",
+       "role": "Python Backend Developer",
+       "round": "Technical Round 1",
+       "date": "2026-03-11",
+       "ctc": "5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "2. Which agent-based AI concepts have you implemented or can confidently design? * Options visible in the source: LangChain Chains and Agents | LangGraph State Machines | Tool Calling / Function Calling | Multi-Agent Architectures | Model Context Protocol (MCP) | Memory Systems (Short-Term, Long-Term, Episodic) | Prompt Engineering and Template Design | OCR and Document Extraction Pipelines",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Acuron AI Solutions",
+       "role": "AI/ML Intern",
+       "round": "Assessment/Written Test",
+       "date": "2026-07-01",
+       "ctc": "6–15 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Do you know any prompting techniques? Can you name or describe some that you use frequently?",
+     "difficulty": "Easy",
+     "type": "General",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Nablon AI",
+       "role": "AI/ ML Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "10–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Have you worked specifically in Prompt Engineering? Answer Type: Single-select option Options: Yes, full-time Yes, as part of another role Yes, through projects/internships No, but I'm keen to learn No",
+     "difficulty": "Easy",
+     "type": "General",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Desible.ai",
+       "role": "Junior Prompt Engineer",
+       "round": "Screening Round",
+       "date": "2026-09-22",
+       "ctc": "4–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Prompt-based scenarios",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Equal AI",
+       "role": "Software Tester",
+       "round": "Assessment/Written Test",
+       "date": "2026-08-08",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Wrong responses based on prompts",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "PeopleLink Collaboration Inc.",
+       "role": "Full-stack Engineer",
+       "round": "Assessment/Written Test",
+       "date": "2026-08-08",
+       "ctc": "3 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "wad",
+   "topic": "HTML Void Elements & Lists",
+   "questions": [
+    {
+     "q": "What are semantic tags in HTML?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 3,
+     "asked": [
+      {
+       "company": "Inunent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-28",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Phenom Cloud",
+       "role": "Python Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3 LPA"
+      },
+      {
+       "company": "Enmovil",
+       "role": "Jnr Developer",
+       "round": "Unspecified",
+       "date": "2026-04-01",
+       "ctc": "3.6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between Inline Elements and Block-level Elements?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 3,
+     "asked": [
+      {
+       "company": "AADHI SOFTECH SOLUTIONS PVT LTD",
+       "role": "Junior Software Engineer",
+       "round": "Technical Round 2",
+       "date": "2026-07-03",
+       "ctc": ""
+      },
+      {
+       "company": "Telesoft",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-19",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "Cynnent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-02-12",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are semantic elements in HTML?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Oracle CPQ Delivery Support",
+       "round": "Technical Round 1",
+       "date": "2026-04-20",
+       "ctc": "2.4 LPA"
+      },
+      {
+       "company": "LogiNext solutions",
+       "role": "Junior Software Engineer - Frontend",
+       "round": "Technical Round 1",
+       "date": "2026-02-24",
+       "ctc": "8–14 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are inline elements and block-level elements in HTML?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Telesoft",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-24",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "ZET",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-02-02",
+       "ctc": "8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the differences between block-level and inline elements in HTML? Provide examples of each.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-07",
+       "ctc": "6 LPA"
+      },
+      {
+       "company": "RapidCareGroup",
+       "role": "Fullstack AI engineer Intern",
+       "round": "Assessment/Written Test",
+       "date": "2026-02-17",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the difference between block-level and inline elements in HTML with examples.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Telesoft",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-19",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "DiligenceVault",
+       "role": "Software Engineer",
+       "round": "Assessment/Written Test",
+       "date": "2026-01-02",
+       "ctc": "6–8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between block-level and inline elements in HTML? Provide examples of each.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 2,
+     "asked": [
+      {
+       "company": "Telesoft",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-24",
+       "ctc": "4–5 LPA"
+      },
+      {
+       "company": "EWall Solutions Pvt Ltd",
+       "role": "Python Developer",
+       "round": "Assessment/Written Test",
+       "date": "2026-03-16",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Write the HTML code to create an unordered list with three items.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "EWall Solutions Pvt Ltd",
+       "role": "Python Developer",
+       "round": "Assessment/Written Test",
+       "date": "2026-03-16",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do you create an ordered and unordered list in HTML? Write the code snippet for both.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-09",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do you create an ordered list and an unordered list in HTML? Write the code snippet for both.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-07",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are void elements?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Inunent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-28",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are HTML semantic elements?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Cynnent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-02-01",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are inline elements in HTML?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "HOLITHEMES",
+       "role": "Full Stack Developer Intern",
+       "round": "Technical Round 1",
+       "date": "2026-01-23",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain semantic elements in HTML.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Quintype",
+       "role": "Frontend Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-26",
+       "ctc": "5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is a block-level element in HTML?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Clink",
+       "role": "SDE Intern",
+       "round": "Unspecified",
+       "date": "2026-02-27",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain basic HTML tags and their usage.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "MoEngage",
+       "role": "Support Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-06-19",
+       "ctc": "10 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the rel attribute in the <link> tag?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "HOLITHEMES",
+       "role": "Frontend Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-14",
+       "ctc": "2.4–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are HTML tags and explain their purpose?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are semantic and non-semantic tags in HTML?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Cynnent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-02-01",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are void elements in HTML, and provide examples?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Position²",
+       "role": "Web Development Trainee",
+       "round": "Technical Round 1",
+       "date": "2026-06-11",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are semantic elements in HTML? Explain with examples.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Cynnent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-02-13",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How can you convert an inline element into a block element?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Inunent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-26",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between block-level and inline elements?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Inunent",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-08-26",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are Semantic Elements in HTML, and can you provide examples?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Quintype",
+       "role": "Frontend Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-26",
+       "ctc": "5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are void elements in HTML? List five examples of void elements.",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "DataVinci Private Limited",
+       "role": "Junior Web Analytics Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-22",
+       "ctc": "4.5–5 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "wad",
+   "topic": "Website: Behind the Scenes",
+   "questions": [
+    {
+     "q": "What are HTTP status codes?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 5,
+     "asked": [
+      {
+       "company": "Uni Cards",
+       "role": "SDET Intern",
+       "round": "Technical Round 2",
+       "date": "2026-09-09",
+       "ctc": "11 LPA"
+      },
+      {
+       "company": "Karbonwise",
+       "role": "QA Automation Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-09-04",
+       "ctc": "3–3.6 LPA"
+      },
+      {
+       "company": "Juniper Square",
+       "role": "Software Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-08-07",
+       "ctc": "15 LPA"
+      },
+      {
+       "company": "ANAROCK",
+       "role": "SDE Intern - Frontend",
+       "round": "Technical Round 1",
+       "date": "2026-07-01",
+       "ctc": "6–8 LPA"
+      },
+      {
+       "company": "Capillary Technologies",
+       "role": "Product Support Intern",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between HTTP and HTTPS?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 5,
+     "asked": [
+      {
+       "company": "mVerve",
+       "role": "Software Developer",
+       "round": "Technical Round 1",
+       "date": "2026-09-17",
+       "ctc": "3–3.5 LPA"
+      },
+      {
+       "company": "Uni Cards",
+       "role": "SRE Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-15",
+       "ctc": "11 LPA"
+      },
+      {
+       "company": "Doxel",
+       "role": "SDE 1",
+       "round": "Technical Round 2",
+       "date": "2026-08-21",
+       "ctc": "15–20 LPA"
+      },
+      {
+       "company": "InteligenAI",
+       "role": "AI Development Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-07-14",
+       "ctc": "8–12 LPA"
+      },
+      {
+       "company": "CashFree",
+       "role": "SDE 1",
+       "round": "Technical Round 2",
+       "date": "2026-04-28",
+       "ctc": "14–18 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is web hosting?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Newfold Digital",
+       "role": "Technical Support (Fresher - Full Time)",
+       "round": "Technical Round 1",
+       "date": "2026-08-20",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are HTTP requests?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Edgistify",
+       "role": "Quality",
+       "round": "Technical Round 1",
+       "date": "2026-08-20",
+       "ctc": "4.5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is an HTTP request?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "TGH Software Solutions Pvt. Ltd.",
+       "role": "Associate Integration Developer",
+       "round": "Technical Round 2",
+       "date": "2026-08-25",
+       "ctc": "3–4 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are API status codes?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "MoEngage",
+       "role": "Support Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-06-19",
+       "ctc": "10 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is DNS (Domain Name System)?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Newfold Digital",
+       "role": "Technical Support (Fresher - Full Time)",
+       "round": "Screening Round",
+       "date": "2026-08-04",
+       "ctc": "3–3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does HTTP status code 400 mean?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Uni Cards",
+       "role": "SDET Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "11 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does HTTP status code 404 mean?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Uni Cards",
+       "role": "SDET Intern",
+       "round": "Technical Round 1",
+       "date": "2026-09-03",
+       "ctc": "11 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the common HTTP status codes?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Clink",
+       "role": "SDE Intern",
+       "round": "Unspecified",
+       "date": "2026-02-27",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does the HTTP status code 429 mean?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Capillary Technologies",
+       "role": "Product Support Intern",
+       "round": "Technical Round 1",
+       "date": "2026-01-01",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does the HTTP status code 304 mean?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Cosmo Health",
+       "role": "Junior Software Engineer",
+       "round": "Unspecified",
+       "date": "2026-03-14",
+       "ctc": "4.8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does HTTP status code 200 indicate?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Karbonwise",
+       "role": "QA Automation Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-09-04",
+       "ctc": "3–3.6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does the 403 Forbidden status code mean?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Edgistify",
+       "role": "Quality",
+       "round": "Technical Round 1",
+       "date": "2026-08-20",
+       "ctc": "4.5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What do the HTTP status codes 200 and 400 mean?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Plugscale",
+       "role": "Unspecified",
+       "round": "Unspecified",
+       "date": "2026-02-14",
+       "ctc": ""
+      }
+     ]
+    },
+    {
+     "q": "What are the HTTP status codes for 'Created' and 'OK'?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "symplr",
+       "role": "SDE- Apprentice",
+       "round": "Technical Round 1",
+       "date": "2026-02-10",
+       "ctc": "7–7.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the Apache Web Server, and what is it used for?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Schlumberger",
+       "role": "Jr DevOps Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-09-22",
+       "ctc": "9–11 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What technologies are used for the frontend and backend?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "BeBurst AI",
+       "role": "Full-stack Engineer",
+       "round": "HR Round",
+       "date": "2026-09-09",
+       "ctc": "4–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Are there any other two HTTP status codes you can recall?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Clink",
+       "role": "SDE Intern",
+       "round": "Technical Round 1",
+       "date": "2026-02-27",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the HTTP status code for 'Internal Server Error'?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "symplr",
+       "role": "SDE- Apprentice",
+       "round": "Technical Round 1",
+       "date": "2026-02-10",
+       "ctc": "7–7.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the types of HTTP request methods and responses?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Bridgesoft",
+       "role": "Business Analyst",
+       "round": "Technical Round 1",
+       "date": "2026-03-12",
+       "ctc": "2.4–3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the different HTTP status codes used in API testing?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Edgistify",
+       "role": "Quality",
+       "round": "Technical Round 1",
+       "date": "2026-08-20",
+       "ctc": "4.5–6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What are the common HTTP status codes used in REST APIs, and what do they signify?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Sharpsell",
+       "role": "Junior Product Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-01-27",
+       "ctc": "8 LPA"
+      }
+     ]
+    },
+    {
+     "q": "In Windows, which tool or method is used to trace the path of a packet to a web server?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "iOPEX Technologies",
+       "role": "Trainee Engineer",
+       "round": "Technical Round 1",
+       "date": "2026-02-16",
+       "ctc": "3.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What does the HTTP status code 403 represent, and in what scenarios is it typically used?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Capillary Technologies",
+       "role": "Product Support Intern",
+       "round": "Technical Round 2",
+       "date": "2026-01-01",
+       "ctc": "6 LPA"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "course": "wad",
+   "topic": "HTML Hyperlinks",
+   "questions": [
+    {
+     "q": "Write the syntax of an HTML anchor tag.",
+     "difficulty": "Easy",
+     "type": "Coding",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Aspire Next",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-24",
+       "ctc": "3–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between `<a>` and `Link`?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Foxo.club",
+       "role": "Frontend Engineering Intern",
+       "round": "Technical Round 1",
+       "date": "2026-07-01",
+       "ctc": "6–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between a <button> and an <a> tag?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Phenom Cloud",
+       "role": "UI Developer",
+       "round": "Technical Round 1",
+       "date": "2026-07-28",
+       "ctc": "10–12 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the purpose of an anchor (<a>) tag in HTML, and how is it used?",
+     "difficulty": "Easy",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "LovasIT",
+       "role": "Full-stack Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-13",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between a tag and an attribute in HTML?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Phenom Cloud",
+       "role": "Python Developer",
+       "round": "Technical Round 1",
+       "date": "2026-06-07",
+       "ctc": "3 LPA"
+      }
+     ]
+    },
+    {
+     "q": "What is the difference between the link tag and the anchor tag in HTML?",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Weiteredge Technologies Pvt Ltd",
+       "role": "Full-stack Developer",
+       "round": "Unspecified",
+       "date": "2026-03-20",
+       "ctc": "4–4.5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain the difference between the link tag and the anchor (a) tag in HTML.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Clink",
+       "role": "SDE Intern",
+       "round": "Unspecified",
+       "date": "2026-02-12",
+       "ctc": "9 LPA"
+      }
+     ]
+    },
+    {
+     "q": "Explain how navigation works within a webpage using HTML. Provide an example of creating an anchor tag for internal navigation.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-06",
+       "ctc": "6 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do HTML attributes enhance the functionality of elements? Provide examples of commonly used attributes like `id`, `class`, `src`, and `href`.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "DataVinci Private Limited",
+       "role": "Junior Web Analytics Developer",
+       "round": "Technical Round 1",
+       "date": "2026-05-22",
+       "ctc": "4.5–5 LPA"
+      }
+     ]
+    },
+    {
+     "q": "How do HTML attributes enhance the functionality of HTML elements? Provide examples of commonly used attributes like `class`, `id`, `src`, and `href`.",
+     "difficulty": "Medium",
+     "type": "Conceptual",
+     "companies": 1,
+     "asked": [
+      {
+       "company": "Euromonitor International",
+       "role": "SDE Interns",
+       "round": "Assessment/Written Test",
+       "date": "2026-04-06",
+       "ctc": "6 LPA"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

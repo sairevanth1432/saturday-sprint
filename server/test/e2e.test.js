@@ -1514,7 +1514,7 @@ test('test order: each student gets their own fixed shuffle of questions and opt
   assert.ok(buf.includes(Buffer.from('N26HY03A991.jpg')));
 });
 
-test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = from then; every page takes the filter', async () => {
+test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-14 Oct, Sprint 3 = from 15 Oct; every page takes the filter', async () => {
   const { SPRINT2_START } = await import('../periods.js');
   const now = Date.now();
   // an old student (listed before Sprint 2) active on 5 Oct and on 9 Oct; a new student added for Sprint 2
@@ -1531,7 +1531,7 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = fro
   assert.equal(s2.rows.find((r) => r.roll_no === 'PERIOD01').practice_ms, 300000, 'Sprint 2: activity from 9 Oct');
   assert.ok(s2.rows.some((r) => r.roll_no === 'PERIOD02'));
   for (const url of ['/api/admin/analytics/overview?days=30', '/api/admin/analytics/business?fresh=1', '/api/admin/practice?fresh=1', '/api/admin/likes?v=1', '/api/admin/integrity?type=', '/api/admin/feedback?v=1']) {
-    for (const p of ['s1', 's2']) {
+    for (const p of ['s1', 's2', 's3']) {
       const r = await ADM('GET', url + '&period=' + p);
       assert.equal(r.status, 200, url + ' ' + p + ' ' + JSON.stringify(r.body).slice(0, 200));
     }
@@ -1539,6 +1539,13 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = fro
   const o1 = (await ADM('GET', '/api/admin/analytics/overview?days=30&period=s1')).body, o2 = (await ADM('GET', '/api/admin/analytics/overview?days=30&period=s2')).body;
   assert.ok(o1.units.every((u) => !u.id.startsWith('u-')) && o2.units.every((u) => u.id.startsWith('u-')), 'built-in topics are Sprint 1, added topics Sprint 2');
   assert.equal((await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s1')).body.period.id, 's1');
+  // Sprint 3 (from Thu 15 Oct IST): the current list; Sprint 2 keeps students listed before 15 Oct
+  const { SPRINT3_START, PERIOD_LIST } = await import('../periods.js');
+  assert.deepEqual(PERIOD_LIST.map((p) => p.id), ['s1', 's2', 's3']);
+  assert.equal(SPRINT3_START, Date.parse('2026-10-15T00:00:00+05:30'));
+  const s3 = await rows('s3');
+  assert.equal(s3.period.id, 's3');
+  assert.ok(s3.rows.some((r) => r.roll_no === 'PERIOD02'), 'Sprint 3: active students');
 });
 
 test('9 Oct cleanup: of the first list only ALARD stays active; later uploads and students without a university are untouched', async () => {

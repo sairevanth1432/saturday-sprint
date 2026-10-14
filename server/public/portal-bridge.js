@@ -113,7 +113,7 @@
       this.test = placeholders(B.sprint.types);
       // Sound cues (practice right/wrong, the starting gun, the last 10 s, streak) are remembered per browser.
       try { if (localStorage.getItem('ss-snd2') === '0') S.snd = false; } catch (e) {}
-      S.ssTopicsOpen = true; S.ssFocus = false; S.ssMenu = ''; S.ssMusicOn = false;
+      S.ssTopicsOpen = false; S.ssFocus = false; S.ssMenu = ''; S.ssMusicOn = false;
 
       // Units from content/units.json. mode "replace": they replace the course's original units;
       // "append": they come after them. Each unit is Video → Play → Read.
@@ -212,6 +212,7 @@
       // Deep links: /#profile, /#practice, /#learn, /#board open that tab (not during a proctored test).
       var hashTab = location.hash.slice(1);
       if (['profile', 'practice', 'learn', 'board', 'home'].indexOf(hashTab) >= 0 && !this.ssProctorActive()) this.setState({ tab: hashTab });
+      if (hashTab === 'hiring' && !this.ssProctorActive()) this.setState({ tab: 'practice', ssPHire: true });
       // Web Audio may only start after a user gesture: the first click or key wakes the engine and plays any waiting cue.
       var wake = function () { self._ssGesture = true; try { self.au(); } catch (e) {} if (self._ssCueQ) { var k = self._ssCueQ; self._ssCueQ = null; self.ssCue(k); } };
       document.addEventListener('pointerdown', wake, { once: true, capture: true });
@@ -812,6 +813,33 @@
         avatar: { left: at.x + 'px', top: at.y + 'px', hasPhoto: U.kind === 'student' && !!U.photoAt, noPhoto: !(U.kind === 'student' && !!U.photoAt), photo: U.photoAt ? '/api/me/photo?v=' + U.photoAt : '', initial: String(U.name || '?').trim().charAt(0).toUpperCase() },
         done: doneN + ' of ' + items.length + ' topics', hint: doneN >= items.length ? 'Every topic done. Saturday is the finish line.' : 'Next up: ' + items[cur].name };
     }
+    // ---------- Practice "Hiring" tab: interview questions for the topic on screen (GET /api/hiring-questions)
+    ssLoadHiring() {
+      if (this._ssHqBusy || this.state.ssHiring) return;
+      this._ssHqBusy = true;
+      var self = this;
+      api('GET', '/api/hiring-questions').then(function (d) { self.setState({ ssHiring: d || { topics: [] } }); }, function () {}).then(function () { self._ssHqBusy = false; });
+    }
+    ssHiringVals(v) {
+      var S = this.state, self = this, H = S.ssHiring, key = function (s) { return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ''); };
+      var label = v.pq && v.pq.topicLabel, k = key(label);
+      var topic = H && (H.topics || []).find(function (t) { return key(t.topic) === k; });
+      var list = topic ? topic.questions : [], on = !!S.ssPHire && !!topic && S.tab === 'practice';
+      var LV = { Easy: '#9BE58B', Medium: '#FFE45C', Hard: '#FF7A7A' };
+      return {
+        has: !!topic, n: list.length, on: on, bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#BDBDBD',
+        cardDisp: on ? 'none' : 'flex', inlineDisp: on ? 'none' : 'inline',
+        open: function () { self.setState({ ssPHire: true }); },
+        note: 'Asked in real interviews for ' + (label || 'this topic') + '. Each one shows the company and the role it was asked for. Try answering before you look anything up.',
+        empty: on && !list.length, emptyNote: 'No interview questions for this topic yet.',
+        items: list.map(function (q, i) {
+          var shown = (q.asked || []).slice(0, 3);
+          return { n: i + 1, q: q.q, level: q.difficulty || '', lvlFg: LV[q.difficulty] || '#BDBDBD',
+            asked: shown.map(function (a) { return { company: a.company, role: a.role || 'Role not given', title: a.company + ' · ' + (a.role || '') + (a.round ? ' · ' + a.round : '') + (a.ctc ? ' · ' + a.ctc : '') + (a.date ? ' · ' + a.date : '') }; }),
+            more: (q.asked || []).length > 3, moreLabel: '+' + ((q.asked || []).length - 3) + ' more' };
+        })
+      };
+    }
     ssBoardVals() {
       var B = this.state.ssBoard, self = this, S = this.state;
       var row = function (r) {
@@ -1281,7 +1309,8 @@
             } };
         }
         // Watch: like button on the video (one like per student per topic)
-        if (tab === 'watch' && src.watch && U.kind === 'student') {
+        // Admins see the heart and the count too (read-only): their clicks are not counted.
+        if (tab === 'watch' && src.watch) {
           var likedSet = S.ssLiked || {}, liked = !!likedSet[les.id], cnt = Math.max(0, (S.ssLikeN || {})[les.id] || 0);
           var lid = les.id;
           var burst = !!S.ssLikeBurst && Date.now() - S.ssLikeBurst < 850;
@@ -1297,6 +1326,7 @@
             },
             label: (liked ? 'Unlike' : 'Like') + ' this video · ' + cnt + ' like' + (cnt === 1 ? '' : 's'),
             toggle: function () {
+              if (U.kind !== 'student') { self.ssToast('Admin preview: likes are only counted for students.'); return; }
               var now = !((self.state.ssLiked || {})[lid]);
               self.setState(function (s2) {
                 var L2 = Object.assign({}, s2.ssLiked), N2 = Object.assign({}, s2.ssLikeN);
@@ -1400,6 +1430,15 @@
         seen[qk] = has;
       }
 
+      // Practice "Hiring" tab: load once when Practice opens; Quiz / Coding / another topic leave it
+      if (S.tab === 'practice' && !S.ssHiring) this.ssLoadHiring();
+      v.hq = this.ssHiringVals(v);
+      if (v.pq && v.hq) {
+        var baseQuiz = v.pq.toQuiz, baseCode = v.pq.toCode;
+        v.pq.toQuiz = function () { self.setState({ ssPHire: false }); if (baseQuiz) baseQuiz(); };
+        v.pq.toCode = function () { self.setState({ ssPHire: false }); if (baseCode) baseCode(); };
+        if (v.hq.on) { v.pq.qBg = 'transparent'; v.pq.qFg = '#BDBDBD'; }
+      }
       v.lb = this.ssBoardVals();
       v.ss = {
         when: when,
