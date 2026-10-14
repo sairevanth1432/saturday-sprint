@@ -111,6 +111,9 @@
       this.CLOSE = toLocal(B.sprint.closeMs);
       this.DUR = B.sprint.durMs;
       this.test = placeholders(B.sprint.types);
+      // Sound cues (practice right/wrong, the starting gun, the last 10 s, streak) are remembered per browser.
+      try { if (localStorage.getItem('ss-snd2') === '0') S.snd = false; } catch (e) {}
+      S.ssTopicsOpen = true; S.ssFocus = false; S.ssMenu = ''; S.ssMusicOn = false;
 
       // Units from content/units.json. mode "replace": they replace the course's original units;
       // "append": they come after them. Each unit is Video → Play → Read.
@@ -205,6 +208,20 @@
       window.addEventListener('pagehide', flush);
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
       this.ssLoadBoard();
+      this.ssLoadJourney();
+      // Deep links: /#profile, /#practice, /#learn, /#board open that tab (not during a proctored test).
+      var hashTab = location.hash.slice(1);
+      if (['profile', 'practice', 'learn', 'board', 'home'].indexOf(hashTab) >= 0 && !this.ssProctorActive()) this.setState({ tab: hashTab });
+      // Web Audio may only start after a user gesture: the first click or key wakes the engine and plays any waiting cue.
+      var wake = function () { self._ssGesture = true; try { self.au(); } catch (e) {} if (self._ssCueQ) { var k = self._ssCueQ; self._ssCueQ = null; self.ssCue(k); } };
+      document.addEventListener('pointerdown', wake, { once: true, capture: true });
+      // Esc (or the browser) leaving full screen also leaves focus mode; a click outside a menu closes it.
+      document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && self.state.ssFocus) self.setState({ ssFocus: false }); });
+      document.addEventListener('pointerdown', function (e) { if (self.state.ssMenu && !(e.target.closest && e.target.closest('.ss-menu-wrap'))) self.setState({ ssMenu: '' }); }, true);
+      // Background music: a lo-fi chiptune loop (public/music/lofi-loop.wav), off until the student turns it on; remembered per browser.
+      // Music is on by default (it can only start after the first click); unticking it in the horn menu is remembered.
+      try { if (localStorage.getItem('ss-music') !== '0') { var m0 = function () { self.ssMusic(true); }; document.addEventListener('pointerdown', m0, { once: true, capture: true }); } } catch (e) {}
+      document.addEventListener('keydown', wake, { once: true, capture: true });
       this.ssProctorMount();
       this.ssActMount();
     }
@@ -232,7 +249,7 @@
       var json = JSON.stringify(this.ssProgress());
       if (json === this._ssLast.progress) return;
       var self = this;
-      api('PUT', '/api/progress', { data: JSON.parse(json) }, { keepalive: !!beacon }).then(function () { self._ssLast.progress = json; }, function () {});
+      api('PUT', '/api/progress', { data: JSON.parse(json) }, { keepalive: !!beacon }).then(function () { self._ssLast.progress = json; if (!beacon) self.ssLoadJourney(); }, function () {});
     }
     ssAnswers() {
       var S = this.state, out = { mcq: {}, text: {}, code: {} };
@@ -308,6 +325,7 @@
         self._grading = false;
         self.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: shownKeys(a.result.codeRes) });
         self.ssLoadBoard(true);
+        self.ssLoadJourney();
       }, function (e) {
         self._grading = false;
         self._ssRetryAt = Date.now() + 8000;
@@ -696,6 +714,104 @@
         self.setState({ ssBoard: b, ssBoardAt: Date.now() });
       }, function () {}).then(function () { self._ssBoardBusy = false; });
     }
+
+    // ---------- the race: completion vs the cohort, streak, medals (GET /api/journey → server/journey.js)
+    ssLoadJourney() {
+      if (this._ssJrBusy) return;
+      this._ssJrBusy = true;
+      var self = this;
+      api('GET', '/api/journey').then(function (j) {
+        self.setState({ ssJourney: j, ssJourneyAt: Date.now() });
+        self.ssStreakCue(j);
+      }, function () {}).then(function () { self._ssJrBusy = false; });
+    }
+    // One chime when today's activity made the streak longer (remembered per student in this browser).
+    ssStreakCue(j) {
+      if (!j || !j.streak || !j.streak.today || this.ss.user.kind !== 'student') return;
+      var k = 'ss-streak-' + this.ss.user.rollNo, prev = 0;
+      try { prev = Number(localStorage.getItem(k)) || 0; } catch (e) {}
+      if (j.streak.days > prev) this.ssCue('quiz');
+      try { localStorage.setItem(k, String(j.streak.days)); } catch (e) {}
+    }
+    // Sound cues reuse the portal's own Web Audio engine (au/sfx, also used by the explainers). Browsers only start
+    // audio after a user gesture, so a cue that comes earlier waits for the first click or key.
+    ssCue(kind) {
+      if (this.state.snd === false) return;
+      if (!this._ssGesture) { this._ssCueQ = kind; return; }
+      try { this.au(); this.sfx(kind); } catch (e) {}
+    }
+    // Values for the Profile page (template: PROFILE_TAB in build-portal.js): photo, streak, medals with a short "how to earn".
+    ssProfileVals(v) {
+      var J = this.state.ssJourney, U = this.ss.user, self = this;
+      var st = (J && J.streak) || { days: 0, today: false, best: 0 };
+      var streakLabel = st.days >= 2 ? 'Day ' + st.days + ' on the track' : st.days === 1 ? (st.today ? 'Day 1 on the track' : 'Back on the track today?') : 'Lace up: first lap today';
+      var badges = ((J && J.badges) || []).map(function (b) {
+        return { id: b.id, name: b.name, hint: b.earned ? 'Earned' : b.desc, earned: !!b.earned, title: b.name + ': ' + b.desc,
+          bg: b.earned ? '#FFE45C' : '#0D0D0D', fg: b.earned ? '#050505' : '#5E5E5E', ring: b.earned ? '#FFE45C' : '#262626', hintFg: b.earned ? '#FFE45C' : '#8A8A8A', opacity: b.earned ? '1' : '.85' };
+      });
+      var n = badges.filter(function (b) { return b.earned; }).length;
+      return {
+        name: U.name || (U.kind === 'admin' ? U.email : U.rollNo), sub: U.kind === 'admin' ? 'admin preview' : U.rollNo + (U.batch ? ' · ' + U.batch : ''),
+        hasPhoto: U.kind === 'student' && !!U.photoAt, noPhoto: !(U.kind === 'student' && !!U.photoAt), photo: U.photoAt ? '/api/me/photo?v=' + U.photoAt : '',
+        initial: String(U.name || '?').trim().charAt(0).toUpperCase(), canPhoto: U.kind === 'student',
+        changePhoto: function () { v.ss.user.changePhoto(); },
+        streakLabel: streakLabel, streakFg: st.today ? '#FFE45C' : '#8A8A8A', streakTitle: 'Active days in a row · best ' + (st.best || 0),
+        badges: badges, earned: J ? n + ' of ' + badges.length + ' earned' : 'loading…'
+      };
+    }
+    // ---------- layout: focus mode (Practice full screen, sidebar minimised), menus, music, the Home topic map
+    ssFocus(on) {
+      var self = this;
+      this.setState({ ssFocus: !!on, ssMenu: '' });
+      try {
+        if (on && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
+        else if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+      } catch (e) {}
+    }
+    ssMusic(on) {
+      var a = this._ssAudio;
+      if (!a) { a = this._ssAudio = new Audio('/music/lofi-loop.wav'); a.loop = true; a.volume = 0.22; a.preload = 'auto'; }
+      if (on) a.play().catch(function () {}); else a.pause();
+      this.setState({ ssMusicOn: !!on });
+      try { localStorage.setItem('ss-music', on ? '1' : '0'); } catch (e) {}
+    }
+    // Every topic in order (course by course): the sidebar list and the Home map share it.
+    ssTopicItems(v) {
+      var self = this, S = this.state, items = [];
+      (v.lgroups || []).forEach(function (g, ci) {
+        (g.topics || []).forEach(function (t, mi) {
+          items.push({ name: t.name, course: g.name, done: !!t.done, soon: !!t.soon, cur: !!t.on && S.tab === 'learn',
+            go: function () { if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; } t.go(); self.setState({ tab: 'learn', ssMenu: '' }); } });
+        });
+      });
+      return items;
+    }
+    ssMapVals(v) {
+      var items = this.ssTopicItems(v), U = this.ss.user, self = this;
+      if (!items.length) return { on: false, items: [], avatar: {}, trophy: {} };
+      var cols = 3, W = 170, H = 56, GX = 26, GY = 44;
+      var cur = items.findIndex(function (t) { return !t.done; }); if (cur < 0) cur = items.length;
+      var slot = function (i) { var r = Math.floor(i / cols), c = i % cols; if (r % 2) c = cols - 1 - c; return { x: c * (W + GX), y: r * (H + GY) }; };
+      items.forEach(function (t, i) {
+        var p = slot(i), on = i === cur;
+        t.n = i + 1; t.left = p.x + 'px'; t.top = p.y + 'px'; t.on = on; t.cx = p.x + W / 2; t.cy = p.y + H / 2;
+        t.bg = t.done ? '#FFE45C' : '#151515'; t.fg = t.done ? '#050505' : on ? '#FFFFFF' : '#8A8A8A'; t.ring = t.done || on ? '#FFE45C' : '#262626';
+        t.nBg = t.done ? '#050505' : on ? '#FFE45C' : '#262626'; t.nFg = t.done ? '#FFE45C' : on ? '#050505' : '#8A8A8A';
+        t.title = t.name + ' · ' + (t.done ? 'done' : on ? 'you are here' : t.soon ? 'coming soon' : 'ahead on the road');
+      });
+      var tp = slot(items.length), tr = { x: tp.x + W / 2, y: tp.y + H / 2 };
+      var pts = items.map(function (t) { return [t.cx, t.cy]; }).concat([[tr.x, tr.y]]);
+      var path = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0] + ' ' + p[1]; }).join(' ');
+      var donePath = cur > 0 ? pts.slice(0, Math.min(cur + 1, pts.length)).map(function (p, i) { return (i ? 'L' : 'M') + p[0] + ' ' + p[1]; }).join(' ') : '';
+      var rows = Math.floor(items.length / cols) + 1;
+      // the avatar stands on the top-right corner of the current block (clear of its label); at the trophy once every topic is done
+      var at = cur < items.length ? { x: items[cur].cx + W / 2 - 18, y: items[cur].cy - H / 2 - 6 } : { x: tr.x, y: tr.y - H / 2 - 6 };
+      var doneN = items.filter(function (t) { return t.done; }).length;
+      return { on: true, items: items, w: (cols * W + (cols - 1) * GX) + 'px', h: (rows * H + (rows - 1) * GY) + 'px', path: path, donePath: donePath,
+        trophy: { left: tr.x + 'px', top: tr.y + 'px' },
+        avatar: { left: at.x + 'px', top: at.y + 'px', hasPhoto: U.kind === 'student' && !!U.photoAt, noPhoto: !(U.kind === 'student' && !!U.photoAt), photo: U.photoAt ? '/api/me/photo?v=' + U.photoAt : '', initial: String(U.name || '?').trim().charAt(0).toUpperCase() },
+        done: doneN + ' of ' + items.length + ' topics', hint: doneN >= items.length ? 'Every topic done. Saturday is the finish line.' : 'Next up: ' + items[cur].name };
+    }
     ssBoardVals() {
       var B = this.state.ssBoard, self = this, S = this.state;
       var row = function (r) {
@@ -712,7 +828,7 @@
       var submitted = !!S.ssResult, student = this.ss.user.kind === 'student';
       var my = me ? { rank: '#' + me.rank, note: 'of ' + B.participants + ' on the board', score: fmtScore(me.score) + ' / ' + fmtScore(me.maxTotal), time: 'time ' + this.mmss(me.usedMs || 0) }
         : { rank: '–', note: !student ? 'Admin preview is not ranked' : submitted ? 'Updating…' : 'Submit the Sprint to get a rank', score: submitted ? fmtScore(S.ssResult.score) + ' / ' + fmtScore(S.ssResult.maxTotal) : '–', time: '' };
-      var homeLine = !B ? 'Loading standings…' : B.hidden ? 'The leaderboard opens after the Sprint.' : me ? 'You are #' + me.rank + ' of ' + B.participants
+      var homeLine = !B ? 'Pacing… fetching the board' : B.hidden ? 'The leaderboard opens after the Sprint.' : me ? 'You are #' + me.rank + ' of ' + B.participants
         : rows.length ? 'Top of the board right now' : 'No results yet. Be the first on the board.';
       return {
         loading: !B, hidden: !!(B && B.hidden), rows: rows, top5: rows.slice(0, 5), top10: rows.slice(0, 10),
@@ -944,6 +1060,7 @@
         this._hpPending = null;
         Promise.resolve(res).then(function (r) {
           var ok = Array.isArray(r) && r.length > 0 && r.every(function (x) { return x.pass; });
+          if (ok) self.ssCue('right');
           var did = (self._hpDecoy || {})[pend.qid], dq = did && (self.ccbpCoding || []).find(function (p) { return p.id === did; });
           if (ok || !dq || !(dq.tests || []).length) return { r: r, ok: ok, decoy: null };
           return Promise.resolve(Component.prototype.checkTests.call(self, code, dq.tests)).then(function (dr) {
@@ -1240,6 +1357,49 @@
         };
       }
 
+      // ---------- layout: focus mode, top bar, sidebar topics, menus, music, Home map
+      var focus = !!S.ssFocus;
+      if (focus) v.side = { full: false, mini: true, w: '84px', pad: '12px', jc: 'center', align: 'center', rot: 'rotate(180deg)', label: 'Expand menu', toggle: v.side.toggle };
+      else v.side.mini = !v.side.full;
+      var topicItems = this.ssTopicItems(v);
+      v.ss_topics = { open: S.ssTopicsOpen !== false, show: S.ssTopicsOpen !== false && !!v.side.full, rot: S.ssTopicsOpen !== false ? 'rotate(180deg)' : 'none',
+        toggle: function () { if (!v.side.full) { self.setState({ tab: 'learn', ssTopicsOpen: true, ssMenu: '' }); return; } self.setState(function (s) { return { ssTopicsOpen: s.ssTopicsOpen === false }; }); },
+        list: (function () { var out = [], last = null; topicItems.forEach(function (t) {
+          if (t.course !== last) { out.push({ isHead: true, isTopic: false, name: t.course }); last = t.course; }
+          out.push({ isHead: false, isTopic: true, name: t.name, title: t.course + ' · ' + t.name + (t.done ? ' · done' : ''), go: t.go, on: t.cur, bg: t.cur ? '#FFE45C' : 'transparent', fg: t.cur ? '#050505' : t.done ? '#DADADA' : '#8A8A8A', dot: t.done ? '#FFE45C' : t.cur ? '#050505' : '#333333' });
+        }); return out; })() };
+      v.map = v.show.home ? this.ssMapVals(v) : { on: false, items: [], avatar: {}, trophy: {} };
+      v.nav.test.on = S.tab === 'test'; v.nav.board.on = S.tab === 'board'; v.nav.practice.on = S.tab === 'practice' || S.tab === 'code';
+      // leaving Practice leaves focus mode; opening Practice enters it (full screen needs the click that opens it)
+      var basePractice = v.nav.practice.go, baseTest = v.nav.test.go, baseLearn = v.nav.learn.go, baseBrand = v.nav.brand;
+      // Focus mode (full screen, sidebar minimised) stays on across tabs until the student leaves it; Practice turns it on.
+      v.nav.practice.go = function () { basePractice(); self.setState({ ssMenu: '' }); if (!self.state.ssFocus) self.ssFocus(true); };
+      v.nav.test.go = function () { baseTest(); self.setState({ ssMenu: '' }); };
+      v.nav.learn.go = function () { baseLearn(); self.setState({ ssMenu: '' }); };
+      v.nav.brand = function () { baseBrand(); self.setState({ ssMenu: '' }); };
+      var baseBoard = v.nav.board.go;
+      v.nav.board.go = function () { baseBoard(); self.setState({ ssMenu: '' }); };
+
+      // ---------- profile tab (photo, streak, medals; GET /api/journey) and marathon wording on Home
+      var onPf = S.tab === 'profile';
+      v.show.profile = onPf;
+      if (onPf) v.crumb = '~/profile';
+      if (v.today && v.today.cdLabel) {
+        v.today.cdLabel = v.today.cdLabel === 'Sprint test opens in' ? 'Starting gun in' : v.today.cdLabel === 'Sprint test is live now' ? 'Race day · the test is open'
+          : v.today.cdLabel === 'Sprint test closed' ? 'Race over · see the leaderboard' : v.today.cdLabel;
+      }
+      // Sound cues: the gun when the test opens, a tick each of the last 10 s, right/wrong when a practice answer is checked.
+      var ph = v.status && v.status.live ? (this.ssRunning() ? 'running' : 'ready') : 'off';
+      if (this._ssPhase && this._ssPhase !== 'ready' && ph === 'ready') this.ssCue('start');
+      this._ssPhase = ph;
+      if (ph === 'running') { var left = Math.ceil((this.ssEndAt() - Date.now()) / 1000); if (left >= 0 && left <= 10 && left !== this._ssTick) { this._ssTick = left; this.ssCue('tick'); } }
+      if (v.pq && v.pq.q) {
+        // keyed by the question's place in Practice, not its text: many questions share the same wording
+        var qk = String(S.pc || '') + '|' + String(S.pi || 0) + '|' + String(v.pq.q).slice(0, 40), seen = this._ssVdSeen || (this._ssVdSeen = {}), has = !!v.pq.verdict;
+        if (has && seen[qk] === false) this.ssCue(v.pq.verdict === 'Correct' ? 'right' : 'wrong');
+        seen[qk] = has;
+      }
+
       v.lb = this.ssBoardVals();
       v.ss = {
         when: when,
@@ -1263,6 +1423,13 @@
           name: U.name || (U.kind === 'admin' ? U.email : U.rollNo),
           sub: U.kind === 'admin' ? (U.role === 'super_admin' ? 'super admin' : 'admin') + ' · preview' : U.rollNo + (U.batch ? ' · ' + U.batch : ''),
           isAdmin: U.kind === 'admin',
+          noPhoto: !(U.kind === 'student' && !!U.photoAt), initial: String(U.name || '?').trim().charAt(0).toUpperCase(),
+          ring: S.tab === 'profile' ? '#FFE45C' : 'transparent', bg: S.tab === 'profile' ? 'rgba(255,228,92,.08)' : 'transparent',
+          open: function () {
+            if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; }
+            self.xpStop(); self.setState({ tab: 'profile', ssMenu: '' }); self.ssLoadJourney();
+          },
+          menuOpen: S.ssMenu === 'user', menu: function () { self.setState(function (s) { return { ssMenu: s.ssMenu === 'user' ? '' : 'user' }; }); },
           hasPhoto: U.kind === 'student' && !!U.photoAt,
           photo: U.photoAt ? '/api/me/photo?v=' + U.photoAt : '',
           changePhoto: function () {
@@ -1279,6 +1446,26 @@
           api('POST', '/api/auth/logout').then(function () { location.href = '/login'; }, function () { location.href = '/login'; });
         },
         toAdmin: function () { location.href = '/admin'; },
+        topics: v.ss_topics,
+        top: { show: true, full: !focus, quoteOn: (S.tab === 'practice' || S.tab === 'code') && !!(v.today && v.today.quote), quote: v.today ? v.today.quote : '', by: v.today ? v.today.by : '' },
+        focus: { on: focus, off: !focus, label: focus ? 'Leave focus mode' : 'Focus mode', fg: focus ? '#FFE45C' : '#8A8A8A',
+          toggle: function () { self.ssFocus(!self.state.ssFocus); } },
+        music: { on: !!S.ssMusicOn, label: S.ssMusicOn ? 'Music on' : 'Music off', toggle: function () { self.ssMusic(!self.state.ssMusicOn); } },
+        // One button for everything you hear: the cues (practice right/wrong, the gun, the ticks) and the background music.
+        // The horn opens a dropdown: Sound effects (cues: practice right/wrong, the gun, the ticks) and Music, each its own tick.
+        audio: (function () { var sfx = S.snd !== false, music = !!S.ssMusicOn, on = sfx || music; return { on: on, off: !on, open: S.ssMenu === 'audio',
+          label: sfx && music ? 'Sound on' : sfx ? 'Effects only' : music ? 'Music only' : 'Sound off', sfxOn: sfx, musicOn: music,
+          toggle: function () { self.setState(function (s) { return { ssMenu: s.ssMenu === 'audio' ? '' : 'audio' }; }); },
+          sfxToggle: function () { var now = self.state.snd === false; self._ssGesture = true; self.setState({ snd: now }); try { localStorage.setItem('ss-snd2', now ? '1' : '0'); } catch (e) {}
+            if (self._am && self._ac) self._am.gain.setTargetAtTime(now ? 1 : 0, self._ac.currentTime, 0.05); if (now) { try { self.au(); self.sfx('click'); } catch (e) {} } },
+          musicToggle: function () { self._ssGesture = true; self.ssMusic(!self.state.ssMusicOn); } }; })(),
+        more: { open: S.ssMenu === 'more', toggle: function () { self.setState(function (s) { return { ssMenu: s.ssMenu === 'more' ? '' : 'more' }; }); },
+          home: function () { v.nav.brand(); }, topics: function () { self.setState({ tab: 'learn', ssMenu: '', ssTopicsOpen: true }); },
+          practice: function () { v.nav.practice.go(); }, test: function () { v.nav.test.go(); }, board: function () { v.nav.board.go(); } },
+        snd: (function () { var on = S.snd !== false; return { on: on, off: !on, label: on ? 'Sound on' : 'Sound off', fg: on ? '#FFE45C' : '#8A8A8A',
+          toggle: function () { var now = self.state.snd === false; self.setState({ snd: now }); try { localStorage.setItem('ss-snd2', now ? '1' : '0'); } catch (e) {}
+            if (self._am && self._ac) self._am.gain.setTargetAtTime(now ? 1 : 0, self._ac.currentTime, 0.05);
+            if (now) { self._ssGesture = true; try { self.au(); self.sfx('click'); } catch (e) {} } } }; })(),
         // The guide opens in a new tab; during a proctored test that would count as leaving the test.
         help: function () {
           if (self.ssProctorActive()) { self.ssToast('Help is closed while the test runs. Finish and submit first.', true); return; }
@@ -1308,6 +1495,7 @@
           note: R ? (R.endedByViolations ? 'Submitted automatically: too many proctoring violations.' : R.textPending ? 'Written problems are marked by the panel. Your total and rank update when marks are added.' : R.autoSubmitted ? 'Auto-submitted when time ran out.' : 'All parts marked.') : ''
         }
       };
+      v.pf = this.ssProfileVals(v);
       return v;
     }
   }

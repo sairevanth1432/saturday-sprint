@@ -284,37 +284,18 @@ const ICON_OUT = '<svg style="flex-shrink: 0" width="18" height="18" viewBox="0 
 
 const ICON_HELP = '<svg style="flex-shrink: 0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>';
 
-const NAV_BOARD = `<button class="k3" onClick="{{ nav.board.go }}" aria-label="Leaderboard" title="Leaderboard" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 12px; min-height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: {{ nav.board.bg }}; color: {{ nav.board.fg }}; font-size: 17px; font-weight: 700; text-align: left">
-${ICON_BOARD}
-<sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span style="flex-grow: 1">Leaderboard</span></sc-if>
-</button>`;
+const ICON_SOUND = '<svg style="flex-shrink: 0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a9 9 0 0 1 0 14"></path></svg>';
+// Pixel runner (two frames, .f1/.f2 alternate in CSS), trophy and flame for the Home track and the "pacing" loaders.
+const FLAME = "<svg width=\"14\" height=\"18\" viewBox=\"0 0 14 18\" aria-hidden=\"true\" style=\"flex-shrink: 0\"><path d=\"M7 1C9.5 4.5 11.5 7 10 11c-.8 2-4 2.4-5.2.6C3.6 9.8 4.3 8 5.4 6.6 5 9 6.8 9.8 7 7.6 8.6 9.6 8.8 11 8 12.4 10.2 11.6 11 9.4 10.2 7.6 10.9 8.4 11.6 9.4 11.6 11c0 3-2.2 5-4.6 5S2.4 14 2.4 11C2.4 7.6 5.4 5.2 7 1Z\" fill=\"currentColor\"></path></svg>";
 
-const NAV_USER = `<div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
-<sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}">
-<div style="display: flex; align-items: center; gap: 10px; padding: 0 4px; min-width: 0">
-<sc-if value="{{ ss.user.hasPhoto }}" hint-placeholder-val="{{ false }}">
-<button onClick="{{ ss.user.changePhoto }}" aria-label="Change your photo" title="Change your photo" style="flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 2px solid #333333; border-radius: 12px; overflow: hidden; background: #050505; cursor: pointer"><img src="{{ ss.user.photo }}" alt="" style="display: block; width: 100%; height: 100%; object-fit: cover"></button>
-</sc-if>
-<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
-<span style="font-size: 15px; font-weight: 800; color: #FFFFFF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" title="{{ ss.user.name }}">{{ ss.user.name }}</span>
-<span style="font-family: 'VT323', monospace; font-size: 18px; color: #8A8A8A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ ss.user.sub }}</span>
-</div>
-</div>
-</sc-if>
-<sc-if value="{{ ss.user.isAdmin }}" hint-placeholder-val="{{ false }}">
-<button class="k3" onClick="{{ ss.toAdmin }}" aria-label="Admin console" title="Admin console" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 10px; min-height: 44px; padding: 0 14px; border: 2px solid #FFE45C; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 15px; font-weight: 700"><svg style="flex-shrink: 0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path></svg><sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span>Admin console</span></sc-if></button>
-</sc-if>
-<button class="k3" onClick="{{ ss.help }}" aria-label="Help: how the Sprint works" title="Help: how the Sprint works" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 10px; min-height: 44px; padding: 0 14px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFE45C; font-size: 15px; font-weight: 700">
-${ICON_HELP}
-<sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span>Help &amp; guide</span></sc-if>
-</button>
-<button class="k3" onClick="{{ ss.logout }}" aria-label="Log out" title="Log out" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 10px; min-height: 44px; padding: 0 14px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #BDBDBD; font-size: 15px; font-weight: 700">
-${ICON_OUT}
-<sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span>Log out</span></sc-if>
+const NAV_FOCUS = `<div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px">
+<button class="k3" onClick="{{ ss.focus.toggle }}" aria-pressed="{{ ss.focus.on }}" aria-label="{{ ss.focus.label }}" title="{{ ss.focus.label }}" style="display: flex; align-items: center; justify-content: {{ side.jc }}; gap: 12px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: transparent; box-shadow: none; color: {{ ss.focus.fg }}; font-size: 14px; font-weight: 700; text-align: left">
+<sc-if value="{{ ss.focus.off }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg></sc-if><sc-if value="{{ ss.focus.on }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg></sc-if>
+<sc-if value="{{ side.full }}" hint-placeholder-val="{{ true }}"><span style="flex-grow: 1">{{ ss.focus.label }}</span></sc-if>
 </button>
 </div>`;
 
-replaceOnce('\n</div>\n\n</nav>', `\n${NAV_BOARD}\n</div>\n\n${NAV_USER}\n</nav>`, 'sidebar');
+replaceOnce('\n</div>\n\n</nav>', '\n</div>\n\n</nav>', 'sidebar');
 
 const BOARD_ROW = (list, as) => `<sc-for list="{{ ${list} }}" as="${as}" hint-placeholder-count="5">
 <div style="display: grid; grid-template-columns: 76px minmax(0, 1fr) 150px 130px 92px; align-items: center; gap: 12px; min-height: 56px; padding: 6px 16px; border-radius: 14px; border: 2px solid {{ ${as}.ring }}; background: {{ ${as}.bg }}">
@@ -365,7 +346,7 @@ const BOARD_TAB = `<!-- ============ STATUS (auth bridge) ============ -->
 <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700; color: #BDBDBD">On the board</span><span style="font-family: 'VT323', monospace; font-size: 52px; line-height: 1">{{ lb.participants }}</span><span style="font-size: 13px; color: #8A8A8A">{{ lb.updated }}</span></div>
 </div>
 
-<sc-if value="{{ lb.loading }}" hint-placeholder-val="{{ false }}"><div style="font-family: 'VT323', monospace; font-size: 22px; color: #8A8A8A">loading…</div></sc-if>
+<sc-if value="{{ lb.loading }}" hint-placeholder-val="{{ false }}"><div class="blink" style="font-family: 'VT323', monospace; font-size: 22px; color: #8A8A8A">pacing… fetching the board</div></sc-if>
 <sc-if value="{{ lb.empty }}" hint-placeholder-val="{{ false }}">
 <div class="well" style="background: #050505; border-radius: 22px; padding: 36px; display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'VT323', monospace; font-size: 20px; color: #FFE45C">0 rows</div>
@@ -395,29 +376,135 @@ ${BOARD_ROW('lb.meRows', 'mr')}
 `;
 replaceOnce('<!-- ============ HOME (Today) ============ -->', (a) => BOARD_TAB + a, 'leaderboard tab');
 
-const HOME_CARD = `<div class="d3" style="background: #151515; border-radius: 22px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px">
-<div style="display: flex; align-items: center; gap: 14px">
-<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
-<span style="font-size: 13px; font-weight: 800; color: #FFE45C">Leaderboard · {{ lb.participants }} on the board</span>
-<span style="font-size: 18px; font-weight: 800; color: #FFFFFF">{{ lb.homeLine }}</span>
+// ---------- 3d. Top-right bar: Sprint test, Leaderboard, sound, music, profile menu, more menu. Icon-only, labels on hover (.ss-ib).
+const TOPBAR = `<sc-if value="{{ ss.top.show }}" hint-placeholder-val="{{ true }}">
+<div class="ss-topbar">
+<sc-if value="{{ ss.top.quoteOn }}" hint-placeholder-val="{{ false }}"><div class="ss-topquote">“{{ ss.top.quote }}” <span>— {{ ss.top.by }}</span></div></sc-if>
+<button class="ss-ib" onClick="{{ ss.focus.toggle }}" aria-pressed="{{ ss.focus.on }}" aria-label="{{ ss.focus.label }}" data-on="{{ ss.focus.on }}"><sc-if value="{{ ss.focus.off }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg></sc-if><sc-if value="{{ ss.focus.on }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg></sc-if><span class="ss-ib-label">{{ ss.focus.label }}</span></button>
+<sc-if value="{{ ss.top.full }}" hint-placeholder-val="{{ true }}">
+<button class="ss-ib" onClick="{{ nav.board.go }}" aria-label="Leaderboard" data-on="{{ nav.board.on }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"></path><path d="M4 21v-7h5v7"></path><path d="M9.5 21V9h5v12"></path><path d="M15 21v-5h5v5"></path><path d="M12 2.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z"></path></svg><span class="ss-ib-label">Leaderboard</span></button>
+<div class="ss-menu-wrap">
+<button class="ss-ib" onClick="{{ ss.audio.toggle }}" aria-haspopup="menu" aria-expanded="{{ ss.audio.open }}" aria-label="{{ ss.audio.label }}" data-on="{{ ss.audio.on }}"><sc-if value="{{ ss.audio.on }}" hint-placeholder-val="{{ true }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4h3l5 4V6l-5 4z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg></sc-if><sc-if value="{{ ss.audio.off }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4h3l5 4V6l-5 4z"></path><path d="M16 9l5 6"></path><path d="M21 9l-5 6"></path></svg></sc-if><span class="ss-ib-label">{{ ss.audio.label }}</span></button>
+<sc-if value="{{ ss.audio.open }}" hint-placeholder-val="{{ false }}">
+<div class="ss-menu pop" role="menu" style="min-width: 200px">
+<button class="ss-menu-item" role="menuitemcheckbox" aria-checked="{{ ss.audio.sfxOn }}" onClick="{{ ss.audio.sfxToggle }}" data-on="{{ ss.audio.sfxOn }}"><span class="ss-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span><span>Sound effects</span></button>
+<button class="ss-menu-item" role="menuitemcheckbox" aria-checked="{{ ss.audio.musicOn }}" onClick="{{ ss.audio.musicToggle }}" data-on="{{ ss.audio.musicOn }}"><span class="ss-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span><span>Music</span></button>
 </div>
-<button class="k3" onClick="{{ nav.board.go }}" style="flex-shrink: 0; min-height: 44px; padding: 0 16px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFFFFF; font-size: 15px; font-weight: 700">Full leaderboard →</button>
+</sc-if>
 </div>
-<sc-if value="{{ lb.hasRows }}" hint-placeholder-val="{{ false }}">
+<div class="ss-menu-wrap">
+<button class="ss-ib ss-avatar" onClick="{{ ss.user.menu }}" aria-haspopup="menu" aria-expanded="{{ ss.user.menuOpen }}" aria-label="Profile menu" data-on="{{ ss.user.menuOpen }}">
+<sc-if value="{{ ss.user.hasPhoto }}" hint-placeholder-val="{{ false }}"><img src="{{ ss.user.photo }}" alt=""></sc-if>
+<sc-if value="{{ ss.user.noPhoto }}" hint-placeholder-val="{{ true }}"><span class="ss-avatar-initial">{{ ss.user.initial }}</span></sc-if>
+<span class="ss-ib-label">{{ ss.user.name }}</span>
+</button>
+<sc-if value="{{ ss.user.menuOpen }}" hint-placeholder-val="{{ false }}">
+<div class="ss-menu pop" role="menu">
+<div class="ss-menu-head"><span class="ss-menu-name">{{ ss.user.name }}</span><span class="ss-menu-sub">{{ ss.user.sub }}</span></div>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.more.home }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"></path><path d="M5 10v10h14V10"></path></svg><span>Home</span></button>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.more.topics }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h10"></path></svg><span>Topics</span></button>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.more.practice }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10"></path><path d="M10 12h10"></path><path d="M10 18h10"></path><path d="M3.5 6l1.5 1.5L7.5 5"></path><path d="M3.5 12l1.5 1.5L7.5 11"></path><path d="M3.5 18l1.5 1.5L7.5 17"></path></svg><span>Practice</span></button>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.more.test }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h13l-1.5 4L18 12H5"></path><path d="M9 4v8"></path><path d="M13 4v8"></path><path d="M5 8h13"></path></svg><span>Sprint test</span></button>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.more.board }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"></path><path d="M4 21v-7h5v7"></path><path d="M9.5 21V9h5v12"></path><path d="M15 21v-5h5v5"></path><path d="M12 2.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z"></path></svg><span>Leaderboard</span></button>
+<div class="ss-menu-sep"></div>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.user.open }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 1 0-16 0"></path><circle cx="12" cy="8" r="4"></circle></svg><span>Profile · photo and medals</span></button>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.help }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg><span>Help and guide</span></button>
+<sc-if value="{{ ss.user.isAdmin }}" hint-placeholder-val="{{ false }}"><button class="ss-menu-item" role="menuitem" onClick="{{ ss.toAdmin }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"></path></svg><span>Admin console</span></button></sc-if>
+<button class="ss-menu-item" role="menuitem" onClick="{{ ss.logout }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg><span>Log out</span></button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</sc-if>
+`;
+replaceOnce('<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative">\n', (a) => a + TOPBAR, 'top bar');
+
+// ---------- 3e. Home topic map: the marathon road, one block per topic, the avatar on the current one, the trophy at the end (= Sprint test).
+const HOME_MAP = `<sc-if value="{{ map.on }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap">
+<span style="font-size: 13px; font-weight: 800; color: #FFE45C">Your road</span>
+</div>
+<div class="ss-map" role="list" aria-label="Topics on the road, in order" style="width: {{ map.w }}; height: {{ map.h }}">
+<svg class="ss-map-road" width="{{ map.w }}" height="{{ map.h }}" aria-hidden="true"><path d="{{ map.path }}" fill="none" stroke="#2A2A2A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><path d="{{ map.path }}" fill="none" stroke="#3A3A3A" stroke-width="2" stroke-dasharray="8 10" stroke-linecap="round" stroke-linejoin="round"></path><path d="{{ map.donePath }}" fill="none" stroke="#FFE45C" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"></path></svg>
+<sc-for list="{{ map.items }}" as="mb" hint-placeholder-count="6">
+<button class="ss-map-block" role="listitem" onClick="{{ mb.go }}" aria-current="{{ mb.on }}" title="{{ mb.title }}" style="left: {{ mb.left }}; top: {{ mb.top }}; background: {{ mb.bg }}; color: {{ mb.fg }}; border-color: {{ mb.ring }}"><span class="ss-map-n" style="background: {{ mb.nBg }}; color: {{ mb.nFg }}">{{ mb.n }}</span><span class="ss-map-name">{{ mb.name }}</span></button>
+</sc-for>
+<button class="ss-map-trophy" onClick="{{ nav.test.go }}" title="Finish line: the Saturday Sprint test" style="left: {{ map.trophy.left }}; top: {{ map.trophy.top }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path></svg></button>
+<span class="ss-map-avatar" aria-hidden="true" style="left: {{ map.avatar.left }}; top: {{ map.avatar.top }}"><sc-if value="{{ map.avatar.hasPhoto }}" hint-placeholder-val="{{ false }}"><img src="{{ map.avatar.photo }}" alt=""></sc-if><sc-if value="{{ map.avatar.noPhoto }}" hint-placeholder-val="{{ true }}"><span>{{ map.avatar.initial }}</span></sc-if></span>
+</div>
+</div>
+</sc-if>
+`;
+replaceOnce('<!-- home road (build-portal.js HOME_MAP) -->\n', HOME_MAP, 'home topic map');
+
+// ---------- 3c. Profile: photo (change it here), streak, medals earned and how to earn the rest. Opened from the sidebar user block.
+const PROFILE_TAB = `<!-- ============ PROFILE ============ -->
+<sc-if value="{{ show.profile }}" hint-placeholder-val="{{ false }}">
+<div class="pop" style="display: flex; flex-direction: column; gap: 36px; padding-top: 24px; max-width: 820px">
 <div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-family: 'VT323', monospace; font-size: 20px; color: #FFE45C">~/profile</span>
+<h2 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 30px; font-weight: 700; line-height: 1">Profile</h2>
+</div>
+<div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap">
+<div style="flex-shrink: 0; width: 112px; height: 112px; border-radius: 20px; overflow: hidden; border: 2px solid #333333; background: #050505; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{ pf.hasPhoto }}" hint-placeholder-val="{{ false }}"><img src="{{ pf.photo }}" alt="Your photo" style="display: block; width: 100%; height: 100%; object-fit: cover"></sc-if>
+<sc-if value="{{ pf.noPhoto }}" hint-placeholder-val="{{ true }}"><span style="font-family: 'Silkscreen', monospace; font-size: 40px; color: #5E5E5E">{{ pf.initial }}</span></sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span style="font-size: 22px; font-weight: 800; color: #FFFFFF">{{ pf.name }}</span>
+<span style="font-family: 'VT323', monospace; font-size: 20px; color: #8A8A8A">{{ pf.sub }}</span>
+<span style="display: flex; align-items: center; gap: 6px; font-family: 'VT323', monospace; font-size: 20px; color: {{ pf.streakFg }}" title="{{ pf.streakTitle }}">${FLAME}{{ pf.streakLabel }}</span>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px">
+<sc-if value="{{ pf.canPhoto }}" hint-placeholder-val="{{ true }}"><button class="k3" onClick="{{ pf.changePhoto }}" style="min-height: 40px; padding: 0 16px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFFFFF; font-size: 14px; font-weight: 700">Change photo</button></sc-if>
+<button class="k3" onClick="{{ ss.help }}" aria-label="Help and guide" title="Help and guide" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #BDBDBD; font-size: 14px; font-weight: 700"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg><span>Help</span></button>
+<button class="k3" onClick="{{ ss.logout }}" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #BDBDBD; font-size: 14px; font-weight: 700"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg><span>Log out</span></button>
+</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 13px; font-weight: 800; color: #FFE45C">Medals · {{ pf.earned }}</span>
+<div class="ss-medal-grid">
+<sc-for list="{{ pf.badges }}" as="bd" hint-placeholder-count="6">
+<div class="ss-medal-card" title="{{ bd.title }}" style="border-color: {{ bd.ring }}; opacity: {{ bd.opacity }}">
+<span class="ss-medal-icon" style="background: {{ bd.bg }}; color: {{ bd.fg }}"><i class="ss-mi-{{ bd.id }}"></i></span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-size: 15px; font-weight: 800; color: #FFFFFF">{{ bd.name }}</span>
+<span style="font-family: 'VT323', monospace; font-size: 18px; color: {{ bd.hintFg }}">{{ bd.hint }}</span>
+</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+`;
+replaceOnce('<!-- ============ HOME (Today) ============ -->', (a) => PROFILE_TAB + a, 'profile tab');
+
+const HOME_CARD = `<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap">
+<span style="font-size: 13px; font-weight: 800; color: #FFE45C">Leaderboard · {{ lb.participants }} on the board</span>
+<button class="k3" onClick="{{ nav.board.go }}" style="margin-left: auto; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: #BDBDBD; font-size: 13px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer">Full leaderboard →</button>
+</div>
+<span style="display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; color: #FFFFFF">{{ lb.homeLine }}</span>
+<sc-if value="{{ lb.hasRows }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column">
 <sc-for list="{{ lb.top5 }}" as="hr" hint-placeholder-count="5">
-<div style="display: grid; grid-template-columns: 52px minmax(0, 1fr) 110px 70px; align-items: center; gap: 10px; min-height: 40px; padding: 2px 12px; border-radius: 10px; border: 2px solid {{ hr.ring }}; background: {{ hr.bg }}">
-<span style="font-family: 'VT323', monospace; font-size: 21px; color: {{ hr.rankText }}">{{ hr.rank }}</span>
+<div style="display: grid; grid-template-columns: 44px minmax(0, 1fr) 90px 60px; align-items: center; gap: 10px; min-height: 36px; border-bottom: 1px solid #1F1F1F; color: {{ hr.rankText }}">
+<span style="font-family: 'VT323', monospace; font-size: 20px">{{ hr.rank }}</span>
 <span style="font-size: 14px; font-weight: 700; color: #FFFFFF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ hr.name }} <span style="color: #FFE45C">{{ hr.youTag }}</span></span>
-<span style="font-family: 'VT323', monospace; font-size: 21px; color: #FFE45C; text-align: right">{{ hr.score }}</span>
-<span style="font-family: 'VT323', monospace; font-size: 20px; color: #BDBDBD; text-align: right">{{ hr.time }}</span>
+<span style="font-family: 'VT323', monospace; font-size: 20px; color: #FFE45C; text-align: right">{{ hr.score }}</span>
+<span style="font-family: 'VT323', monospace; font-size: 19px; color: #8A8A8A; text-align: right">{{ hr.time }}</span>
 </div>
 </sc-for>
 </div>
 </sc-if>
 </div>
 `;
-replaceOnce('</div>\n</sc-if>\n\n<!-- ============ LEARN ============ -->', (a) => HOME_CARD + a, 'home leaderboard card');
+// The leaderboard card sits in the Home right column (aside.ss-home-side, after the festival greeting); two columns from 1360 px (CSS below).
+replaceOnce('</sc-if>\n</aside>\n<div style="display: flex; flex-direction: column; gap: 10px">', (a) => '</sc-if>\n' + HOME_CARD + '</aside>\n<div style="display: flex; flex-direction: column; gap: 10px">', 'home leaderboard card');
+
 
 const DONE_BOARD = `
 <sc-if value="{{ ss.submit.failed }}" hint-placeholder-val="{{ false }}">
@@ -427,7 +514,7 @@ const DONE_BOARD = `
 </div>
 </sc-if>
 <sc-if value="{{ ss.submit.pending }}" hint-placeholder-val="{{ false }}">
-<div style="font-family: 'VT323', monospace; font-size: 22px; color: #FFE45C" class="blink">grading on the server…</div>
+<div class="blink" style="font-family: 'VT323', monospace; font-size: 22px; color: #FFE45C">grading on the server… hold your pace</div>
 </sc-if>
 <sc-if value="{{ ss.result.on }}" hint-placeholder-val="{{ false }}">
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
@@ -625,6 +712,72 @@ replaceOnce('</head>', `<style>
 .ss-like-burst { animation: ss-like-burst 800ms cubic-bezier(0.23, 1, 0.32, 1) forwards; }
 @keyframes ss-like-burst { 0% { opacity: 0; transform: scale(0.4); } 18% { opacity: .95; transform: scale(1.1); } 32% { transform: scale(0.95); } 70% { opacity: .95; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05) translateY(-18px); } }
 @media (prefers-reduced-motion: reduce) { .ss-like-pop, .ss-like-burst { animation: none; } .ss-like-burst { opacity: 0; } }
+/* Home: one column up to 1359 px (right-column cards last), two columns from 1360 px so wide screens are used */
+.ss-home-side { display: flex; flex-direction: column; gap: 40px; order: 99; min-width: 0; }
+@media (min-width: 1360px) {
+  .ss-home-col { display: grid !important; max-width: 1280px !important; grid-template-columns: minmax(0, 1fr) 480px; column-gap: 48px; row-gap: 40px; align-items: start; }
+  .ss-home-col > * { grid-column: 1; min-width: 0; }
+  .ss-home-col > .ss-home-side { grid-column: 2; grid-row: 1 / span 4; order: 0; }
+}
+/* top-right icon bar: blended buttons, label appears on hover */
+.ss-topbar { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 14px 24px 0 44px; position: relative; z-index: 3; }
+.ss-topquote { margin-right: auto; min-width: 0; padding-right: 24px; font-family: 'VT323', monospace; font-size: 19px; line-height: 1.15; color: #8A8A8A; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ss-topquote span { color: #5E5E5E; }
+@media (max-width: 1100px) { .ss-opts { grid-template-columns: 1fr !important; } }
+.ss-ib { position: relative; width: 42px; height: 42px; border: 0; border-radius: 12px; background: transparent; color: #8A8A8A; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 140ms ease, color 140ms ease; }
+.ss-ib:hover, .ss-ib:focus-visible { background: rgba(255,255,255,.06); color: #FFFFFF; outline: none; }
+.ss-ib[data-on="true"] { color: #FFE45C; }
+.ss-ib-label { position: absolute; top: 100%; left: 50%; transform: translate(-50%, 2px); margin-top: 4px; padding: 6px 10px; border-radius: 8px; background: #1F1F1F; color: #EDEDED; font-size: 12px; font-weight: 700; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 140ms ease, transform 140ms ease; }
+.ss-ib:hover .ss-ib-label, .ss-ib:focus-visible .ss-ib-label { opacity: 1; transform: translate(-50%, 0); }
+.ss-ib-live { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: #FFE45C; }
+.ss-avatar { padding: 0; overflow: visible; }
+.ss-avatar img, .ss-avatar-initial { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: flex; align-items: center; justify-content: center; background: #050505; border: 2px solid #333333; font-family: 'Silkscreen', monospace; font-size: 12px; color: #BDBDBD; }
+.ss-ib[data-on="true"] .ss-avatar-initial, .ss-ib[data-on="true"] img, .ss-avatar:hover img, .ss-avatar:hover .ss-avatar-initial { border-color: #FFE45C; }
+.ss-menu-wrap { position: relative; }
+.ss-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 240px; padding: 8px; border-radius: 16px; background: #171717; border: 1px solid #262626; box-shadow: 0 24px 48px -20px rgba(0,0,0,.9); display: flex; flex-direction: column; gap: 2px; z-index: 50; }
+.ss-menu-sep { height: 1px; background: #262626; margin: 6px 4px; }
+.ss-menu-head { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 10px; border-bottom: 1px solid #262626; margin-bottom: 6px; min-width: 0; }
+.ss-menu-name { font-size: 14px; font-weight: 800; color: #FFFFFF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-menu-sub { font-family: 'VT323', monospace; font-size: 17px; color: #8A8A8A; }
+.ss-menu-item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: #DADADA; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer; }
+.ss-menu-item:hover, .ss-menu-item:focus-visible { background: rgba(255,255,255,.06); color: #FFFFFF; outline: none; }
+.ss-menu-item svg { width: 18px; height: 18px; color: #8A8A8A; flex-shrink: 0; }
+.ss-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #3A3A3A; display: flex; align-items: center; justify-content: center; color: transparent; flex-shrink: 0; }
+.ss-menu-item[data-on="true"] .ss-check { background: #FFE45C; border-color: #FFE45C; color: #050505; }
+.ss-check svg { width: 12px; height: 12px; color: inherit; }
+/* sidebar topic list */
+.ss-topic-list { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 6px; }
+.ss-topic-head { padding: 10px 12px 4px; font-family: 'VT323', monospace; font-size: 17px; letter-spacing: .02em; color: #5E5E5E; text-transform: uppercase; }
+.ss-topic { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 12px 0 16px; border: 0; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.ss-topic:hover { filter: brightness(1.25); }
+.ss-topic-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ss-topic-name { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* home topic map */
+.ss-map { position: relative; }
+.ss-map-road { position: absolute; left: 0; top: 0; }
+.ss-map-block { position: absolute; width: 170px; height: 56px; box-sizing: border-box; border-radius: 14px; border: 2px solid; display: flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 12.5px; font-weight: 700; line-height: 1.2; text-align: left; cursor: pointer; transition: transform 160ms ease, filter 160ms ease; }
+.ss-map-block:hover { transform: translateY(-2px); filter: brightness(1.12); }
+.ss-map-n { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'VT323', monospace; font-size: 17px; }
+.ss-map-name { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ss-map-avatar { position: absolute; width: 38px; height: 38px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid #FFE45C; background: #050505; box-shadow: 0 0 0 5px rgba(255,228,92,.16), 0 10px 20px -8px rgba(0,0,0,.9); overflow: hidden; display: flex; align-items: center; justify-content: center; z-index: 2; transition: left 800ms cubic-bezier(0.23, 1, 0.32, 1), top 800ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ss-map-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ss-map-avatar span { font-family: 'Silkscreen', monospace; font-size: 13px; color: #FFE45C; }
+.ss-map-trophy { position: absolute; width: 44px; height: 44px; transform: translate(-50%, -50%); border: 0; border-radius: 50%; background: #151515; color: #FFE45C; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 2px #262626; transition: box-shadow 160ms ease; }
+.ss-map-trophy:hover { box-shadow: 0 0 0 2px #FFE45C, 0 0 18px -4px rgba(255,228,92,.6); }
+.ss-map-trophy svg { width: 22px; height: 22px; }
+@media (prefers-reduced-motion: reduce) { .ss-map-avatar { transition: none; } }
+/* Profile page: photo, streak, medals (values: portal-bridge.js ssProfileVals) */
+.ss-medal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ss-medal-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid; border-radius: 14px; background: #151515; min-width: 0; }
+.ss-medal-icon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.ss-medal-icon i { display: block; width: 24px; height: 24px; background: currentColor; -webkit-mask: var(--mi) center / 24px 24px no-repeat; mask: var(--mi) center / 24px 24px no-repeat; }
+.ss-mi-first-lap { --mi: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2021V4%22%2F%3E%3Cpath%20d%3D%22M5%204h12l-2%204%202%204H5%22%2F%3E%3C%2Fsvg%3E"); }
+.ss-mi-full-circuit { --mi: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M21%2012a9%209%200%201%201-2.6-6.4%22%2F%3E%3Cpath%20d%3D%22M21%204v5h-5%22%2F%3E%3C%2Fsvg%3E"); }
+.ss-mi-pace-keeper { --mi: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203c1.5%203%205%205.5%205%2010a5%205%200%200%201-10%200c0-2.2%201.2-3.6%202.4-5%20.3%202%201.3%203%202.6%203.2C12.6%209%2011.4%206%2012%203z%22%2F%3E%3C%2Fsvg%3E"); }
+.ss-mi-finisher { --mi: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2021V4%22%2F%3E%3Cpath%20d%3D%22M5%204h13l-1.5%204L18%2012H5%22%2F%3E%3Cpath%20d%3D%22M9%204v8M13%204v8M5%208h13%22%2F%3E%3C%2Fsvg%3E"); }
+.ss-mi-podium { --mi: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2021h18%22%2F%3E%3Cpath%20d%3D%22M4%2021v-7h5v7%22%2F%3E%3Cpath%20d%3D%22M9.5%2021V9h5v12%22%2F%3E%3Cpath%20d%3D%22M15%2021v-5h5v5%22%2F%3E%3C%2Fsvg%3E"); }
+.ss-mi-hat-trick { --mi: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%226%22%20cy%3D%2215%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%229%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%2215%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E"); }
+@media (max-width: 1360px) { .ss-medal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>`, 'reel full screen styles');
 

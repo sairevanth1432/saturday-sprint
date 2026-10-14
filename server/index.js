@@ -34,6 +34,7 @@ import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
 import { periodOf } from './periods.js';
+import { journey } from './journey.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 // Topics of the next Sprint (content/next-sprint.json → generated/ by npm run build), shown on the Learn page.
@@ -315,6 +316,9 @@ api.get('/leaderboard', who, async (req, res) => {
   const university = req.who.kind === 'student' ? await studentUniversity(req.who.roll_no) : null;
   res.json(await leaderboard(req.who.kind === 'student' ? req.who.roll_no : null, limit, { sprintId: String(req.query.sprint || ''), university }));
 });
+
+// The student's race for the Home track: completion vs the cohort, streak, medals (journey.js).
+api.get('/journey', who, async (req, res) => { noStore(res); res.json(await journey(req.who)); });
 
 api.put('/progress', who, async (req, res) => {
   if (req.who.kind !== 'student') return res.json({ ok: true, skipped: true });

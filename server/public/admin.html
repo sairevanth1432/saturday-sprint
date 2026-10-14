@@ -57,6 +57,10 @@ input[type=search]{min-width:280px}
 .btn.bad{border-color:var(--bad);color:var(--bad)}
 .btn.sm{min-height:32px;padding:0 10px;font-size:13px}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
+.chips{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chips button{min-height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--line2);background:transparent;color:var(--soft);font-weight:800;font-size:13px;white-space:nowrap;cursor:pointer}
+.chips button:hover{border-color:var(--soft);color:var(--text)}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#050505}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:12px;color:var(--muted);font-weight:800;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--panel)}
 td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -112,9 +116,19 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   try { CACHE.period = localStorage.getItem('ss-admin-period') || ''; } catch (e) { CACHE.period = ''; }
   var PERIOD_VIEWS = { students: 1, results: 1, leaderboard: 1, analytics: 1, practice: 1, likes: 1, integrity: 1, feedback: 1 };
   var per = function () { return CACHE.period ? '&period=' + CACHE.period : ''; };
+  // Frequent filters are chips (one press, no dropdown): options [[value, label]], the current value, what to do on pick.
+  function chips(options, value, pick, label) {
+    var g = h('div', { class: 'chips' }, options.map(function (o) {
+      var b = h('button', { type: 'button', onclick: function () { pick(o[0]); } }, o[1]);
+      b.setAttribute('aria-pressed', String(o[0]) === String(value) ? 'true' : 'false');
+      return b;
+    }));
+    g.setAttribute('role', 'group'); g.setAttribute('aria-label', label || 'Filter');
+    return g;
+  }
   function periodBar() {
-    var sel = h('select', { onchange: function () { CACHE.period = sel.value; try { localStorage.setItem('ss-admin-period', sel.value); } catch (e) {} refresh(); } },
-      [['', 'All Sprints'], ['s1', 'Sprint 1 (before 9 Oct)'], ['s2', 'Sprint 2 (from 9 Oct)']].map(function (o) { return h('option', { value: o[0], selected: CACHE.period === o[0] ? true : null }, o[1]); }));
+    var pick = function (v) { CACHE.period = v; try { localStorage.setItem('ss-admin-period', v); } catch (e) {} refresh(); };
+    var sel = chips([['', 'All Sprints'], ['s1', 'Sprint 1 · before 9 Oct'], ['s2', 'Sprint 2 · from 9 Oct']], CACHE.period, pick, 'Sprint');
     return h('div', { class: 'row', style: 'justify-content:flex-start;gap:10px;margin-bottom:14px' }, h('b', null, 'Sprint'), sel,
       CACHE.period ? h('span', { class: 'muted' }, CACHE.period === 's1' ? 'Before Fri 9 Oct: Sprint 1 topics and practice, students listed then.' : 'From Fri 9 Oct: Sprint 2 topics and practice, the current student list.') : null);
   }
@@ -496,8 +510,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('div', { class: 'toolbar' },
             h('select', { onchange: function (e) { st.sprint = e.target.value; load(); } }, h('option', { value: '' }, 'Current Sprint'),
               d.sprints.map(function (s) { return h('option', { value: s.sprint_id, selected: st.sprint === s.sprint_id ? true : null }, s.sprint_id + ' (' + s.n + ')'); })),
-            h('select', { onchange: function (e) { st.status = e.target.value; load(); } },
-              [['', 'All attempts'], ['submitted', 'Submitted'], ['running', 'In progress'], ['pending', 'Needs marking'], ['flagged', 'Proctoring flags']].map(function (o) { return h('option', { value: o[0], selected: st.status === o[0] ? true : null }, o[1]); })),
+            chips([['', 'All'], ['submitted', 'Submitted'], ['running', 'In progress'], ['pending', 'Needs marking'], ['flagged', 'Flags']], st.status, function (v) { st.status = v; load(); }, 'Attempt status'),
             h('input', { type: 'search', placeholder: 'NIAT ID or name', value: st.q, oninput: debounce(function (e) { st.q = e.target.value; load(); }, 300) }),
             h('span', { class: 'grow' }), h('span', { class: 'muted' }, d.rows.length + ' attempt(s)')),
           h('div', { class: 'tablewrap' }, h('table', null,
@@ -621,7 +634,9 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var sprints = (b.sprints || []).map(function (s) { return s.id; });
       if (sprints.indexOf(b.sprint.id) < 0) sprints.unshift(b.sprint.id);
       var filters = h('div', { class: 'toolbar' },
-        h('select', { onchange: function () { F.sprint = this.value; refresh(); } }, sprints.map(function (id) { return h('option', { value: id, selected: id === b.sprintId ? true : null }, id + (id === b.sprint.id ? ' (current)' : '')); })),
+        sprints.length <= 4
+          ? chips(sprints.map(function (id) { return [id, id.replace(/^sprint-/, 'Sprint ') + (id === b.sprint.id ? ' · current' : '')]; }), b.sprintId, function (v) { F.sprint = v; refresh(); }, 'Sprint')
+          : h('select', { onchange: function () { F.sprint = this.value; refresh(); } }, sprints.map(function (id) { return h('option', { value: id, selected: id === b.sprintId ? true : null }, id + (id === b.sprint.id ? ' (current)' : '')); })),
         h('select', { onchange: function () { F.university = this.value; refresh(); } }, [h('option', { value: '*' }, 'All universities')].concat((b.universities || []).map(function (u) { return h('option', { value: u, selected: F.university === u ? true : null }, u); }))));
       return h('div', null, header('~/admin/leaderboard', 'Leaderboard', b.rule,
         [b.sprint.leaderboardVisible ? pill('visible to students', 'ok') : pill('hidden from students', 'bad'), h('button', { class: 'btn', onclick: refresh }, 'Refresh'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/results.csv'); } }, 'Export CSV')]),

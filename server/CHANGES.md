@@ -18,6 +18,11 @@ Most day-to-day changes need **no deployment at all**: they are done in the admi
 | Add a new unit (byte video + game) | Add the files + an entry in `server/content/units.json` → [deploy](#3-deploying-a-code-or-content-change) | ~10 s |
 | Change lessons, explainers or the Sprint questions (the portal HTML) | Save the new `saturday_sprint_portal (N).html` → [deploy](#3-deploying-a-code-or-content-change) | ~10 s |
 | Change the app's code (login page, admin console, server) | Edit → test → commit → [deploy](#3-deploying-a-code-or-content-change) | ~10 s |
+| Festival theme (toran, diyas, Home greeting; Dussehra 2026 shows 14–22 Oct IST by itself) | Edit the dates and text at the top of `server/public/festive.js` → [deploy](#3-deploying-a-code-or-content-change). Preview any day with `?festive=1`, hide with `?festive=0` | ~10 s |
+| Profile page (photo, streak, medals and how to earn them), sound cues, daily practice quote | Data: `server/journey.js` (GET /api/journey). Markup: `PROFILE_TAB` and the sidebar user button in `server/scripts/build-portal.js`. Logic and cues: `ssProfileVals`, `ssCue` in `server/public/portal-bridge.js`. Quotes: the `Q` list in the portal HTML → [deploy](#3-deploying-a-code-or-content-change) | ~10 s |
+| Portal layout: sidebar = Topics list + Practice + Focus mode; top-right icon bar (Sprint test, Leaderboard, sound, music, profile menu, menu); Home topic map | Sidebar: the `<nav>` in the portal HTML. Top bar, map, profile: `TOPBAR`, `HOME_MAP`, `PROFILE_TAB` in `server/scripts/build-portal.js`. Logic: `ssFocus`, `ssMapVals`, `ssTopicItems` in `server/public/portal-bridge.js` → [deploy](#3-deploying-a-code-or-content-change) | ~10 s |
+| Background music (lo-fi chiptune loop, off until the student turns it on) | `server/public/music/lofi-loop.wav`, made by `node scripts/make-music.js` (edit tempo, chords, voices there) → [deploy](#3-deploying-a-code-or-content-change) | ~10 s |
+| Interview questions from the Hiring Intelligence export into Practice | `Desktop/Saturday Sprint/hiring-questions/portal-import/<course>/<topic>.json` → **Admin → Practice questions → Import JSON** (they arrive as drafts: add the options, then publish) | none |
 
 > **Rule:** never deploy during a Sprint window. The deploy script refuses to run from 30 minutes before opening to 30 minutes after closing.
 
