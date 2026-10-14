@@ -22,11 +22,11 @@ import {
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
-  builtinCourses, hiddenLessons, hiddenState, hideBuiltinUnit, hideBuiltinCourse, restoreBuiltin, hiddenCustom } from './media.js';
+  builtinCourses, hiddenLessons, hiddenState, hideBuiltinUnit, hideBuiltinCourse, restoreBuiltin, hiddenCustom, purgeStoredFile, clearCustomCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
 import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
-import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor } from './questions.js';
+import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor, restoreQuestionRow } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
 import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
 import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, setArchivedMany, importPractice } from './practiceq.js';
@@ -35,6 +35,7 @@ import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, p
 import { universityOf } from './universities.js';
 import { periodOf, LATEST_PERIOD } from './periods.js';
 import { journey } from './journey.js';
+import { BinError, binPut, listBin, restoreItem, purgeItem } from './recycle.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 // Topics of the next Sprint (content/next-sprint.json → generated/ by npm run build), shown on the Learn page.
@@ -726,6 +727,7 @@ adm.delete('/users/:roll', requireSuper, async (req, res) => {
   const u = await one('SELECT * FROM users WHERE roll_no = ?', roll);
   if (!u) return res.status(404).json({ error: 'NOT_FOUND', message: 'This student has not registered.' });
   await tx(async () => { await revokeSessions('student', u.id); await run('DELETE FROM users WHERE id = ?', u.id); });
+  await binPut('account', roll, roll + ' · registration', { user: u }, req.admin.email);
   const { password_hash, ...logged } = u;
   await audit(req, 'user.registration_reset', roll, { user: logged });
   res.json({ ok: true });
@@ -755,7 +757,9 @@ adm.put('/sprints/:sid/questions/:qid', requireSuper, async (req, res) => {
   res.json({ ok: true, question: q });
 });
 adm.delete('/sprints/:sid/questions/:qid', requireSuper, async (req, res) => {
+  const row = await one('SELECT * FROM sprint_questions WHERE id = ?', Number(req.params.qid));
   const q = await deleteQuestion(req.params.sid, req.params.qid);
+  if (row) await binPut('question', row.sprint_id, row.sprint_id + ' · ' + String(row.q || '').replace(/\s+/g, ' ').slice(0, 120), { row }, req.admin.email);
   await audit(req, 'question.deleted', req.params.sid, { question: q });
   res.json({ ok: true });
 });
@@ -840,8 +844,10 @@ adm.patch('/attempts/:id/marks', async (req, res) => {
 adm.delete('/attempts/:id', requireSuper, async (req, res) => {
   const a = await one('SELECT * FROM attempts WHERE id = ?', Number(req.params.id));
   if (!a) return res.status(404).json({ error: 'NOT_FOUND', message: 'Attempt not found.' });
+  const events = await all('SELECT * FROM attempt_events WHERE attempt_id = ?', a.id);
   await run('DELETE FROM attempt_events WHERE attempt_id = ?', a.id);
   await run('DELETE FROM attempts WHERE id = ?', a.id);
+  await binPut('attempt', a.roll_no, a.roll_no + ' · ' + a.sprint_id + (a.total != null ? ' · score ' + a.total : ''), { attempt: a, events }, req.admin.email);
   await clearBoardCache();
   await audit(req, 'attempt.reset', a.roll_no, { snapshot: { ...a, draft: parseJSON(a.draft), answers: parseJSON(a.answers), detail: parseJSON(a.detail) } });
   res.json({ ok: true });
@@ -985,7 +991,7 @@ adm.patch('/content/courses/:id', async (req, res) => {
   res.json({ ok: true });
 });
 adm.delete('/content/courses/:id', requireSuper, async (req, res) => {
-  await deleteCourse(req.params.id);
+  await deleteCourse(req.params.id, req.admin.email);
   await audit(req, 'content.course_deleted', req.params.id, null);
   res.json({ ok: true });
 });
@@ -1004,7 +1010,7 @@ adm.post('/content/units/:id/move', async (req, res) => {
   res.json({ ok: true });
 });
 adm.delete('/content/units/:id', requireSuper, async (req, res) => {
-  await deleteUnit(req.params.id);
+  await deleteUnit(req.params.id, req.admin.email);
   await audit(req, 'content.topic_deleted', req.params.id, null);
   res.json({ ok: true });
 });
@@ -1027,10 +1033,24 @@ adm.post('/content/builtin/:kind/:id/restore', requireSuper, async (req, res) =>
 });
 adm.delete('/media/:unitId/:slot', async (req, res) => {
   if (!slotOk(req, res)) return;
-  const r = await removeContent(req.params.unitId, req.params.slot);
+  const r = await removeContent(req.params.unitId, req.params.slot, req.admin.email);
   if (!r) return res.status(404).json({ error: 'NOT_FOUND', message: 'Nothing uploaded for this step.' });
   await audit(req, 'media.removed', req.params.unitId + ':' + req.params.slot, { url: r.url });
   res.json({ ok: true });
+});
+
+// ---------- recycle bin (recycle.js): everything deleted in the console, restorable
+const binHooks = { contentChanged: async () => { await clearCustomCache(); await clearContentCache(); }, restoreQuestion: restoreQuestionRow, boardChanged: () => clearBoardCache(), deleteFile: purgeStoredFile };
+adm.get('/bin', async (req, res) => res.json({ rows: await listBin() }));
+adm.post('/bin/:id/restore', requireSuper, async (req, res) => {
+  const r = await restoreItem(req.params.id, binHooks);
+  await audit(req, 'bin.restored', req.params.id, r);
+  res.json({ ok: true, ...r });
+});
+adm.delete('/bin/:id', requireSuper, async (req, res) => {
+  const r = await purgeItem(req.params.id, binHooks);
+  await audit(req, 'bin.deleted_forever', req.params.id, r);
+  res.json({ ok: true, ...r });
 });
 
 // ---------- feedback, audit
@@ -1225,7 +1245,7 @@ adm.patch('/admins/:id', requireSuper, async (req, res) => {
 // ===================================================================== errors
 api.use((req, res) => res.status(404).json({ error: 'NOT_FOUND', message: 'No such API route.' }));
 app.use((err, req, res, next) => {
-  if (err instanceof AuthError || err instanceof SprintError || err instanceof ContentError || err instanceof PhotoError || err instanceof PracticeError) {
+  if (err instanceof AuthError || err instanceof SprintError || err instanceof ContentError || err instanceof PhotoError || err instanceof PracticeError || err instanceof BinError) {
     return res.status(err.status).json({ error: err.code, message: err.message, ...(err.extra || {}) });
   }
   if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'BAD_JSON', message: 'Invalid JSON.' });

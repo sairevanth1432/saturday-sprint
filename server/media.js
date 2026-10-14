@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { one, all, run, tx, parseJSON, setSetting } from './db.js';
 import * as kv from './kv.js';
 
+import { binPut } from './recycle.js';
 export const SLOTS = ['watch', 'play', 'read'];
 export const VIDEO_TYPES = ['video/mp4', 'video/webm'];
 export const HTML_TYPES = ['text/html'];
@@ -91,17 +92,21 @@ export async function setContent(unitId, slot, { url, storage, fileName, size, c
              content_type = excluded.content_type, updated_by = excluded.updated_by, updated_at = excluded.updated_at, body = excluded.body`,
     unitId, slot, url, storage, fileName || null, size || null, contentType || null, by || null, Date.now(), body);
   await clearContentCache();
-  if (prev && prev.url !== url) await deleteFile(prev);
+  // the replaced file goes to the recycle bin (kept in storage until it is deleted forever there)
+  if (prev && prev.url !== url) await binPut('media', unitId + ':' + slot, unitTitle(unitId) + ' · ' + slot + ' (replaced)' + (prev.file_name ? ' · ' + prev.file_name : ''), { row: prev }, by);
 }
 
-export async function removeContent(unitId, slot) {
+export async function removeContent(unitId, slot, by) {
   const r = await one('SELECT * FROM unit_content WHERE unit_id = ? AND slot = ?', unitId, slot);
   if (!r) return null;
   await run('DELETE FROM unit_content WHERE unit_id = ? AND slot = ?', unitId, slot);
   await clearContentCache();
-  await deleteFile(r);
+  await binPut('media', unitId + ':' + slot, unitTitle(unitId) + ' · ' + slot + (r.file_name ? ' · ' + r.file_name : ''), { row: r }, by); // file kept until deleted forever
   return r;
 }
+// Removes an uploaded file from storage: only from the recycle bin ("Delete forever").
+export const purgeStoredFile = (r) => deleteFile(r);
+const unitTitle = (id) => { try { const u = unitRegistry().find((x) => x.id === id); return u ? u.title : id; } catch { return id; } };
 
 async function deleteFile(r) {
   try {
@@ -239,10 +244,12 @@ export async function updateCourse(id, { name }) {
   await clearCustomCache();
 }
 
-export async function deleteCourse(id) {
-  if (!(await one('SELECT id FROM content_courses WHERE id = ? AND deleted_at IS NULL', id))) throw new ContentError('NOT_FOUND', 'Only courses added here can be deleted.', 404);
+export async function deleteCourse(id, by) {
+  const course = await one('SELECT * FROM content_courses WHERE id = ? AND deleted_at IS NULL', id);
+  if (!course) throw new ContentError('NOT_FOUND', 'Only courses added here can be deleted.', 404);
   if (await one('SELECT id FROM content_units WHERE course = ? AND deleted_at IS NULL LIMIT 1', id)) throw new ContentError('NOT_EMPTY', 'Delete the topics of this course first.', 409);
   await run('UPDATE content_courses SET deleted_at = ? WHERE id = ?', Date.now(), id); // kept for the admin analytics
+  await binPut('course', id, course.name, { course }, by);
   await clearCustomCache();
 }
 
@@ -294,14 +301,19 @@ export async function moveUnit(id, dir) {
   await clearCustomCache();
 }
 
-export async function deleteUnit(id) {
-  if (!(await one('SELECT id FROM content_units WHERE id = ? AND deleted_at IS NULL', id))) throw new ContentError('NOT_FOUND', 'Only topics added here can be deleted.', 404);
+export async function deleteUnit(id, by) {
+  const unit = await one('SELECT * FROM content_units WHERE id = ? AND deleted_at IS NULL', id);
+  if (!unit) throw new ContentError('NOT_FOUND', 'Only topics added here can be deleted.', 404);
   await syncContent();
   const before = custom.units;
   custom = { ...custom, units: before.filter((u) => u.id !== id) };
   try { leavesSomething(hiddenState()); } finally { custom = { ...custom, units: before }; }
-  for (const slot of SLOTS) await removeContent(id, slot);
+  // the topic and its files go to the recycle bin together (files stay in storage until deleted forever)
+  const content = await all('SELECT * FROM unit_content WHERE unit_id = ?', id);
+  await run('DELETE FROM unit_content WHERE unit_id = ?', id);
+  await clearContentCache();
   await run('UPDATE content_units SET deleted_at = ? WHERE id = ?', Date.now(), id); // kept for the admin analytics
+  await binPut('topic', id, unit.title, { unit: { ...unit, deleted_at: null }, content }, by);
   await clearCustomCache();
 }
 

@@ -1588,3 +1588,58 @@ test('profile: students listed without a name must add it (and a photo) once; a 
   await ADM('POST', '/api/admin/import', { csv: 'NIAT ID,Student Name\nNONAME01,Riya S Patil\n', fileName: 'n.csv', mode: 'merge' });
   assert.equal((await db.one("SELECT name FROM students_master WHERE roll_no = 'NONAME01'")).name, 'Riya S Patil');
 });
+
+test('recycle bin: deleted topics, files, Sprint questions and reset attempts can be restored', async () => {
+  // an added topic with an uploaded Read page
+  const unit = (await ADM('POST', '/api/admin/content/units', { course: 'pf', title: 'Bin Test Topic', goal: '', concept: '', orientation: 'portrait', practiceTopic: '' })).body;
+  assert.ok(unit.id, JSON.stringify(unit));
+  const html = '<!doctype html><html><body><h1>Bin notes</h1></body></html>';
+  assert.equal((await ADM('POST', '/api/admin/media/' + unit.id + '/read/html', { html, fileName: 'bin.html' })).status, 200);
+  const findBin = async (kind, ref) => (await ADM('GET', '/api/admin/bin')).body.rows.find((r) => r.kind === kind && r.ref === ref);
+
+  // removing the file puts it in the bin; restoring brings it back
+  assert.equal((await ADM('DELETE', '/api/admin/media/' + unit.id + '/read')).status, 200);
+  const fileItem = await findBin('media', unit.id + ':read');
+  assert.ok(fileItem, 'the removed file is in the recycle bin');
+  assert.equal((await ADM('POST', '/api/admin/bin/' + fileItem.id + '/restore')).status, 200);
+  assert.ok(await db.one('SELECT 1 AS x FROM unit_content WHERE unit_id = ? AND slot = ?', unit.id, 'read'), 'file restored');
+
+  // deleting the topic takes its file along; restoring brings both back
+  assert.equal((await ADM('DELETE', '/api/admin/content/units/' + unit.id)).status, 200);
+  assert.equal(await db.one('SELECT 1 AS x FROM unit_content WHERE unit_id = ?', unit.id), undefined);
+  const topicItem = await findBin('topic', unit.id);
+  assert.ok(topicItem, 'the deleted topic is in the recycle bin');
+  assert.equal((await ADM('POST', '/api/admin/bin/' + topicItem.id + '/restore')).status, 200);
+  assert.equal((await db.one('SELECT deleted_at FROM content_units WHERE id = ?', unit.id)).deleted_at, null, 'topic restored');
+  assert.ok(await db.one('SELECT 1 AS x FROM unit_content WHERE unit_id = ? AND slot = ?', unit.id, 'read'), 'its file restored too');
+  assert.equal((await findBin('topic', unit.id)), undefined, 'a restored item leaves the bin');
+
+  // a Sprint question of an unused Sprint
+  const sid = 'bin-test-sprint';
+  const add = await ADM('POST', '/api/admin/sprints/' + sid + '/questions', { course: 'pf', unit: '', q: 'Bin question?', code: '', options: ['a', 'b'], correct: 0 });
+  assert.equal(add.status, 200, JSON.stringify(add.body));
+  const qid = (await db.one('SELECT id FROM sprint_questions WHERE sprint_id = ?', sid)).id;
+  assert.equal((await ADM('DELETE', '/api/admin/sprints/' + sid + '/questions/' + qid)).status, 200);
+  const qItem = await findBin('question', sid);
+  assert.ok(qItem);
+  assert.equal((await ADM('POST', '/api/admin/bin/' + qItem.id + '/restore')).status, 200);
+  assert.equal((await db.one('SELECT q FROM sprint_questions WHERE sprint_id = ?', sid)).q, 'Bin question?');
+
+  // a reset attempt comes back; a second restore is refused while a newer attempt exists
+  const now = Date.now();
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES ('BINTEST01', 'Bin Student', '', 'TEST', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", now);
+  const att = await db.one("INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, submitted_at, total, max_total, used_ms, updated_at) VALUES ('bin-att', 'BINTEST01', 'submitted', ?, ?, ?, 7, 18, 1000, ?) RETURNING id", now, now + 1, now, now);
+  assert.equal((await ADM('DELETE', '/api/admin/attempts/' + att.id)).status, 200);
+  const aItem = await findBin('attempt', 'BINTEST01');
+  assert.ok(aItem);
+  assert.equal((await ADM('POST', '/api/admin/bin/' + aItem.id + '/restore')).status, 200);
+  assert.equal(Number((await db.one("SELECT total FROM attempts WHERE roll_no = 'BINTEST01'")).total), 7, 'attempt restored with its score');
+
+  // delete forever empties the item
+  assert.equal((await ADM('DELETE', '/api/admin/media/' + unit.id + '/read')).status, 200);
+  const again = await findBin('media', unit.id + ':read');
+  assert.equal((await ADM('DELETE', '/api/admin/bin/' + again.id)).status, 200);
+  assert.equal(await findBin('media', unit.id + ':read'), undefined);
+  assert.equal((await ADM('POST', '/api/admin/bin/' + again.id + '/restore')).status, 404, 'gone after delete forever');
+  await ADM('DELETE', '/api/admin/content/units/' + unit.id);
+});

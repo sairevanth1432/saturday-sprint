@@ -95,6 +95,20 @@ export async function deleteQuestion(rawId, qid) {
   return rowToQuestion(r);
 }
 
+// Recycle bin: a deleted question comes back at the end of its Sprint's set.
+export async function restoreQuestionRow(row) {
+  const sprintId = checkSprintId(row.sprint_id);
+  await assertUnlocked(sprintId);
+  const last = await one('SELECT COALESCE(MAX(position), 0) AS p FROM sprint_questions WHERE sprint_id = ?', sprintId);
+  const exists = await one('SELECT id FROM sprint_questions WHERE id = ?', row.id);
+  const cols = ['sprint_id', 'position', 'course', 'unit_id', 'q', 'code', 'options', 'correct', 'created_at', 'updated_at', 'updated_by'].filter((k) => row[k] !== undefined);
+  const vals = cols.map((k) => (k === 'position' ? Number(last.p) + 1 : row[k]));
+  if (!exists) { cols.unshift('id'); vals.unshift(row.id); }
+  await run(`INSERT INTO sprint_questions (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, ...vals);
+  await renumber(sprintId);
+  clearQuestionCache(sprintId);
+}
+
 export async function reorderQuestions(rawId, ids) {
   const sprintId = checkSprintId(rawId);
   await assertUnlocked(sprintId);

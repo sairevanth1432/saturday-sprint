@@ -271,7 +271,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   // ------------------------------------------------------------------ layout
   var NAV = [
     ['overview', 'Overview'], ['approvals', 'Approvals'], ['students', 'Students'], ['results', 'Results'], ['questions', 'Sprint questions'], ['leaderboard', 'Leaderboard'], ['analytics', 'Student analytics', true], ['practiceq', 'Practice questions'], ['practice', 'Practice analytics'], ['likes', 'Video likes'], ['integrity', 'Integrity flags'],
-    ['media', 'Courses & topics'], ['master', 'Master data'], ['archives', 'Archives', true], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['audit', 'Audit log'], ['account', 'My account']
+    ['media', 'Courses & topics'], ['master', 'Master data'], ['archives', 'Archives', true], ['feedback', 'Feedback'], '-', ['settings', 'Sprint settings'], ['admins', 'Admins', true], ['bin', 'Recycle bin'], ['audit', 'Audit log'], ['account', 'My account']
   ];
   function layout(content) {
     var nav = h('div', { class: 'nav' }, NAV.map(function (n) {
@@ -472,7 +472,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
                   if (!v) return;
                   api('PATCH', '/api/admin/users/' + encodeURIComponent(m.roll_no) + '/phone', { phone: v }).then(function () { toast('Login phone changed.'); load(); if (after) after(); }, fail);
                 } }, 'Change login phone'),
-                isSuper() ? act('Reset registration', 'bad', function () { return api('DELETE', '/api/admin/users/' + encodeURIComponent(m.roll_no)); }, 'Delete this account so the student can register again? Their test attempt and progress are kept.') : null))
+                isSuper() ? act('Reset registration', 'bad', function () { return api('DELETE', '/api/admin/users/' + encodeURIComponent(m.roll_no)); }, 'Delete this account so the student can register again? Their test attempt and progress are kept, and the account moves to the Recycle bin.') : null))
               : h('div', { class: 'soft' }, m.active ? 'No account yet. The student registers at /login with this NIAT ID and their own phone; the request then appears under Approvals.' : 'Inactive: not in the current master file, so they cannot register or log in.'),
             s.requests && s.requests.length ? h('div', { style: 'margin-top:12px' }, h('div', { class: 'muted', style: 'font-weight:800;font-size:12px;margin-bottom:6px' }, 'Registration requests'),
               h('table', null, h('tbody', null, s.requests.map(function (r) {
@@ -618,7 +618,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             } }, 'Save marks') : null,
             h('span', { class: 'grow', style: 'flex-grow:1' }),
             isSuper() ? h('button', { class: 'btn bad', onclick: function () {
-              if (!confirm('Reset this attempt? The student can take the Sprint again (only while it is open). The deleted attempt is kept in the audit log.')) return;
+              if (!confirm('Reset this attempt? The student can take the Sprint again (only while it is open). The old attempt moves to the Recycle bin and can be restored from there.')) return;
               api('DELETE', '/api/admin/attempts/' + a.id).then(function () { toast('Attempt reset.'); d.close(); if (after) after(); }, fail);
             } }, 'Reset attempt') : null)));
       }, function (e) { fail(e); d.close(); });
@@ -705,7 +705,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
                 h('button', { class: 'btn sm', title: 'Move up', disabled: i === 0 ? true : null, onclick: function () { move(i, -1); } }, '↑'),
                 h('button', { class: 'btn sm', title: 'Move down', disabled: i === d.questions.length - 1 ? true : null, onclick: function () { move(i, 1); } }, '↓'),
                 h('button', { class: 'btn sm', onclick: function () { questionForm(d, q, base); } }, 'Edit'),
-                h('button', { class: 'btn sm bad', onclick: function () { if (confirm('Delete Q' + (i + 1) + '?')) api('DELETE', base + '/' + q.id).then(function () { toast('Question deleted.'); refresh(); }, fail); } }, 'Delete')) : null),
+                h('button', { class: 'btn sm bad', onclick: function () { if (confirm('Delete Q' + (i + 1) + '? It moves to the Recycle bin and can be restored from there.')) api('DELETE', base + '/' + q.id).then(function () { toast('Question deleted.'); refresh(); }, fail); } }, 'Delete')) : null),
             h('div', { style: 'font-weight:700;line-height:1.45;white-space:pre-wrap' }, q.q),
             q.code ? h('pre', { class: 'code' }, q.code) : null,
             q.type === 'mcq' ? h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, q.o.map(function (o, k) {
@@ -1538,7 +1538,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             input, btn, prog,
             st.upload ? h('button', { class: 'btn sm bad', onclick: function () {
               if (!confirm('Remove the uploaded ' + SLOT_INFO[slot].what + ' for "' + l.title + '"? ' + (st.default || st.folder ? 'The built-in one will show again.' : (slot === 'read' ? 'Students will see "Reading material is coming soon".' : 'This step will be empty.')))) return;
-              api('DELETE', '/api/admin/media/' + encodeURIComponent(l.id) + '/' + slot).then(function () { toast('Removed.'); refresh(); }, fail);
+              api('DELETE', '/api/admin/media/' + encodeURIComponent(l.id) + '/' + slot).then(function () { toast('File moved to the Recycle bin.'); refresh(); }, fail);
             } }, 'Remove') : null)));
       };
       var groups = {};
@@ -1585,8 +1585,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             api('PATCH', '/api/admin/content/courses/' + encodeURIComponent(c.id), { name: name }).then(function () { toast('Renamed.'); refresh(); }, fail);
           } }, 'Rename') : null,
           c.custom && isSuper() ? h('button', { class: 'btn sm bad', type: 'button', onclick: function () {
-            if (!confirm('Delete the course "' + c.name + '"? It must have no topics.')) return;
-            api('DELETE', '/api/admin/content/courses/' + encodeURIComponent(c.id)).then(function () { toast('Course deleted.'); refresh(); }, fail);
+            if (!confirm('Delete the course "' + c.name + '"? It must have no topics. It moves to the Recycle bin and can be restored from there.')) return;
+            api('DELETE', '/api/admin/content/courses/' + encodeURIComponent(c.id)).then(function () { toast('Course moved to the Recycle bin.'); refresh(); }, fail);
           } }, 'Delete course') : null,
           isSuper() ? h('button', { class: 'btn sm', type: 'button', onclick: function () {
             if (!confirm('Remove the course "' + c.name + '" and all its topics from the student portal? Files and students\x27 data are kept. You can restore it later from "Removed" at the bottom of this page.')) return;
@@ -1612,8 +1612,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             api('DELETE', '/api/admin/content/builtin/units/' + encodeURIComponent(l.id)).then(function () { toast('Topic removed. Restore it any time from Removed.'); refresh(); }, fail);
           } }, 'Remove') : null,
           isSuper() ? h('button', { class: 'btn sm bad', type: 'button', onclick: function () {
-            if (!confirm('Delete the topic "' + l.title + '" for good, with its uploaded files? This cannot be undone. Students\' time, steps and likes stay in analytics, but the topic and its ticks leave the portal. Use Remove instead to keep it restorable.')) return;
-            api('DELETE', '/api/admin/content/units/' + encodeURIComponent(l.id)).then(function () { toast('Topic deleted.'); refresh(); }, fail);
+            if (!confirm('Delete the topic "' + l.title + '"? It moves to the Recycle bin with its uploaded files, and can be restored from there. Students\' time, steps and likes stay in analytics.')) return;
+            api('DELETE', '/api/admin/content/units/' + encodeURIComponent(l.id)).then(function () { toast('Topic moved to the Recycle bin.'); refresh(); }, fail);
           } }, 'Delete') : null);
       };
       var count = function (slot) { return info.lessons.filter(function (l) { return l.steps && l.steps[slot].active !== 'none'; }).length; };
@@ -2036,6 +2036,51 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   };
 
   // ---------- audit
+  // ---------- recycle bin: everything deleted in the console (server: recycle.js), plus removed topics and courses
+  VIEWS.bin = function () {
+    return Promise.all([api('GET', '/api/admin/bin'), api('GET', '/api/admin/media')]).then(function (res) {
+      var rows = res[0].rows, hd = (res[1] && res[1].hidden) || { units: [], courses: [] };
+      var F = CACHE.bin = CACHE.bin || { kind: '' };
+      var kinds = [['', 'All']].concat([['topic', 'Topics'], ['course', 'Courses'], ['media', 'Files'], ['question', 'Sprint questions'], ['attempt', 'Test attempts'], ['account', 'Registrations']].filter(function (k) { return rows.some(function (r) { return r.kind === k[0]; }); }));
+      var shown = rows.filter(function (r) { return !F.kind || r.kind === F.kind; });
+      var restore = function (r) {
+        api('POST', '/api/admin/bin/' + r.id + '/restore').then(function () { toast(r.kindLabel + ' restored.'); refresh(); }, fail);
+      };
+      var forever = function (r) {
+        if (!confirm('Delete "' + r.label + '" forever? It cannot be restored after this.' + (r.kind === 'media' || r.kind === 'topic' ? ' Its uploaded files are removed from storage.' : ''))) return;
+        api('DELETE', '/api/admin/bin/' + r.id).then(function () { toast('Deleted forever.'); refresh(); }, fail);
+      };
+      var unhide = function (kind, id, what) {
+        api('POST', '/api/admin/content/builtin/' + kind + '/' + encodeURIComponent(id) + '/restore').then(function () { toast(what + ' restored. Students see it after reloading.'); refresh(); }, fail);
+      };
+      var removed = hd.courses.map(function (c) { return { kind: 'courses', id: c.id, what: 'Course', label: c.name, sub: 'course removed from the portal' }; })
+        .concat(hd.units.map(function (u) { return { kind: 'units', id: u.id, what: 'Topic', label: u.title, sub: (u.courseName || u.course) + ' · topic removed from the portal' }; }));
+      return h('div', null,
+        header('~/admin/bin', 'Recycle bin', 'Everything deleted in this console waits here: topics, courses, uploaded files, Sprint questions, reset attempts and registrations. Restore puts it back as it was. Deleted practice questions are under Practice questions → Deleted.',
+          [h('button', { class: 'btn', onclick: refresh }, 'Refresh')]),
+        removed.length ? h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, 'Removed from the student portal'),
+          h('div', { class: 'soft', style: 'margin-bottom:8px' }, 'Hidden topics and courses. Files and students\' progress are kept; analytics count them in their Sprint.'),
+          removed.map(function (x) {
+            return h('div', { class: 'row', style: 'justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)' },
+              h('div', null, h('b', null, x.label), h('div', { class: 'muted', style: 'font-size:12px' }, x.sub)),
+              isSuper() ? h('button', { class: 'btn sm', onclick: function () { unhide(x.kind, x.id, x.what); } }, 'Restore') : null);
+          })) : null,
+        h('div', { class: 'toolbar' }, kinds.length > 1 ? chips(kinds, F.kind, function (v) { F.kind = v; refresh(); }, 'Kind') : null, h('span', { class: 'grow' }), h('span', { class: 'muted' }, shown.length + ' item(s)')),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Deleted', 'What', 'Item', 'By', ''].map(function (t) { return h('th', null, t); }))),
+          h('tbody', null, shown.length ? shown.map(function (r) {
+            return h('tr', null,
+              h('td', { class: 'muted', style: 'white-space:nowrap' }, dt(r.deletedAt)),
+              h('td', null, pill(r.kindLabel)),
+              h('td', { style: 'max-width:520px;word-break:break-word' }, r.label),
+              h('td', { class: 'muted' }, r.deletedBy || 'system'),
+              h('td', { style: 'white-space:nowrap;text-align:right' }, isSuper() ? h('div', { class: 'row', style: 'gap:6px;justify-content:flex-end' },
+                h('button', { class: 'btn sm', onclick: function () { restore(r); } }, 'Restore'),
+                h('button', { class: 'btn sm bad', onclick: function () { forever(r); } }, 'Delete forever')) : h('span', { class: 'muted' }, 'super admin restores')));
+          }) : h('tr', null, h('td', { colspan: 5, class: 'muted' }, 'The recycle bin is empty.'))))));
+    });
+  };
+
   VIEWS.audit = function () {
     return api('GET', '/api/admin/audit').then(function (d) {
       return h('div', null, header('~/admin/audit', 'Audit log', 'Every admin change: who, what, when. Latest 500.'),

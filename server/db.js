@@ -304,6 +304,10 @@ CREATE TABLE IF NOT EXISTS integrity_flags (
   id BIGSERIAL PRIMARY KEY, roll_no TEXT NOT NULL, question_id TEXT NOT NULL, flag_type TEXT NOT NULL, evidence TEXT, created_at BIGINT NOT NULL);
 CREATE INDEX IF NOT EXISTS integrity_flags_type ON integrity_flags(flag_type, created_at);
 CREATE INDEX IF NOT EXISTS integrity_flags_roll ON integrity_flags(roll_no);
+-- Recycle bin (recycle.js): a snapshot of whatever an admin deleted, restorable until it is deleted forever.
+CREATE TABLE IF NOT EXISTS recycle_bin (id BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL, ref TEXT NOT NULL DEFAULT '', label TEXT NOT NULL DEFAULT '', payload TEXT,
+  deleted_at BIGINT NOT NULL, deleted_by TEXT, restored_at BIGINT, purged_at BIGINT);
+CREATE INDEX IF NOT EXISTS recycle_bin_open ON recycle_bin(deleted_at) WHERE restored_at IS NULL AND purged_at IS NULL;
 `;
 
 // ---------- backend
