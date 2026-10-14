@@ -1289,12 +1289,9 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 </div>
 
 <sc-if value="{{ cur.hasSteps }}" hint-placeholder-val="{{ true }}">
-<div role="list" aria-label="Lesson steps" style="display: flex; align-items: center; gap: 8px">
+<div class="ss-steps" role="tablist" aria-label="Lesson steps">
 <sc-for list="{{ cur.steps }}" as="sp" hint-placeholder-count="3">
-<sc-if value="{{ sp.arrow }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="width: 26px; height: 2px; background: {{ sp.line }}"></span></sc-if>
-<button role="listitem" onClick="{{ sp.go }}" aria-current="{{ sp.cur }}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 16px 0 6px; border: 2px solid {{ sp.ring }}; border-radius: 999px; background: {{ sp.bg }}; color: {{ sp.fg }}; font-size: 15px; font-weight: 800; transition: background 200ms ease, border-color 200ms ease, color 200ms ease">
-<span style="width: 28px; height: 28px; border-radius: 50%; background: {{ sp.dotBg }}; color: {{ sp.dotFg }}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800">{{ sp.mark }}</span><span>{{ sp.name }}</span>
-</button>
+<button class="ss-step" role="tab" onClick="{{ sp.go }}" aria-selected="{{ sp.cur }}" data-done="{{ sp.done }}"><span class="ss-step-mark">{{ sp.mark }}</span><span>{{ sp.name }}</span></button>
 </sc-for>
 </div>
 </sc-if>
@@ -1803,7 +1800,6 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 </sc-if>
 <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px">
 <div style="display: flex; align-items: center; gap: 14px">
-<button class="k3" onClick="{{ pq.listToggle }}" aria-expanded="{{ pq.listOpen }}" aria-label="{{ pq.listLabel }}" title="{{ pq.listLabel }}" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 2px solid #FFE45C; border-radius: 12px; background: {{ pq.listBg }}; color: {{ pq.listFg }}; box-shadow: 0 0 0 4px rgba(255,228,92,.10), 0 3px 0 #000; font-size: 14px; font-weight: 800"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg><span>Topics</span></button>
 <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0; flex-grow: 1">
 <h2 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 24px; font-weight: 700; line-height: 1">Practice</h2>
 <span style="font-size: 14px; font-weight: 700; color: #8A8A8A">{{ pq.courseLabel }} · <span style="color: #EDEDED">{{ pq.topicLabel }}</span></span>

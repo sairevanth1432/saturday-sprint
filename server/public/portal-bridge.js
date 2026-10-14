@@ -781,8 +781,18 @@
       var self = this, S = this.state, items = [];
       (v.lgroups || []).forEach(function (g, ci) {
         (g.topics || []).forEach(function (t, mi) {
-          items.push({ name: t.name, course: g.name, done: !!t.done, soon: !!t.soon, cur: !!t.on && S.tab === 'learn',
-            go: function () { if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; } t.go(); self.setState({ tab: 'learn', ssMenu: '' }); } });
+          var mod = ((self.courseList()[ci] || {}).modules || [])[mi] || {};
+          items.push({ name: t.name, practiceTopic: mod.practiceTopic || '', course: g.name, done: !!t.done, soon: !!t.soon, cur: !!t.on && S.tab === 'learn',
+            go: function () {
+              if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; }
+              // On Practice, a topic in the sidebar switches the practice topic (the page has no Topics button); elsewhere it opens the lesson.
+              if (self.state.tab === 'practice' && v.pq && Array.isArray(v.pq.groups)) {
+                var k = function (x) { return String(x || '').toLowerCase().replace(/&/g, ' and ').replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, ''); };
+                var want = [k(t.name), k(t.practiceTopic)], hit = null;
+                v.pq.groups.forEach(function (gr) { (gr.topics || []).forEach(function (tp) { if (!hit && want.indexOf(k(tp.name)) >= 0) hit = tp; }); });
+                if (hit) { hit.go(); self.setState({ ssMenu: '', ssPHire: false }); return; }
+              }
+              t.go(); self.setState({ tab: 'learn', ssMenu: '' }); } });
         });
       });
       return items;
@@ -1278,7 +1288,7 @@
         v.cur.hasSteps = true;
         v.cur.steps = STEPS.map(function (st, i) {
           var on = i === ti, dn = !!sd[lkey + ':' + st[0]] && !on;
-          return { name: st[1], arrow: i > 0, cur: on, line: i <= ti ? '#FFE45C' : '#333333', mark: dn ? '✓' : String(i + 1),
+          return { name: st[1], arrow: i > 0, cur: on, done: dn, line: i <= ti ? '#FFE45C' : '#333333', mark: dn ? '✓' : String(i + 1),
             ring: on ? '#FFE45C' : dn ? '#5E5E5E' : '#333333', bg: on ? 'rgba(255,228,92,.12)' : 'transparent', fg: on ? '#FFE45C' : dn ? '#EDEDED' : '#8A8A8A',
             dotBg: on || dn ? '#FFE45C' : '#262626', dotFg: on || dn ? '#050505' : '#8A8A8A', go: function () { setTab(st[0]); } };
         });
@@ -1439,6 +1449,7 @@
 
       // Practice "Hiring" tab: load once when Practice opens; Quiz / Coding / another topic leave it
       if (S.tab === 'practice' && !S.ssHiring) this.ssLoadHiring();
+      if (v.pq) v.pq.listOpen = false; // Practice has no Topics panel any more: the sidebar topics switch it
       v.hq = this.ssHiringVals(v);
       if (v.pq && v.hq) {
         var baseQuiz = v.pq.toQuiz, baseCode = v.pq.toCode;

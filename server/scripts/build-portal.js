@@ -777,6 +777,16 @@ replaceOnce('</head>', `<style>
 .ss-map-trophy:hover { box-shadow: 0 0 0 2px #FFE45C, 0 0 18px -4px rgba(255,228,92,.6); }
 .ss-map-trophy svg { width: 22px; height: 22px; }
 @media (prefers-reduced-motion: reduce) { .ss-map-avatar { transition: none; } }
+/* Learn: Watch / Play / Read as a tab strip that sits on the content below it */
+.ss-steps { display: flex; gap: 2px; border-bottom: 1px solid #262626; margin-bottom: -6px; }
+.ss-step { position: relative; display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px; border: 0; background: transparent; color: #8A8A8A; font-size: 15px; font-weight: 800; cursor: pointer; transition: color 160ms ease; }
+.ss-step:hover { color: #FFFFFF; }
+.ss-step::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: transparent; transition: background 160ms ease; }
+.ss-step[aria-selected="true"] { color: #FFE45C; }
+.ss-step[aria-selected="true"]::after { background: #FFE45C; }
+.ss-step-mark { width: 20px; height: 20px; border-radius: 50%; background: #262626; color: #8A8A8A; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+.ss-step[aria-selected="true"] .ss-step-mark, .ss-step[data-done="true"] .ss-step-mark { background: #FFE45C; color: #050505; }
+.ss-step[data-done="true"] { color: #DADADA; }
 /* Practice "Hiring" tab */
 .ss-hq-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 1100px) { .ss-hq-grid { grid-template-columns: 1fr; } }
