@@ -1588,10 +1588,10 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             if (!confirm('Delete the course "' + c.name + '"? It must have no topics.')) return;
             api('DELETE', '/api/admin/content/courses/' + encodeURIComponent(c.id)).then(function () { toast('Course deleted.'); refresh(); }, fail);
           } }, 'Delete course') : null,
-          !c.custom && isSuper() ? h('button', { class: 'btn sm bad', type: 'button', onclick: function () {
-            if (!confirm('Remove the course "' + c.name + '" and all its topics from the student portal? You can restore it later from "Removed" at the bottom of this page.')) return;
+          isSuper() ? h('button', { class: 'btn sm', type: 'button', onclick: function () {
+            if (!confirm('Remove the course "' + c.name + '" and all its topics from the student portal? Files and students\x27 data are kept. You can restore it later from "Removed" at the bottom of this page.')) return;
             api('DELETE', '/api/admin/content/builtin/courses/' + encodeURIComponent(c.id)).then(function () { toast('Course removed. Students no longer see it after reloading.'); refresh(); }, fail);
-          } }, 'Delete course') : null);
+          } }, 'Remove course') : null);
       };
       var topicTools = function (l, list) {
         if (!l.custom) return isSuper() ? h('div', { class: 'row', style: 'gap:6px;margin-top:8px' },
@@ -1607,8 +1607,12 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('button', { class: 'btn sm', type: 'button', onclick: function () { topicForm(l.course, l); } }, 'Edit'),
           h('button', { class: 'btn sm', type: 'button', title: 'Move up', 'aria-label': 'Move up', disabled: k <= 0 ? true : null, onclick: function () { move(-1); } }, '\u2191'),
           h('button', { class: 'btn sm', type: 'button', title: 'Move down', 'aria-label': 'Move down', disabled: k >= mine.length - 1 ? true : null, onclick: function () { move(1); } }, '\u2193'),
+          isSuper() ? h('button', { class: 'btn sm', type: 'button', title: 'Hide from students; files, progress, time and likes are kept and it can be restored', onclick: function () {
+            if (!confirm('Remove the topic "' + l.title + '" from the student portal? Its files and every student\'s progress, time and likes are kept, and analytics still count it in its Sprint. You can restore it from "Removed" at the bottom of this page.')) return;
+            api('DELETE', '/api/admin/content/builtin/units/' + encodeURIComponent(l.id)).then(function () { toast('Topic removed. Restore it any time from Removed.'); refresh(); }, fail);
+          } }, 'Remove') : null,
           isSuper() ? h('button', { class: 'btn sm bad', type: 'button', onclick: function () {
-            if (!confirm('Delete the topic "' + l.title + '" and its uploaded files? Students lose its progress ticks.')) return;
+            if (!confirm('Delete the topic "' + l.title + '" for good, with its uploaded files? This cannot be undone. Students\' time, steps and likes stay in analytics, but the topic and its ticks leave the portal. Use Remove instead to keep it restorable.')) return;
             api('DELETE', '/api/admin/content/units/' + encodeURIComponent(l.id)).then(function () { toast('Topic deleted.'); refresh(); }, fail);
           } }, 'Delete') : null);
       };
@@ -1641,7 +1645,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           };
           var item = function (label, sub, btn) { return h('div', { class: 'row', style: 'justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)' }, h('div', null, h('b', null, label), h('div', { class: 'muted', style: 'font-size:12px' }, sub)), btn); };
           return h('div', { class: 'card' }, h('h2', null, 'Removed'),
-            h('div', { class: 'soft', style: 'margin-bottom:8px' }, 'Built-in courses and topics removed from the student portal. Restoring brings them back with their files and students\' progress.'),
+            h('div', { class: 'soft', style: 'margin-bottom:8px' }, 'Courses and topics removed from the student portal. Restoring brings them back with their files and students\' progress; analytics keep counting them in their Sprint meanwhile.'),
             hd.courses.map(function (c) { return item(c.name, 'course · ' + c.id, isSuper() ? h('button', { class: 'btn sm', type: 'button', onclick: function () { restore('courses', c.id, 'Course'); } }, 'Restore') : null); }),
             hd.units.map(function (u) { return item(u.title, (u.courseName || u.course) + ' · ' + u.id, isSuper() ? h('button', { class: 'btn sm', type: 'button', onclick: function () { restore('units', u.id, 'Topic'); } }, 'Restore') : null); }));
         })());

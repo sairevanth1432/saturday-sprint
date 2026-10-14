@@ -1262,6 +1262,11 @@
         var sd = S.stepDone || {}, lkey = CO.id + '-' + S.mod + '-' + S.les;
         var setTab = function (t, markDone) {
           self.xpStop();
+          // Play (game) and Read open in full screen straight away: the click that opens them allows it. Esc leaves.
+          if ((t === 'play' || t === 'read') && !self.ssProctorActive()) setTimeout(function () {
+            var el = document.getElementById('ss-embed'), rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
+            if (rq && document.fullscreenElement !== el) { try { var p = rq.call(el); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+          }, 120);
           self.setState(function (s) {
             var nt = Object.assign({}, s.ssTab); nt[les.id] = t;
             var o = { ssTab: nt };

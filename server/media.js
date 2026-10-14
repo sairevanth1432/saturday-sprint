@@ -185,12 +185,16 @@ const isHidden = (u) => custom.hidden.units.includes(u.id) || custom.hidden.cour
 export const hiddenState = () => ({ courses: custom.hidden.courses.slice(), units: custom.hidden.units.slice() });
 export const builtinCourses = () => BUILTIN_COURSES.filter((c) => !custom.hidden.courses.includes(c.id));
 export const clearCustomCache = async () => { await kv.invalidate('content:v1'); custom = await syncContent(); };
-export const customCourses = () => custom.courses;
-export const courseNames = () => Object.fromEntries(builtinCourses().concat(custom.courses).map((c) => [c.id, c.name]));
+// Added courses that are not removed (Remove = hidden, restorable; Delete = gone from the console, kept for analytics).
+const liveCustomCourses = () => custom.courses.filter((c) => !custom.hidden.courses.includes(c.id));
+export const customCourses = () => liveCustomCourses();
+export const courseNames = () => Object.fromEntries(builtinCourses().concat(liveCustomCourses()).map((c) => [c.id, c.name]));
+// Removed (hidden) added topics and courses, for the "Removed" card in Admin → Courses & topics.
+export const hiddenCustom = () => ({ units: custom.units.filter((u) => custom.hidden.units.includes(u.id)), courses: custom.courses.filter((c) => custom.hidden.courses.includes(c.id)) });
 // Units of a course in the order the portal shows them (built-in first, then admin-added by position).
 function customUnits() {
-  const order = new Map(builtinCourses().concat(custom.courses).map((c, i) => [c.id, i]));
-  return custom.units.filter((u) => order.has(u.course)).map((u) => ({
+  const order = new Map(builtinCourses().concat(liveCustomCourses()).map((c, i) => [c.id, i]));
+  return custom.units.filter((u) => order.has(u.course) && !custom.hidden.units.includes(u.id)).map((u) => ({
     id: u.id, course: u.course, name: u.title, color: '#FFE45C', practiceTopic: u.practice_topic || '', custom: true,
     lessons: [{ id: u.id, kind: 'video', title: u.title, goal: u.goal || '', tabs: { watch: null, play: null, read: null },
       watch: { type: 'video', src: '', title: u.title, orientation: u.orientation === 'portrait' ? 'portrait' : 'landscape' } }]
@@ -311,14 +315,14 @@ async function saveHidden(h) {
 function leavesSomething(h) {
   const hiddenUnit = (u) => h.units.includes(u.id) || h.courses.includes(u.course);
   const built = (builtUnits().units || []).some((u) => !hiddenUnit(u));
-  const added = custom.units.some((u) => !h.courses.includes(u.course));
+  const added = custom.units.some((u) => !h.courses.includes(u.course) && !h.units.includes(u.id));
   if (!built && !added) throw new ContentError('LAST_TOPIC', 'Students need at least one topic in Learn. Add another topic before removing this one.', 409);
 }
 const builtinUnitIds = () => new Set((builtUnits().units || []).map((u) => u.id));
 
 export async function hideBuiltinUnit(id) {
   await syncContent();
-  if (!builtinUnitIds().has(id)) throw new ContentError('NOT_FOUND', 'Unknown topic.', 404);
+  if (!builtinUnitIds().has(id) && !custom.units.some((u) => u.id === id)) throw new ContentError('NOT_FOUND', 'Unknown topic.', 404);
   const h = hiddenState();
   h.units.push(id);
   leavesSomething(h);
@@ -326,7 +330,7 @@ export async function hideBuiltinUnit(id) {
 }
 export async function hideBuiltinCourse(id) {
   await syncContent();
-  if (!BUILTIN_COURSES.some((c) => c.id === id)) throw new ContentError('NOT_FOUND', 'Unknown course.', 404);
+  if (!BUILTIN_COURSES.some((c) => c.id === id) && !custom.courses.some((c) => c.id === id)) throw new ContentError('NOT_FOUND', 'Unknown course.', 404);
   const h = hiddenState();
   h.courses.push(id);
   leavesSomething(h);

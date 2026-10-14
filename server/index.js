@@ -22,7 +22,7 @@ import {
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
-  builtinCourses, hiddenLessons, hiddenState, hideBuiltinUnit, hideBuiltinCourse, restoreBuiltin } from './media.js';
+  builtinCourses, hiddenLessons, hiddenState, hideBuiltinUnit, hideBuiltinCourse, restoreBuiltin, hiddenCustom } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
 import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.js';
 import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
@@ -912,7 +912,8 @@ const slotOk = (req, res) => {
 const typeError = (slot) => (slot === 'watch' ? 'Upload an MP4 (or WebM) video.' : 'Upload a single .html file.');
 adm.get('/media', async (req, res) => {
   const kind = storageKind();
-  res.json({ lessons: await catalog(), hidden: { units: hiddenLessons().filter((l) => hiddenState().units.includes(l.id)).map((l) => ({ id: l.id, title: l.title, course: l.course, courseName: l.courseName })), courses: BUILTIN_COURSES.filter((c) => hiddenState().courses.includes(c.id)) },
+  res.json({ lessons: await catalog(), hidden: { units: hiddenLessons().filter((l) => hiddenState().units.includes(l.id)).map((l) => ({ id: l.id, title: l.title, course: l.course, courseName: l.courseName }))
+    .concat(hiddenCustom().units.map((u) => ({ id: u.id, title: u.title, course: u.course, courseName: courseNames()[u.course] || u.course, added: true }))), courses: BUILTIN_COURSES.filter((c) => hiddenState().courses.includes(c.id)).concat(hiddenCustom().courses.map((c) => ({ id: c.id, name: c.name, added: true }))) },
     courses: builtinCourses().map((c) => ({ ...c, custom: false })).concat(customCourses().map((c) => ({ id: c.id, name: c.name, custom: true }))), storage: kind, blob: kind === 'blob', s3: kind === 's3', localUpload: kind === 'local',
     maxBytes: config.maxVideoBytes, maxHtmlBytes: maxBytesFor('play'),
     folder: config.isVercel ? 'server/public/learning-bytes/ (in the repository; redeploy after adding files)' : config.learningBytesDir });
