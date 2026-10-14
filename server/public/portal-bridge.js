@@ -1397,6 +1397,8 @@
       if (focus) v.side = { full: false, mini: true, w: '84px', pad: '12px', jc: 'center', align: 'center', rot: 'rotate(180deg)', label: 'Expand menu', toggle: v.side.toggle };
       else v.side.mini = !v.side.full;
       var topicItems = this.ssTopicItems(v);
+      // Learn has no Topics panel any more (the sidebar lists the topics): keep it closed even if it was open before.
+      v.listOpen = false; v.listClosed = true;
       v.ss_topics = { open: S.ssTopicsOpen !== false, show: S.ssTopicsOpen !== false && !!v.side.full, rot: S.ssTopicsOpen !== false ? 'rotate(180deg)' : 'none',
         toggle: function () { if (!v.side.full) { self.setState({ tab: 'learn', ssTopicsOpen: true, ssMenu: '' }); return; } self.setState(function (s) { return { ssTopicsOpen: s.ssTopicsOpen === false }; }); },
         list: (function () { var out = [], last = null; topicItems.forEach(function (t) {
