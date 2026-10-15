@@ -795,9 +795,16 @@
               // On Practice, a topic in the sidebar switches the practice topic (the page has no Topics button); elsewhere it opens the lesson.
               if (self.state.tab === 'practice' && v.pq && Array.isArray(v.pq.groups)) {
                 var k = function (x) { return String(x || '').toLowerCase().replace(/&/g, ' and ').replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, ''); };
-                var want = [k(t.name), k(t.practiceTopic)], hit = null;
-                v.pq.groups.forEach(function (gr) { (gr.topics || []).forEach(function (tp) { if (!hit && want.indexOf(k(tp.name)) >= 0) hit = tp; }); });
-                if (hit) { hit.go(); self.setState({ ssMenu: '', ssPHire: false }); return; }
+                var part = function (x) { var m = /\bpart\s*-?\s*(\d+)\b/i.exec(String(x || '')); return m ? m[1] : ''; };
+                // same name, and the same Part number when both names have one ("… Part 1" is not "… Part 2")
+                var same = function (a, b) { return !!a && k(a) === k(b) && (!part(a) || !part(b) || part(a) === part(b)); };
+                var hit = null;
+                var pt = mod.practiceTopic || '';
+                v.pq.groups.forEach(function (gr) { (gr.topics || []).forEach(function (tp) { if (!hit && (same(t.name, tp.name) || same(pt, tp.name))) hit = tp; }); });
+                if (hit) { hit.go(); self.setState({ ssMenu: '', ssPHire: false, ssHqTopic: null }); return; }
+                // no Quiz questions for this topic, but Hiring questions: Practice shows its Hiring tab
+                var hname = self.ssHqFind(t.name) ? t.name : self.ssHqFind(pt) ? pt : '';
+                if (hname) { self.setState({ ssMenu: '', ssPHire: true, ssHqTopic: { name: hname, course: g.name } }); return; }
               }
               t.go(); self.setState({ tab: 'learn', ssMenu: '' }); } });
         });
@@ -863,12 +870,22 @@
       var t = ((this.state.ssHiring || {}).topics || []).find(function (x) { return x.questions.some(function (q) { return q.id === id; }); });
       api('POST', '/api/practice/hiring-event', Object.assign({ qid: id, topic: t ? t.topic : '' }, body)).catch(function () {});
     }
+    // The Hiring topic for a portal topic name: same words ignoring case, punctuation and "&"/"and"; then also a trailing
+    // "s" and "Introduction"/"Intro". A Part number must match ("… Part 1" is not "… Part 2").
+    ssHqFind(name) {
+      var T = ((this.state.ssHiring || {}).topics) || [];
+      if (!name || !T.length) return null;
+      var exact = function (s) { return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ''); };
+      var loose = function (s) { return exact(String(s || '').replace(/\bintroduction\b/ig, 'intro').replace(/\bpart\s*-?\s*(\d+)\b/ig, 'part$1')).replace(/s(?=part\d|$)/g, ''); };
+      var e = exact(name), l = loose(name);
+      return T.find(function (t) { return exact(t.topic) === e; }) || T.find(function (t) { return loose(t.topic) === l; }) || null;
+    }
     // One MCQ at a time, like the Quiz, made from an interview question (make-hiring-mcq.js). Filter by difficulty;
     // answers are kept per student in ssHqPick (question id → option), saved with the rest of Practice progress.
     ssHiringVals(v) {
       var S = this.state, self = this, H = S.ssHiring, key = function (s) { return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ''); };
       var label = v.pq && v.pq.topicLabel, k = key(label);
-      var topic = H && (H.topics || []).find(function (t) { return key(t.topic) === k; });
+      var topic = H ? this.ssHqFind(label) : null;
       var all = topic ? topic.questions.filter(function (q) { return Array.isArray(q.o) && q.o.length > 1; }) : [];
       var on = !!S.ssPHire && !!topic && S.tab === 'practice';
       var LV = { Easy: '#9BE58B', Medium: '#FFE45C', Hard: '#FF7A7A' };
@@ -1585,11 +1602,17 @@
       // Practice "Hiring" tab: load once when Practice opens; Quiz / Coding / another topic leave it
       if (S.tab === 'practice' && !S.ssHiring) this.ssLoadHiring();
       if (v.pq) v.pq.listOpen = false; // Practice has no Topics panel any more: the sidebar topics switch it
+      // A topic with Hiring questions but no Quiz questions (picked in the sidebar on Practice): Practice shows it with
+      // only its Hiring tab, under that topic's own name and course.
+      var hqOnly = S.tab === 'practice' && S.ssHqTopic && v.pq ? S.ssHqTopic : null;
+      if (hqOnly) Object.assign(v.pq, { topicLabel: hqOnly.name, courseLabel: hqOnly.course, nQuiz: '0', hasCoding: false, isQuizItem: false, isCodeItem: false });
       v.hq = this.ssHiringVals(v);
+      if (hqOnly && v.hq) v.pq.score = v.hq.correct + ' / ' + v.hq.n; // the score is this topic's Hiring score
       if (v.pq && v.hq) {
         var baseQuiz = v.pq.toQuiz, baseCode = v.pq.toCode;
-        v.pq.toQuiz = function () { self.setState({ ssPHire: false }); if (baseQuiz) baseQuiz(); };
-        v.pq.toCode = function () { self.setState({ ssPHire: false }); if (baseCode) baseCode(); };
+        v.pq.toQuiz = hqOnly ? function () { self.ssToast('This topic has no quiz questions yet. Practise its Hiring questions.'); }
+          : function () { self.setState({ ssPHire: false }); if (baseQuiz) baseQuiz(); };
+        v.pq.toCode = function () { self.setState({ ssPHire: false, ssHqTopic: null }); if (baseCode) baseCode(); };
         if (v.hq.on) { v.pq.qBg = 'transparent'; v.pq.qFg = '#BDBDBD'; }
       }
       v.lb = this.ssBoardVals();
