@@ -101,7 +101,8 @@ export function parseImport(files) {
     for (const set of d.coding_practice || []) for (const q of set.questions || []) {
       const srcId = String(q.question_id || ''), lvl = String(q.question_difficulty || '').toLowerCase();
       const it = { file: f.name, srcId, kind: 'code', course, topic, type: String(q.question_type || 'CODING'), issues: [], skip: '' };
-      if (course !== 'pf') { it.skip = course === 'wad' ? 'HTML/CSS coding: the Practice editor runs Python only.' : 'Workflow project (n8n), not a Python problem: the Practice editor runs Python only.'; it.data = { title: plain(q.question_short_text) }; items.push(it); continue; }
+      // GenAI / WAD topics may have Python problems too (question_type CODING); HTML and n8n tasks cannot run in Practice
+      if (course !== 'pf' && it.type.toUpperCase() !== 'CODING') { it.skip = course === 'wad' ? 'HTML/CSS coding: the Practice editor runs Python only.' : 'Workflow project (n8n), not a Python problem: the Practice editor runs Python only.'; it.data = { title: plain(q.question_short_text) }; items.push(it); continue; }
       it.data = { title: plain(first(q, ['question_short_text', 'title', 'question_title']) ?? ''), text: plain(first(q, ['question_content', 'content']) ?? ''),
         level: ['easy', 'medium', 'hard'].includes(lvl) ? lvl : 'medium', starter: String(first(q, ['starter_code', 'code_template', 'default_code']) ?? '').replace(/\r\n?/g, '\n'), tests: readTests(q) };
       if (!it.data.title) it.issues.push('no title');

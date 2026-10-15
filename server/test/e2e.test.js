@@ -16,6 +16,7 @@ process.env.ADMIN_REQUIRE_TOTP = 'true'; // tests must not depend on a developer
 process.env.OTP_DEV_SHOW = 'true';
 process.env.OTP_RESEND_SECONDS = '0';
 process.env.PORT = '0';
+process.env.PRACTICE_SEED = '0'; // the repository's Practice questions are imported by their own test (the last one)
 process.env.SPRINT_OPEN = new Date(Date.now() + 86400000).toISOString();
 process.env.SPRINT_CLOSE = new Date(Date.now() + 2 * 86400000).toISOString();
 
@@ -1727,4 +1728,24 @@ test('recycle bin: deleted topics, files, Sprint questions and reset attempts ca
   assert.equal(await findBin('media', unit.id + ':read'), undefined);
   assert.equal((await ADM('POST', '/api/admin/bin/' + again.id + '/restore')).status, 404, 'gone after delete forever');
   await ADM('DELETE', '/api/admin/content/units/' + unit.id);
+});
+
+// Last on purpose: the other Practice tests expect an empty question list.
+test('practice seed: content/practice-import is imported once (MCQs and Python coding for every course), and checking again adds nothing', async () => {
+  const seedFile = path.join(here, '..', 'generated', 'practice-seed.json');
+  if (!fs.existsSync(seedFile)) return; // no repository questions in this build
+  const seed = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
+  const ids = new Set(seed.files.flatMap((f) => (f.json.mcq_practice || []).concat(f.json.coding_practice || []).flatMap((s) => s.questions.map((q) => String(q.question_id)))));
+  const { seedPractice } = await import('../practiceq.js');
+  const first = await seedPractice({ force: true });
+  assert.equal(first.seeded, true);
+  const mine = (await db.all("SELECT kind, course, topic, src_id FROM practice_questions WHERE src_id IS NOT NULL AND src_id <> ''")).filter((r) => ids.has(r.src_id));
+  assert.equal(mine.length, ids.size, 'every repository question is in Practice');
+  assert.ok(mine.some((r) => r.kind === 'code' && r.course === 'wad'), 'Python problems for Web topics are kept');
+  const px = (await A('GET', '/api/bootstrap')).body.practiceExtra;
+  assert.ok(px.mcq.some((q) => q.course === 'pf' && q.sess === 'For Loop' && q.o.length === 4));
+  assert.ok(px.code.some((c) => c.topic === 'HTML Hyperlinks' && c.tests.length >= 5));
+  const n = (await db.all('SELECT id FROM practice_questions')).length;
+  assert.equal((await seedPractice({ force: true })).seeded, false, 'same files: nothing to do');
+  assert.equal((await db.all('SELECT id FROM practice_questions')).length, n, 'no duplicates');
 });

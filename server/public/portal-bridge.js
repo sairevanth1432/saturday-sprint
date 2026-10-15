@@ -1308,16 +1308,26 @@
         return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/\binro\b|\bintroduction\b/g, 'intro')
           .replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, '');
       };
+      // the same key with the Part number kept: "… Part 1" and "… Part 2" are two topics, matched before the general key
+      var keyP = function (s) { var m = /\bpart\s*-?\s*(\d+)\b/i.exec(String(s || '')); return m ? key(s) + '#' + m[1] : ''; };
       var learn = {};
-      this.courseList().forEach(function (c) { c.modules.forEach(function (m) { if (m.name) learn[key(m.name)] = m.name; }); });
-      this.courseList().forEach(function (c) { c.modules.forEach(function (m) { if (m.name && m.practiceTopic) learn[key(m.practiceTopic)] = m.name; }); });
+      var put = function (name, as) { learn[key(name)] = as; if (keyP(name)) learn[keyP(name)] = as; };
+      this.courseList().forEach(function (c) { c.modules.forEach(function (m) { if (m.name) put(m.name, m.name); }); });
+      this.courseList().forEach(function (c) { c.modules.forEach(function (m) { if (m.name && m.practiceTopic) put(m.practiceTopic, m.name); }); });
+      // a "Part 2" question never lands on a "Part 1" topic (when its own Part is missing it stays hidden)
+      var partOf = function (s) { var m = /\bpart\s*-?\s*(\d+)\b/i.exec(String(s || '')); return m ? m[1] : ''; };
+      var find = function (s) {
+        if (keyP(s) && learn[keyP(s)]) return learn[keyP(s)];
+        var m = learn[key(s)] || '';
+        return m && partOf(s) && partOf(m) && partOf(m) !== partOf(s) ? '' : m;
+      };
       var lists = ['practice', 'ccbpQuiz', 'genaiQuiz'], self = this;
-      var any = lists.some(function (n) { return (self[n] || []).some(function (p) { return p.sess && learn[key(p.sess)]; }); });
+      var any = lists.some(function (n) { return (self[n] || []).some(function (p) { return p.sess && find(p.sess); }); });
       if (!any) return;
       lists.forEach(function (n) {
-        self[n] = (self[n] || []).map(function (p) { return p.sess ? Object.assign({}, p, { sess: learn[key(p.sess)] || '' }) : p; });
+        self[n] = (self[n] || []).map(function (p) { return p.sess ? Object.assign({}, p, { sess: find(p.sess) }) : p; });
       });
-      this.ccbpCoding = (this.ccbpCoding || []).map(function (p) { return p.topic ? Object.assign({}, p, { topic: learn[key(p.topic)] || '' }) : p; });
+      this.ccbpCoding = (this.ccbpCoding || []).map(function (p) { return p.topic ? Object.assign({}, p, { topic: find(p.topic) }) : p; });
     }
 
     // Built-in courses, then the courses admins added that have at least one topic.

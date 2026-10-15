@@ -1,0 +1,308 @@
+{
+  "track": "Programming Foundations",
+  "course": "Computer Programming",
+  "session": "For Loop",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice For Loop",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "f59c3c7aa474482b977673ae67badf64",
+          "question_order": 1,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "x = \"abcd\"\nfor i in range(len(x)):\n    print(i)",
+          "options": [
+            {
+              "content": "1\n2\n3\n4",
+              "is_correct": false
+            },
+            {
+              "content": "a\nb\nc\nd",
+              "is_correct": false
+            },
+            {
+              "content": "0\n1\n2\n3",
+              "is_correct": true
+            },
+            {
+              "content": "0\n1\n2\n3\n4",
+              "is_correct": false
+            }
+          ],
+          "explanation": "len(x) is 4, so range(4) gives 0, 1, 2, 3 and the loop prints the indices, not the characters."
+        },
+        {
+          "question_id": "009bb5223bf043a7af98d0931d73b751",
+          "question_order": 2,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "count = 0\nfor i in range(1, 10):\n    count = (count + 1)\nprint(count)",
+          "options": [
+            {
+              "content": "9",
+              "is_correct": true
+            },
+            {
+              "content": "10",
+              "is_correct": false
+            },
+            {
+              "content": "45",
+              "is_correct": false
+            },
+            {
+              "content": "0",
+              "is_correct": false
+            }
+          ],
+          "explanation": "range(1, 10) runs for i = 1 to 9 (the end value 10 is excluded), so count is increased 9 times."
+        },
+        {
+          "question_id": "228ba17ab5784b01b22cfddf3975ab18",
+          "question_order": 3,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "slogan = \"Save Earth, Save Lives\"\nlength_of_slogan = len(slogan)\n\nfor i in range(length_of_slogan):\n    if slogan[i] == \" \":\n        print(slogan[:i])",
+          "options": [
+            {
+              "content": "Save\nEarth,\nSave",
+              "is_correct": false
+            },
+            {
+              "content": "Save Earth, Save",
+              "is_correct": false
+            },
+            {
+              "content": "Save\nSave Earth,\nSave Earth, Save\nSave Earth, Save Lives",
+              "is_correct": false
+            },
+            {
+              "content": "Save\nSave Earth,\nSave Earth, Save",
+              "is_correct": true
+            }
+          ],
+          "explanation": "Each time slogan[i] is a space, slogan[:i] prints everything before that space; there are 3 spaces, so 3 growing prefixes are printed."
+        },
+        {
+          "question_id": "7edafb5668194c47b0eb31e9f5d978a5",
+          "question_order": 4,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "sentence = \"It's a thriller movie\"\ncharacter = \"l\"\ncount = 2\n\nfor each_char in sentence:\n    if each_char == character:\n        count = count + 1\n        \nprint(count)",
+          "options": [
+            {
+              "content": "2",
+              "is_correct": false
+            },
+            {
+              "content": "4",
+              "is_correct": true
+            },
+            {
+              "content": "3",
+              "is_correct": false
+            },
+            {
+              "content": "5",
+              "is_correct": false
+            }
+          ],
+          "explanation": "The letter 'l' appears twice in \"thriller\", and count starts at 2, so the final value is 2 + 2 = 4."
+        },
+        {
+          "question_id": "e4284873790345a3a3a4a21aaf5f4714",
+          "question_order": 5,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "number = 20\n\nfor i in range(number):\n    number = (number - 1)\n\nprint(number)",
+          "options": [
+            {
+              "content": "0",
+              "is_correct": true
+            },
+            {
+              "content": "20",
+              "is_correct": false
+            },
+            {
+              "content": "19",
+              "is_correct": false
+            },
+            {
+              "content": "-1",
+              "is_correct": false
+            }
+          ],
+          "explanation": "range(number) is created once as range(20), so the loop runs 20 times even though number changes inside it; 20 - 20 = 0."
+        },
+        {
+          "question_id": "14f003103dde42b3a4cd90b9b7d7a96c",
+          "question_order": 6,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "number = 10\ntotal = 100\nfor i in range(1, number):\n    if (i % 2) == 0:\n        total = (total - i)\nprint(total)",
+          "options": [
+            {
+              "content": "70",
+              "is_correct": false
+            },
+            {
+              "content": "75",
+              "is_correct": false
+            },
+            {
+              "content": "80",
+              "is_correct": true
+            },
+            {
+              "content": "55",
+              "is_correct": false
+            }
+          ],
+          "explanation": "range(1, 10) gives 1 to 9; only the even values 2, 4, 6, 8 (sum 20) are subtracted, so 100 - 20 = 80."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding For Loop",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "6449c975407641cb9903d2f8b6c74955",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Cubes of N Numbers (For Loop)",
+          "question_difficulty": "EASY",
+          "question_content": "Write a program that reads a number `N` and prints the cube of numbers from **1** to `N`.\n\n* The cube of a number `X` is `X` to the power **3** (`X *⁠* 3`).\n* Use the **For** loop to iterate over the range of numbers.\n\n---\n\n#### Input\n\nThe input will be a single line containing an integer representing `N`.\n\n---\n\n#### Output\n\nThe output should be `N` lines containing integers that are the cubes of numbers from **1** to `N`, each on a new line.\n\n---\n\n#### Explanation\n\nFor example, if the given number is `N = 3`,\n\n- The numbers from **1** to **3** are **1**, **2** and **3**.\n- The cubes of numbers from **1** to **3** are **1**, **8**, and **27**.\n\n#### Sample Input\n```\n3\n```\n\n#### Sample Output\n```\n1\n8\n27\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "3",
+              "output": "1\n8\n27",
+              "is_hidden": false
+            },
+            {
+              "input": "1",
+              "output": "1",
+              "is_hidden": true
+            },
+            {
+              "input": "2",
+              "output": "1\n8",
+              "is_hidden": true
+            },
+            {
+              "input": "5",
+              "output": "1\n8\n27\n64\n125",
+              "is_hidden": true
+            },
+            {
+              "input": "10",
+              "output": "1\n8\n27\n64\n125\n216\n343\n512\n729\n1000",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "24fc8d819ead469b816bedd5ed7b6eb5",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Product of N Inputs (For Loop)",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Given an integer `N`, write a program that reads `N` inputs and prints the product of the given inputs.\n\nUse the **For** loop to iterate over the range of numbers.\n\n---\n\n#### Input\n\nThe first line of input contains an integer representing `N`.\nThe next `N` lines of input contain integers.\n\n---\n\n#### Output\n\nThe output should be a single line containing an integer that is the product of the given inputs.\n\n---\n\n#### Explanation\n\nFor example, if the given number is `N = 3`,\n\n* The **3** inputs are **2**, **3**, and **7**.\n* The product of the given inputs is **42**. (`2 * 3 * 7 = 42`)\n\n|Number | Previous Product | Previous Product * Number = Current Product |\n|---|---|---|\n|2 | 1 | 1 * 2 = 2 |\n|3 | 2 | 2 * 3 = 6 |\n|7 | 6 | 6 * 7 = 42 |\n\n#### Sample Input\n```\n3\n2\n3\n7\n```\n\n#### Sample Output\n```\n42\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "3\n2\n3\n7",
+              "output": "42",
+              "is_hidden": false
+            },
+            {
+              "input": "1\n9",
+              "output": "9",
+              "is_hidden": true
+            },
+            {
+              "input": "4\n5\n0\n12\n3",
+              "output": "0",
+              "is_hidden": true
+            },
+            {
+              "input": "3\n-2\n4\n-5",
+              "output": "40",
+              "is_hidden": true
+            },
+            {
+              "input": "6\n1\n2\n3\n4\n5\n6",
+              "output": "720",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-forloop-even-odd-max-report",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Even Sum, Odd Count and Maximum (For Loop)",
+          "question_difficulty": "HARD",
+          "question_content": "Given an integer `N`, write a program that reads `N` integers and prints a small report about them:\n\n1. **Even Sum** - the sum of all the even numbers among the inputs.\n2. **Odd Count** - how many of the inputs are odd numbers.\n3. **Maximum** - the largest of the inputs.\n\nUse a **For** loop to read the numbers and update all three values inside the same loop. Do not use the built-in `max()` or `sum()` functions.\n\nNote: **0** is an even number. Inputs can be negative.\n\n---\n\n#### Input\n\nThe first line of input contains an integer representing `N` (`N &gt;= 1`).\nThe next `N` lines of input contain one integer each.\n\n---\n\n#### Output\n\nThe output should be three lines in the format shown below, where X is the even sum, Y is the odd count and Z is the maximum:\n\n```\nEven Sum: X\nOdd Count: Y\nMaximum: Z\n```\n\nIf there are no even numbers, the Even Sum is **0**.\n\n---\n\n#### Explanation\n\nFor example, if `N = 5` and the inputs are **4**, **-7**, **10**, **3** and **8**,\n\n- The even numbers are **4**, **10** and **8**. Even Sum = `4 + 10 + 8 = 22`.\n- The odd numbers are **-7** and **3**. Odd Count = **2**.\n- The largest number is **10**.\n\n#### Sample Input\n```\n5\n4\n-7\n10\n3\n8\n```\n\n#### Sample Output\n```\nEven Sum: 22\nOdd Count: 2\nMaximum: 10\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "5\n4\n-7\n10\n3\n8",
+              "output": "Even Sum: 22\nOdd Count: 2\nMaximum: 10",
+              "is_hidden": false
+            },
+            {
+              "input": "1\n-5",
+              "output": "Even Sum: 0\nOdd Count: 1\nMaximum: -5",
+              "is_hidden": true
+            },
+            {
+              "input": "4\n-3\n-8\n-1\n-12",
+              "output": "Even Sum: -20\nOdd Count: 2\nMaximum: -1",
+              "is_hidden": true
+            },
+            {
+              "input": "3\n2\n6\n0",
+              "output": "Even Sum: 8\nOdd Count: 0\nMaximum: 6",
+              "is_hidden": true
+            },
+            {
+              "input": "6\n7\n7\n0\n15\n-20\n9",
+              "output": "Even Sum: -20\nOdd Count: 4\nMaximum: 15",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

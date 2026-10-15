@@ -271,6 +271,19 @@ console.log(`Lessons     → ${path.relative(ROOT, config.lessonsFile)} (${lesso
   console.log(`Videos      → ${Object.keys(found).length} learning byte(s) in public/learning-bytes/` + (stray.length ? ` (ignored, no such lesson: ${stray.join(', ')})` : ''));
 }
 
+// ---------- 1g. Practice questions kept in the repository (content/practice-import/*.json, Admin "Import JSON" format)
+// → generated/practice-seed.json. The server imports them once per change (practiceq.js seedPractice).
+{
+  const dir = path.join(ROOT, 'content', 'practice-import'), out = path.join(ROOT, 'generated', 'practice-seed.json');
+  const names = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort() : [];
+  if (names.length) {
+    const files = names.map((f) => { const json = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); return { name: f, json }; });
+    fs.writeFileSync(out, JSON.stringify({ files }));
+    const n = (k) => files.reduce((s, f) => s + (f.json[k] || []).reduce((t, set) => t + (set.questions || []).length, 0), 0);
+    console.log(`Practice    → ${n('mcq_practice')} MCQ(s) and ${n('coding_practice')} coding problem(s) from content/practice-import (${files.length} file(s))`);
+  } else if (fs.existsSync(out)) fs.unlinkSync(out);
+}
+
 // ---------- 1h. Hiring questions for the Practice "Hiring" tab (content/hiring-questions.json → generated/, served by GET /api/hiring-questions)
 {
   const src = path.join(ROOT, 'content', 'hiring-questions.json');

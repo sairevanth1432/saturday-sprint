@@ -1,0 +1,304 @@
+{
+  "track": "WAD",
+  "course": "Web Application Development",
+  "session": "HTML Hyperlinks",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice HTML Hyperlinks",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "f66d3deba72444fe825850ca440bc465",
+          "question_order": 1,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which of the following HTML elements can be used to break a text and continue it in the next line in an HTML document?",
+          "options": [
+            {
+              "content": "&lt;li&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;hr&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;a&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;br&gt;",
+              "is_correct": true
+            }
+          ],
+          "explanation": "The line break element &lt;br&gt; ends the current line so the text continues on the next line."
+        },
+        {
+          "question_id": "7f4e86e7b9cf4a67963f22c5366bbe4d",
+          "question_order": 2,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which of the following is used to navigate to other resources or to a specific element in an HTML document?",
+          "options": [
+            {
+              "content": "HTML anchor element (&lt;a&gt;)",
+              "is_correct": true
+            },
+            {
+              "content": "HTML list item element (&lt;li&gt;)",
+              "is_correct": false
+            },
+            {
+              "content": "HTML image element (&lt;img&gt;)",
+              "is_correct": false
+            },
+            {
+              "content": "HTML horizontal rule element (&lt;hr&gt;)",
+              "is_correct": false
+            }
+          ],
+          "explanation": "The anchor element &lt;a&gt; creates a hyperlink that can take the user to another resource or to an element on the same page."
+        },
+        {
+          "question_id": "58093a95fcc245feb1d299856ef245dd",
+          "question_order": 3,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "Which of the following options is the correct syntax to add an HTML anchor element to our website?",
+          "options": [
+            {
+              "content": "&lt;link href=\"https://www.google.com\"&gt;Google&lt;/link&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;a src=\"https://www.google.com\"&gt;Google&lt;/a&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;a&gt;https://www.google.com&lt;/a href=\"Google\"&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;a href=\"https://www.google.com\"&gt;Google&lt;/a&gt;",
+              "is_correct": true
+            }
+          ],
+          "explanation": "An anchor element puts the destination URL in the href attribute of the start tag, the link text between the tags, and ends with &lt;/a&gt;."
+        },
+        {
+          "question_id": "d9719046a59347558b82836ac321f542",
+          "question_order": 4,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "In the given code, which of the following is the value of the HTML target attribute?",
+          "code": "<a href=\"https://www.google.com\" target=\"_blank\">Google</a>",
+          "options": [
+            {
+              "content": "_blank",
+              "is_correct": true
+            },
+            {
+              "content": "Google",
+              "is_correct": false
+            },
+            {
+              "content": "https://www.google.com",
+              "is_correct": false
+            },
+            {
+              "content": "target",
+              "is_correct": false
+            }
+          ],
+          "explanation": "In target=\"_blank\", target is the attribute name and _blank is its value, which opens the link in a new tab."
+        },
+        {
+          "question_id": "a9c7dfbb88724987800b2efa9975ced0",
+          "question_order": 5,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What is the mistake in the given code if clicking the link should scroll to the bio section?",
+          "code": "<a href=\"#bio\">My Bio</a>\n<div class=\"bio\">\n  <h1>About Me</h1>\n  <p>I love building websites.</p>\n</div>",
+          "options": [
+            {
+              "content": "The href value must not start with #",
+              "is_correct": false
+            },
+            {
+              "content": "The bio section uses class=\"bio\" instead of id=\"bio\", so href=\"#bio\" cannot find it",
+              "is_correct": true
+            },
+            {
+              "content": "The target=\"_blank\" attribute is missing on the anchor element",
+              "is_correct": false
+            },
+            {
+              "content": "The anchor element must not have a closing tag",
+              "is_correct": false
+            }
+          ],
+          "explanation": "A same-page link #bio scrolls to the element whose id is bio; a class attribute is not used for this."
+        },
+        {
+          "question_id": "5c8c2f44a66e49c78b7a362b2931fb51",
+          "question_order": 6,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Which of the following options is correct?\nStatement-1: The HTML href attribute accepts URLs as values.\nStatement-2: The HTML href attribute accepts class names of an HTML element as values.",
+          "options": [
+            {
+              "content": "Neither statement is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Only Statement-2 is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are correct",
+              "is_correct": false
+            },
+            {
+              "content": "Only Statement-1 is correct",
+              "is_correct": true
+            }
+          ],
+          "explanation": "href takes a URL (or # followed by an id for same-page links); a class name is not a valid link destination."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding HTML Hyperlinks",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "ss3-links-anchor-tag",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Build an Anchor Tag",
+          "question_difficulty": "EASY",
+          "question_content": "Write a program that builds an HTML anchor element from a URL and the link text.\n\nRemove leading/trailing spaces from both lines. If the link text is empty, use the URL as the link text.\n\n#### Input\nThe first line contains the URL (no spaces inside it).\nThe second line contains the link text (may be empty).\n\n#### Output\nA single line in the form `&lt;a href=\"URL\"&gt;TEXT&lt;/a&gt;`.\n\n#### Sample Input\n```\nhttps://www.google.com\nGoogle\n```\n\n#### Sample Output\n```\n&lt;a href=\"https://www.google.com\"&gt;Google&lt;/a&gt;\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "https://www.google.com\nGoogle\n",
+              "output": "<a href=\"https://www.google.com\">Google</a>",
+              "is_hidden": false
+            },
+            {
+              "input": "#bio\nGo to Bio\n",
+              "output": "<a href=\"#bio\">Go to Bio</a>",
+              "is_hidden": true
+            },
+            {
+              "input": "https://www.ccbp.in\n\n",
+              "output": "<a href=\"https://www.ccbp.in\">https://www.ccbp.in</a>",
+              "is_hidden": true
+            },
+            {
+              "input": "  about.html  \n  About Us  \n",
+              "output": "<a href=\"about.html\">About Us</a>",
+              "is_hidden": true
+            },
+            {
+              "input": "https://en.wikipedia.org/wiki/Tajmahal\nRead more about Taj Mahal\n",
+              "output": "<a href=\"https://en.wikipedia.org/wiki/Tajmahal\">Read more about Taj Mahal</a>",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-links-external-links",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Open External Links in a New Tab",
+          "question_difficulty": "MEDIUM",
+          "question_content": "A website wants every **external** link (one whose URL starts with `http://` or `https://`) to open in a new tab using `target=\"_blank\"`. Other links (same-page links like `#contact` or pages like `about.html`) open normally.\n\nEach input line has a URL, then a single space, then the link text (the text may contain spaces). If a line has only a URL (no space), the URL itself is the link text.\n\n#### Input\nThe first line contains an integer `N` (1 &lt;= N &lt;= 50).\nEach of the next `N` lines contains a URL followed optionally by a space and the link text.\n\n#### Output\nFor each line print one anchor tag:\n- external: `&lt;a href=\"URL\" target=\"_blank\"&gt;TEXT&lt;/a&gt;`\n- otherwise: `&lt;a href=\"URL\"&gt;TEXT&lt;/a&gt;`\n\nFinally print `External links: K`, where `K` is the number of external links.\n\n#### Sample Input\n```\n3\nhttps://www.google.com Google\n#bio My Bio\nabout.html About Us\n```\n\n#### Sample Output\n```\n&lt;a href=\"https://www.google.com\" target=\"_blank\"&gt;Google&lt;/a&gt;\n&lt;a href=\"#bio\"&gt;My Bio&lt;/a&gt;\n&lt;a href=\"about.html\"&gt;About Us&lt;/a&gt;\nExternal links: 1\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "3\nhttps://www.google.com Google\n#bio My Bio\nabout.html About Us\n",
+              "output": "<a href=\"https://www.google.com\" target=\"_blank\">Google</a>\n<a href=\"#bio\">My Bio</a>\n<a href=\"about.html\">About Us</a>\nExternal links: 1",
+              "is_hidden": false
+            },
+            {
+              "input": "1\n#top\n",
+              "output": "<a href=\"#top\">#top</a>\nExternal links: 0",
+              "is_hidden": true
+            },
+            {
+              "input": "4\nhttp://example.com Example Site\nhttps://www.youtube.com Watch Videos Here\nhttpsfake.html Not External\ncontact.html Contact\n",
+              "output": "<a href=\"http://example.com\" target=\"_blank\">Example Site</a>\n<a href=\"https://www.youtube.com\" target=\"_blank\">Watch Videos Here</a>\n<a href=\"httpsfake.html\">Not External</a>\n<a href=\"contact.html\">Contact</a>\nExternal links: 2",
+              "is_hidden": true
+            },
+            {
+              "input": "2\nhttps://www.ccbp.in\nhttps://assets.ccbp.in/frontend/static-website/profile-img.png Profile Image\n",
+              "output": "<a href=\"https://www.ccbp.in\" target=\"_blank\">https://www.ccbp.in</a>\n<a href=\"https://assets.ccbp.in/frontend/static-website/profile-img.png\" target=\"_blank\">Profile Image</a>\nExternal links: 2",
+              "is_hidden": true
+            },
+            {
+              "input": "3\n#section1 Section 1\n#section2 Section 2\nhome.html Home\n",
+              "output": "<a href=\"#section1\">Section 1</a>\n<a href=\"#section2\">Section 2</a>\n<a href=\"home.html\">Home</a>\nExternal links: 0",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-links-extract-hrefs",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Extract Link Destinations",
+          "question_difficulty": "HARD",
+          "question_content": "Given one line of HTML, find the `href` value of every anchor element (`&lt;a ...&gt;`) in the order they appear, and say what kind of link it is.\n\nRules:\n- Only anchor elements count: a start tag `&lt;a` followed by whitespace or `&gt;` (tag name is case-insensitive). Other tags such as `&lt;link href=\"...\"&gt;` or `&lt;abbr&gt;` are ignored.\n- Inside the anchor's start tag, attributes are separated by whitespace. The attribute name `href` is case-insensitive, may have spaces around `=`, and its value is in double quotes or single quotes. Attributes like `data-href` are not `href`.\n- An anchor without an `href` attribute is skipped.\n- Kind of link: value starting with `#` -&gt; `same page`; starting with `http://` or `https://` -&gt; `external`; anything else -&gt; `other page`.\n\n#### Input\nA single line of HTML. Attribute values never contain `&lt;` or `&gt;`.\n\n#### Output\nFor each href found, print `VALUE -&gt; KIND`. If no href is found, print `No links found`.\n\n#### Sample Input\n```\n&lt;p&gt;Visit &lt;a href=\"https://www.google.com\" target=\"_blank\"&gt;Google&lt;/a&gt; or read my &lt;a href=\"#bio\"&gt;Bio&lt;/a&gt;&lt;/p&gt;\n```\n\n#### Sample Output\n```\nhttps://www.google.com -&gt; external\n#bio -&gt; same page\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "<p>Visit <a href=\"https://www.google.com\" target=\"_blank\">Google</a> or read my <a href=\"#bio\">Bio</a></p>\n",
+              "output": "https://www.google.com -> external\n#bio -> same page",
+              "is_hidden": false
+            },
+            {
+              "input": "<link rel=\"stylesheet\" href=\"style.css\"><abbr title=\"HyperText\">HTML</abbr><a>No href here</a>\n",
+              "output": "No links found",
+              "is_hidden": true
+            },
+            {
+              "input": "<A HREF='about.html'>About</A><a class=\"btn\" href = \"#contact\">Contact</a>\n",
+              "output": "about.html -> other page\n#contact -> same page",
+              "is_hidden": true
+            },
+            {
+              "input": "<a data-href=\"#x\" href=\"https://ccbp.in\">CCBP</a><a data-href=\"#y\">Fake</a><a  href=\"http://example.com\">Two spaces</a>\n",
+              "output": "https://ccbp.in -> external\nhttp://example.com -> external",
+              "is_hidden": true
+            },
+            {
+              "input": "<div><a href=\"contact.html#form\">Contact form</a><a target=\"_blank\" href=\"https://www.youtube.com/watch?v=1\">Video</a></div>\n",
+              "output": "contact.html#form -> other page\nhttps://www.youtube.com/watch?v=1 -> external",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,323 @@
+{
+  "track": "Programming Foundations",
+  "course": "Computer Programming",
+  "session": "String Methods",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice String Methods",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "352102128dc244999eb69b5b6322b97e",
+          "question_order": 1,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "gmail = \"NxtWave@gmail.com\"\nprint(gmail.lower())",
+          "options": [
+            {
+              "content": "NXTWAVE@GMAIL.COM",
+              "is_correct": false
+            },
+            {
+              "content": "NxtWave@gmail.com",
+              "is_correct": false
+            },
+            {
+              "content": "nxtwave@gmail.com",
+              "is_correct": true
+            },
+            {
+              "content": "Nxtwave@gmail.com",
+              "is_correct": false
+            }
+          ],
+          "explanation": "lower() converts every uppercase letter to lowercase; symbols like @ and . stay unchanged."
+        },
+        {
+          "question_id": "041c92e22c0e4a5889848333e49eb821",
+          "question_order": 2,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "greet = \"Good Evening\"\nis_greeting = greet.startswith(\"Good\")\nprint(is_greeting)",
+          "options": [
+            {
+              "content": "True",
+              "is_correct": true
+            },
+            {
+              "content": "False",
+              "is_correct": false
+            },
+            {
+              "content": "Good",
+              "is_correct": false
+            },
+            {
+              "content": "Good Evening",
+              "is_correct": false
+            }
+          ],
+          "explanation": "startswith(\"Good\") returns a boolean; \"Good Evening\" begins with \"Good\" (same case), so it is True."
+        },
+        {
+          "question_id": "2649c1f30d724de5929939bcaaeb93b9",
+          "question_order": 3,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "message = \"Jellyfish\"\nsecret_code = message[1::4]\nprint(secret_code)",
+          "options": [
+            {
+              "content": "Jf",
+              "is_correct": false
+            },
+            {
+              "content": "ey",
+              "is_correct": false
+            },
+            {
+              "content": "efh",
+              "is_correct": false
+            },
+            {
+              "content": "ef",
+              "is_correct": true
+            }
+          ],
+          "explanation": "message[1::4] starts at index 1 and takes every 4th character: indices 1 and 5 give \"e\" and \"f\"; index 9 is beyond the string."
+        },
+        {
+          "question_id": "45ac6d4867f54aaa98a6915f0aa16ee7",
+          "question_order": 4,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "status = \"Heal-thy-\"\nstatus = status.strip(\"-\")\nprint(status)",
+          "options": [
+            {
+              "content": "Healthy",
+              "is_correct": false
+            },
+            {
+              "content": "Heal-thy",
+              "is_correct": true
+            },
+            {
+              "content": "Heal-thy-",
+              "is_correct": false
+            },
+            {
+              "content": "-Heal-thy",
+              "is_correct": false
+            }
+          ],
+          "explanation": "strip(\"-\") removes \"-\" only from the beginning and end of the string, so the hyphen in the middle stays."
+        },
+        {
+          "question_id": "7aba39512fc745749ca24d0a25495fda",
+          "question_order": 5,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "quantity = \"700ml, 100ml, 650ml, 500ml\"\nquantity.replace(\"ml\", \"L\")\nprint(quantity)",
+          "options": [
+            {
+              "content": "700L, 100L, 650L, 500L",
+              "is_correct": false
+            },
+            {
+              "content": "700L, 100ml, 650ml, 500ml",
+              "is_correct": false
+            },
+            {
+              "content": "700, 100, 650, 500",
+              "is_correct": false
+            },
+            {
+              "content": "700ml, 100ml, 650ml, 500ml",
+              "is_correct": true
+            }
+          ],
+          "explanation": "Strings are immutable: replace() returns a new string, but it is never assigned back, so quantity is printed unchanged."
+        },
+        {
+          "question_id": "8e9cd0c2dce9431b8d8e0a88ff8bf26c",
+          "question_order": 6,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What will be the output of the given Python code?",
+          "code": "names = \"Penny, Pin, Pack, Peak\"\nnames.replace(\"P\", \"J\")\nprint(names)",
+          "options": [
+            {
+              "content": "Penny, Pin, Pack, Peak",
+              "is_correct": true
+            },
+            {
+              "content": "Jenny, Jin, Jack, Jeak",
+              "is_correct": false
+            },
+            {
+              "content": "Jenny, Pin, Pack, Peak",
+              "is_correct": false
+            },
+            {
+              "content": "jenny, jin, jack, jeak",
+              "is_correct": false
+            }
+          ],
+          "explanation": "replace() returns a new string and does not change names; since the result is not stored, the original string is printed."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding String Methods",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "4927c98b932643a78a71e23e7306aa9a",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Secured URL",
+          "question_difficulty": "EASY",
+          "question_content": "Given a URL, write a program that checks if the given URL is a secured URL.\n\nA URL that starts with `https://` is a secured URL.\n\nPrint **True** if the given URL is a secured URL. Otherwise, print **False**.\n\n#### Input\n\nThe input will be a single line containing a string (the URL).\n\n#### Output\n\nThe output should be a single line containing a boolean: `True` if the URL is secured, otherwise `False`.\n\n#### Example\n\nInput:\n```\nhttps://docs.google.com\n```\nOutput:\n```\nTrue\n```\n\nThe URL `https://docs.google.com` starts with `https://`, so the output is `True`.",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "https://docs.google.com",
+              "output": "True",
+              "is_hidden": false
+            },
+            {
+              "input": "http://example.com",
+              "output": "False",
+              "is_hidden": true
+            },
+            {
+              "input": "HTTPS://learning.ccbp.in",
+              "output": "False",
+              "is_hidden": true
+            },
+            {
+              "input": "www.https://site.com",
+              "output": "False",
+              "is_hidden": true
+            },
+            {
+              "input": "https://",
+              "output": "True",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "c8a2c1a41013448c8ec9193f07ef8127",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Valid Password - 3",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Write a program to check whether the given password is valid or not.\n\nConsider the password to be valid if it contains at least one uppercase letter, at least one lowercase letter, and at least one digit.\n\n#### Input\n\nThe input will be a single line containing a string (the password).\n\n#### Output\n\nThe output should be a single line containing either `Valid Password` or `Invalid Password`.\n\n#### Example\n\nInput:\n```\nQwerty00\n```\nOutput:\n```\nValid Password\n```\n\n`Qwerty00` contains an uppercase letter (`Q`), lowercase letters (`werty`) and digits (`00`), so it is valid. Whereas `Dashboard` would be `Invalid Password` because it has no digit.",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "Qwerty00",
+              "output": "Valid Password",
+              "is_hidden": false
+            },
+            {
+              "input": "Dashboard",
+              "output": "Invalid Password",
+              "is_hidden": true
+            },
+            {
+              "input": "password123",
+              "output": "Invalid Password",
+              "is_hidden": true
+            },
+            {
+              "input": "PASS2024",
+              "output": "Invalid Password",
+              "is_hidden": true
+            },
+            {
+              "input": "aB3",
+              "output": "Valid Password",
+              "is_hidden": true
+            },
+            {
+              "input": "12345678",
+              "output": "Invalid Password",
+              "is_hidden": true
+            },
+            {
+              "input": "Hello World 7",
+              "output": "Valid Password",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-strings-id-card-name",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "ID Card Name",
+          "question_difficulty": "HARD",
+          "question_content": "A college ID card prints a student's name in a short format: every part of the name except the last becomes its **first letter in uppercase followed by a dot**, and the **last part (surname)** is written with only its first letter in uppercase and the rest in lowercase. The parts are separated by a single space.\n\nThe name typed by the student may be messy: it can have extra spaces at the beginning, at the end, or between the parts, and the letters can be in any case.\n\nWrite a program that reads the name and prints it in the ID card format.\n\nIf the name has only one part, print just that part with the first letter in uppercase and the rest in lowercase.\n\n#### Input\n\nThe input will be a single line containing a string (the name). It contains only letters and spaces, and has at least one letter.\n\n#### Output\n\nThe output should be a single line containing the formatted name.\n\n#### Example\n\nInput:\n```\n  sachin   ramesh TENDULKAR \n```\nOutput:\n```\nS. R. Tendulkar\n```\n\nThe parts of the name are `sachin`, `ramesh` and `TENDULKAR`. The first two become `S.` and `R.`, and the surname becomes `Tendulkar`. Joined with single spaces, the output is `S. R. Tendulkar`.",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "  sachin   ramesh TENDULKAR ",
+              "output": "S. R. Tendulkar",
+              "is_hidden": false
+            },
+            {
+              "input": "virat",
+              "output": "Virat",
+              "is_hidden": true
+            },
+            {
+              "input": "mahendra singh dhoni",
+              "output": "M. S. Dhoni",
+              "is_hidden": true
+            },
+            {
+              "input": "  ANIL kumar  ",
+              "output": "A. Kumar",
+              "is_hidden": true
+            },
+            {
+              "input": "a b c dEEPIKA",
+              "output": "A. B. C. Deepika",
+              "is_hidden": true
+            },
+            {
+              "input": "RAVI",
+              "output": "Ravi",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

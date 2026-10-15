@@ -1,0 +1,307 @@
+{
+  "track": "GenAI",
+  "course": "Introduction to Generative AI",
+  "session": "Building Social Media Content Automation Workflow, Part 2",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice Building Social Media Content Automation Workflow, Part 2",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "5b21979b5e2f4e81979f71a1d0172468",
+          "question_order": 1,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "What does a connection in n8n do?",
+          "options": [
+            {
+              "content": "It stores API keys for third-party services",
+              "is_correct": false
+            },
+            {
+              "content": "It links nodes so the output data of one node flows as input to the next node",
+              "is_correct": true
+            },
+            {
+              "content": "It schedules the workflow to run at fixed times",
+              "is_correct": false
+            },
+            {
+              "content": "It converts the workflow into a JSON file",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Connections are the lines between nodes; they decide the order of steps and carry each node's output data to the next node."
+        },
+        {
+          "question_id": "6b783fe072f1455fb874ca7e15474741",
+          "question_order": 2,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which of the following types of triggers is commonly used in n8n for manual execution of workflows?",
+          "options": [
+            {
+              "content": "Manual Trigger",
+              "is_correct": true
+            },
+            {
+              "content": "Schedule Trigger",
+              "is_correct": false
+            },
+            {
+              "content": "Webhook Trigger",
+              "is_correct": false
+            },
+            {
+              "content": "Google Sheets Trigger",
+              "is_correct": false
+            }
+          ],
+          "explanation": "The Manual Trigger runs the workflow only when you click to execute it, which is handy while building and testing."
+        },
+        {
+          "question_id": "fe37cebf5d0e4b98b95df2085f6adb70",
+          "question_order": 3,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What does the Time-Based Schedule in n8n trigger?",
+          "options": [
+            {
+              "content": "It runs the workflow once for every new email received",
+              "is_correct": false
+            },
+            {
+              "content": "It runs the workflow whenever a webhook receives data",
+              "is_correct": false
+            },
+            {
+              "content": "It runs the workflow only when a user clicks Execute",
+              "is_correct": false
+            },
+            {
+              "content": "It runs the workflow automatically at fixed times or regular intervals",
+              "is_correct": true
+            }
+          ],
+          "explanation": "A time-based schedule fires on a clock, such as every minute or every day at 9 AM, without needing any user action or external event."
+        },
+        {
+          "question_id": "15bc06f2c6b74b908b1f6b50da35f616",
+          "question_order": 4,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "Which of the following is used to trigger a workflow in n8n when a specific event occurs, such as receiving new data via a webhook?",
+          "options": [
+            {
+              "content": "Time-based schedule trigger",
+              "is_correct": false
+            },
+            {
+              "content": "Event-based trigger (Webhook)",
+              "is_correct": true
+            },
+            {
+              "content": "Manual trigger",
+              "is_correct": false
+            },
+            {
+              "content": "Split In Batches node",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Event-based triggers such as the Webhook node start the workflow the moment an outside service sends data to it."
+        },
+        {
+          "question_id": "10ee142796964f99bac1476fe2b46f11",
+          "question_order": 5,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Consider the following statements about AI workflows: Statement I: AI workflows are predefined sequences of steps that use artificial intelligence. Statement II: AI workflows require manual human intervention at every step.",
+          "options": [
+            {
+              "content": "Statement I is true and Statement II is false",
+              "is_correct": true
+            },
+            {
+              "content": "Statement I is false and Statement II is true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are false",
+              "is_correct": false
+            }
+          ],
+          "explanation": "AI workflows are predefined, AI-powered sequences of steps; once set up they run automatically, so they do not need a human at every step."
+        },
+        {
+          "question_id": "4d6f0bc436274f7187a3ce67378e3034",
+          "question_order": 6,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Consider the following statements about nodes in AI workflow building: Statement I: Nodes represent individual steps in a workflow. Statement II: Nodes perform specific actions like retrieving, transforming, or sending data.",
+          "options": [
+            {
+              "content": "Both statements are false",
+              "is_correct": false
+            },
+            {
+              "content": "Statement I is true and Statement II is false",
+              "is_correct": false
+            },
+            {
+              "content": "Statement I is false and Statement II is true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are true",
+              "is_correct": true
+            }
+          ],
+          "explanation": "Each node is one step in the workflow, and each one does a specific job such as reading a sheet, summarizing text with an LLM, or posting to LinkedIn."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding Building Social Media Content Automation Workflow, Part 2",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "ss3-smw2-hashtag-generator",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Hashtag Generator",
+          "question_difficulty": "EASY",
+          "question_content": "Before posting, the workflow adds hashtags made from the article's keywords.\n\nFor each keyword, in order:\n- Remove every character that is not a letter, a digit or a space.\n- Split the result into words, write each word with its first letter in uppercase and the rest in lowercase, and join the words with no spaces.\n- Put `#` in front. For example, `machine learning` becomes `#MachineLearning`.\n- Skip a keyword if nothing is left after cleaning, and skip a hashtag that has already been produced.\n\n#### Input\nA single line with keywords separated by commas.\n\n#### Output\nPrint all hashtags on one line separated by single spaces. If no hashtag is produced, print `No hashtags`.\n\n#### Sample Input\n```\nmachine learning, AI, open-source tools\n```\n\n#### Sample Output\n```\n#MachineLearning #Ai #OpensourceTools\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "machine learning, AI, open-source tools\n",
+              "output": "#MachineLearning #Ai #OpensourceTools",
+              "is_hidden": false
+            },
+            {
+              "input": "AI,ai, Ai \n",
+              "output": "#Ai",
+              "is_hidden": true
+            },
+            {
+              "input": "!!!, ???\n",
+              "output": "No hashtags",
+              "is_hidden": true
+            },
+            {
+              "input": "n8n automation,  GEN ai  ,data science 2025\n",
+              "output": "#N8nAutomation #GenAi #DataScience2025",
+              "is_hidden": true
+            },
+            {
+              "input": "LinkedIn\n",
+              "output": "#Linkedin",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-smw2-platform-router",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Route Posts by Platform",
+          "question_difficulty": "MEDIUM",
+          "question_content": "In n8n, a **Switch** node sends each item down a different path based on a field. Here, each generated post must be routed by its `platform` field:\n- `linkedin` goes to the **LinkedIn** path.\n- `twitter` or `x` goes to the **Twitter** path.\n- Anything else goes to the **Fallback** path.\n\nPlatform names are compared ignoring uppercase/lowercase and surrounding spaces.\n\n#### Input\n- The first line contains an integer `N` (N &gt;= 1).\n- Each of the next `N` lines contains `platform|text`. Split at the first `|` and remove spaces around both parts.\n\n#### Output\nFor each path in the order LinkedIn, Twitter, Fallback, print a header `Name (count):` followed by one line `- text` for every post on that path, in input order. A path with no posts prints only its header.\n\n#### Sample Input\n```\n4\nLinkedIn|AI is changing hiring\ntwitter|New model released!\nInstagram|Check our reel\nX|Thread on prompts\n```\n\n#### Sample Output\n```\nLinkedIn (1):\n- AI is changing hiring\nTwitter (2):\n- New model released!\n- Thread on prompts\nFallback (1):\n- Check our reel\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "4\nLinkedIn|AI is changing hiring\ntwitter|New model released!\nInstagram|Check our reel\nX|Thread on prompts\n",
+              "output": "LinkedIn (1):\n- AI is changing hiring\nTwitter (2):\n- New model released!\n- Thread on prompts\nFallback (1):\n- Check our reel",
+              "is_hidden": false
+            },
+            {
+              "input": "1\nlinkedin|Hello network\n",
+              "output": "LinkedIn (1):\n- Hello network\nTwitter (0):\nFallback (0):",
+              "is_hidden": true
+            },
+            {
+              "input": "3\n  TWITTER  |  spaced out  \nfacebook|fb post\nx|Price | value\n",
+              "output": "LinkedIn (0):\nTwitter (2):\n- spaced out\n- Price | value\nFallback (1):\n- fb post",
+              "is_hidden": true
+            },
+            {
+              "input": "2\nmastodon|toot\nthreads|hi\n",
+              "output": "LinkedIn (0):\nTwitter (0):\nFallback (2):\n- toot\n- hi",
+              "is_hidden": true
+            },
+            {
+              "input": "5\nLinkedIn|a\nLinkedIn|b\nlinkedin|c\nX|d\nxx|e\n",
+              "output": "LinkedIn (3):\n- a\n- b\n- c\nTwitter (1):\n- d\nFallback (1):\n- e",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-smw2-tweet-thread",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Split a Post into a Thread",
+          "question_difficulty": "HARD",
+          "question_content": "A generated post is too long for Twitter/X, so the workflow turns it into a numbered thread.\n\nLet `L` be the character limit.\n- If the post (words joined by single spaces) has at most `L` characters, print it unchanged on one line.\n- Otherwise, reserve 8 characters for the numbering. Pack the words greedily in order: keep adding words (separated by single spaces) to the current part while its length stays at most `L - 8`; when the next word does not fit, start a new part with that word.\n- Print each part followed by a space and `(i/n)`, where `i` is the part number starting from 1 and `n` is the total number of parts.\n\nIt is guaranteed that every word has at most `L - 8` characters.\n\n#### Input\n- The first line contains the post text. Words are separated by one or more spaces.\n- The second line contains an integer `L` (20 &lt;= L &lt;= 500).\n\n#### Output\nPrint the post, or the thread parts one per line.\n\n#### Sample Input\n```\nAI workflows save hours every week by automating repetitive social media tasks\n40\n```\n\n#### Sample Output\n```\nAI workflows save hours every (1/3)\nweek by automating repetitive (2/3)\nsocial media tasks (3/3)\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "AI workflows save hours every week by automating repetitive social media tasks\n40\n",
+              "output": "AI workflows save hours every (1/3)\nweek by automating repetitive (2/3)\nsocial media tasks (3/3)",
+              "is_hidden": false
+            },
+            {
+              "input": "Short and sweet\n20\n",
+              "output": "Short and sweet",
+              "is_hidden": true
+            },
+            {
+              "input": "exactly twenty chars\n20\n",
+              "output": "exactly twenty chars",
+              "is_hidden": true
+            },
+            {
+              "input": "one two three four five six seven eight nine ten eleven twelve\n20\n",
+              "output": "one two (1/7)\nthree four (2/7)\nfive six (3/7)\nseven eight (4/7)\nnine ten (5/7)\neleven (6/7)\ntwelve (7/7)",
+              "is_hidden": true
+            },
+            {
+              "input": "n8n   connects   Google Sheets,   Gemini   and   LinkedIn   in   one   flow\n30\n",
+              "output": "n8n connects Google (1/3)\nSheets, Gemini and (2/3)\nLinkedIn in one flow (3/3)",
+              "is_hidden": true
+            },
+            {
+              "input": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word\n28\n",
+              "output": "word word word word (1/15)\nword word word word (2/15)\nword word word word (3/15)\nword word word word (4/15)\nword word word word (5/15)\nword word word word (6/15)\nword word word word (7/15)\nword word word word (8/15)\nword word word word (9/15)\nword word word word (10/15)\nword word word word (11/15)\nword word word word (12/15)\nword word word word (13/15)\nword word word word (14/15)\nword word word word (15/15)",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

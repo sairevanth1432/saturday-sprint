@@ -4132,7 +4132,7 @@ class Component extends DCLogic {
     const PO = S.pOpen;
     const pAll = this.practice.concat(this.ccbpQuiz, this.genaiQuiz).filter(p => p.sess);
     const pGroups = pcNames.map(([id, name]) => { const ss = []; pAll.filter(p => p.course === id).forEach(p => { if (ss.indexOf(p.sess) < 0) ss.push(p.sess); });
-      return { name, topics: ss.map(k => { const on = id === S.pc && k === psess, nq = pAll.filter(p => p.course === id && p.sess === k).length, nc = id === 'pf' ? this.ccbpCoding.filter(p => p.topic === k).length : 0;
+      return { name, topics: ss.map(k => { const on = id === S.pc && k === psess, nq = pAll.filter(p => p.course === id && p.sess === k).length, nc = this.ccbpCoding.filter(p => p.topic === k).length;
         return { name: k, on, count: nq + ' quiz' + (nc ? ' · ' + nc + ' code' : ''), bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#FFFFFF', cfg: on ? '#050505' : '#8A8A8A',
           go: () => this.setState({ pc: id, pcSet: true, psess: k, pi: 0, pList: false, pZoom: false }) }; }) }; });
     v.pq = {

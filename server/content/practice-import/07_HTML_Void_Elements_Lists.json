@@ -1,0 +1,312 @@
+{
+  "track": "WAD",
+  "course": "Web Application Development",
+  "session": "HTML Void Elements & Lists",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice HTML Void Elements & Lists",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "aea456d89f2d4b6c948016d02fb36020",
+          "question_order": 1,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which HTML tag is used to wrap all the items of an unordered list?",
+          "options": [
+            {
+              "content": "&lt;ol&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;ul&gt;",
+              "is_correct": true
+            },
+            {
+              "content": "&lt;list&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;li&gt;",
+              "is_correct": false
+            }
+          ],
+          "explanation": "All items of an unordered list are wrapped inside the &lt;ul&gt; element; each item itself is written with &lt;li&gt;."
+        },
+        {
+          "question_id": "41bf89f21a874813a30779f49ae0f246",
+          "question_order": 2,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which attribute is used to specify the image URL in an HTML image element?",
+          "options": [
+            {
+              "content": "link",
+              "is_correct": false
+            },
+            {
+              "content": "alt",
+              "is_correct": false
+            },
+            {
+              "content": "src",
+              "is_correct": true
+            },
+            {
+              "content": "href",
+              "is_correct": false
+            }
+          ],
+          "explanation": "The src attribute of the &lt;img&gt; element holds the URL (source) of the image to display."
+        },
+        {
+          "question_id": "f0c8ea0625b94bd7bad1acadda247bf7",
+          "question_order": 3,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "Which group of HTML elements are void elements?",
+          "options": [
+            {
+              "content": "&lt;p&gt;, &lt;h1&gt; and &lt;div&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;img&gt;, &lt;br&gt; and &lt;hr&gt;",
+              "is_correct": true
+            },
+            {
+              "content": "&lt;a&gt;, &lt;span&gt; and &lt;button&gt;",
+              "is_correct": false
+            },
+            {
+              "content": "&lt;ul&gt;, &lt;ol&gt; and &lt;li&gt;",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Void elements have only a start tag and no content or closing tag; &lt;img&gt;, &lt;br&gt; and &lt;hr&gt; are void elements."
+        },
+        {
+          "question_id": "6982273dc3944c749fd942b8b4c28bc8",
+          "question_order": 4,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "Which CSS property is used to change the bullet style of an unordered list?",
+          "options": [
+            {
+              "content": "bullet-style",
+              "is_correct": false
+            },
+            {
+              "content": "text-align",
+              "is_correct": false
+            },
+            {
+              "content": "list-style-type",
+              "is_correct": true
+            },
+            {
+              "content": "font-style",
+              "is_correct": false
+            }
+          ],
+          "explanation": "list-style-type changes the marker of list items, for example disc, circle, square or none."
+        },
+        {
+          "question_id": "23296ea35148470886b16db49839c492",
+          "question_order": 5,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "How are multiple attributes added to an HTML element?",
+          "options": [
+            {
+              "content": "Only one attribute is allowed, so each extra attribute needs a new element",
+              "is_correct": false
+            },
+            {
+              "content": "Inside the start tag, as name=\"value\" pairs separated by commas",
+              "is_correct": false
+            },
+            {
+              "content": "Inside the start tag, as name=\"value\" pairs separated by spaces",
+              "is_correct": true
+            },
+            {
+              "content": "Inside the end tag, as name=\"value\" pairs separated by spaces",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Attributes are written in the start tag and separated by spaces, e.g. &lt;img src=\"a.png\" alt=\"Profile\"&gt;."
+        },
+        {
+          "question_id": "6826c199610c4a119e6fcd2a426f4655",
+          "question_order": 6,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Which effect does adding margin: 15px; to a card container produce?",
+          "options": [
+            {
+              "content": "It adds 15px of space outside the card's border on all four sides",
+              "is_correct": true
+            },
+            {
+              "content": "It adds 15px of space inside the card, between its border and its content",
+              "is_correct": false
+            },
+            {
+              "content": "It makes the card's border 15px thick",
+              "is_correct": false
+            },
+            {
+              "content": "It adds 15px of space only above the card",
+              "is_correct": false
+            }
+          ],
+          "explanation": "margin creates space outside an element's border on all four sides; space inside the border is created by padding."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding HTML Void Elements & Lists",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "ss3-void-build-ul",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Build an Unordered List",
+          "question_difficulty": "EASY",
+          "question_content": "Write a program that prints the HTML markup of an unordered list (`&lt;ul&gt;`) from the given items.\n\nPrint `&lt;ul&gt;` on the first line, then one line per item in the form `&lt;li&gt;ITEM&lt;/li&gt;` indented by exactly **two spaces**, and finally `&lt;/ul&gt;` on the last line. Remove any leading/trailing spaces from each item.\n\n#### Input\nThe first line contains an integer `N` (1 &lt;= N &lt;= 50), the number of items.\nEach of the next `N` lines contains one item (non-empty text).\n\n#### Output\n`N + 2` lines: `&lt;ul&gt;`, then each item as `  &lt;li&gt;ITEM&lt;/li&gt;` (two leading spaces), then `&lt;/ul&gt;`.\n\n#### Sample Input\n```\n3\nReading\nCricket\nPainting\n```\n\n#### Sample Output\n```\n&lt;ul&gt;\n  &lt;li&gt;Reading&lt;/li&gt;\n  &lt;li&gt;Cricket&lt;/li&gt;\n  &lt;li&gt;Painting&lt;/li&gt;\n&lt;/ul&gt;\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "3\nReading\nCricket\nPainting\n",
+              "output": "<ul>\n  <li>Reading</li>\n  <li>Cricket</li>\n  <li>Painting</li>\n</ul>",
+              "is_hidden": false
+            },
+            {
+              "input": "1\nHTML\n",
+              "output": "<ul>\n  <li>HTML</li>\n</ul>",
+              "is_hidden": true
+            },
+            {
+              "input": "4\n  Watching movies  \nPlaying chess\nCSS & HTML\nTravelling\n",
+              "output": "<ul>\n  <li>Watching movies</li>\n  <li>Playing chess</li>\n  <li>CSS & HTML</li>\n  <li>Travelling</li>\n</ul>",
+              "is_hidden": true
+            },
+            {
+              "input": "5\nA\nB\nC\nD\nE\n",
+              "output": "<ul>\n  <li>A</li>\n  <li>B</li>\n  <li>C</li>\n  <li>D</li>\n  <li>E</li>\n</ul>",
+              "is_hidden": true
+            },
+            {
+              "input": "2\nLearn <img> tag\nLearn <br> tag\n",
+              "output": "<ul>\n  <li>Learn <img> tag</li>\n  <li>Learn <br> tag</li>\n</ul>",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-void-count-void",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Count Void Elements",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Void elements have only a start tag and no closing tag. The HTML void elements are:\n\n`area, base, br, col, embed, hr, img, input, link, meta, source, track, wbr`\n\nGiven one line of HTML, count how many times each void element appears.\n\nA start tag begins with `&lt;` immediately followed by its name (letters and digits, starting with a letter), e.g. `&lt;img`, `&lt;BR/&gt;`, `&lt;hr &gt;`. Closing tags (`&lt;/p&gt;`) are not start tags. Tag names are case-insensitive: always print them in lowercase.\n\n#### Input\nA single line of HTML. Attribute values never contain `&lt;` or `&gt;`.\n\n#### Output\nIf there are no void elements, print `No void elements`.\nOtherwise, print one line `name: count` for each void element found, in the order of its **first appearance** in the line, followed by a last line `Total: T` where `T` is the total number of void elements.\n\n#### Sample Input\n```\n&lt;p&gt;Hello&lt;br&gt;World&lt;/p&gt;&lt;hr&gt;&lt;img src=\"a.png\"&gt;&lt;br/&gt;\n```\n\n#### Sample Output\n```\nbr: 2\nhr: 1\nimg: 1\nTotal: 4\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "<p>Hello<br>World</p><hr><img src=\"a.png\"><br/>\n",
+              "output": "br: 2\nhr: 1\nimg: 1\nTotal: 4",
+              "is_hidden": false
+            },
+            {
+              "input": "<h1>My Hobbies</h1><p>Reading and painting</p>\n",
+              "output": "No void elements",
+              "is_hidden": true
+            },
+            {
+              "input": "<IMG src=\"x.png\"><Br><bR /><input type=\"text\"><Input>\n",
+              "output": "img: 1\nbr: 2\ninput: 2\nTotal: 5",
+              "is_hidden": true
+            },
+            {
+              "input": "<ul><li>One</li></ul><wbr><link rel=\"stylesheet\" href=\"s.css\"><meta charset=\"UTF-8\">\n",
+              "output": "wbr: 1\nlink: 1\nmeta: 1\nTotal: 3",
+              "is_hidden": true
+            },
+            {
+              "input": "<b>bold</b><br><button>Go</button><hr/><header></header><hr>\n",
+              "output": "br: 1\nhr: 2\nTotal: 3",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-void-ol-markers",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Ordered List Markers",
+          "question_difficulty": "HARD",
+          "question_content": "An ordered list `&lt;ol&gt;` shows a marker before each item. The marker depends on the CSS `list-style-type` and the list's `start` number.\n\nPrint the list exactly as the markers would appear, one item per line, in the form `MARKER. ITEM`.\n\nMarker for position `k` (the first item has `k = start`, the next `start + 1`, and so on):\n- `decimal`: `k` as a number (1, 2, 3, ...)\n- `upper-alpha`: A, B, ..., Z, then AA, AB, ..., AZ, BA, ... (like spreadsheet column names)\n- `lower-alpha`: same as `upper-alpha` but in lowercase\n- `upper-roman`: Roman numerals (I, II, III, IV, ..., IX, X, ..., XL, ..., XC, ..., CD, ..., CM, ...)\n- `lower-roman`: same as `upper-roman` but in lowercase\n\nRemove leading/trailing spaces from each item.\n\n#### Input\nThe first line contains the style: one of `decimal`, `upper-alpha`, `lower-alpha`, `upper-roman`, `lower-roman`.\nThe second line contains the integer `start` (start &gt;= 1).\nThe third line contains an integer `N` (1 &lt;= N &lt;= 30).\nEach of the next `N` lines contains one item. It is guaranteed that `start + N - 1 &lt;= 3999`.\n\n#### Output\n`N` lines, each in the form `MARKER. ITEM` (marker, a dot, one space, the item).\n\n#### Sample Input\n```\nupper-alpha\n1\n3\nHTML\nCSS\nJavaScript\n```\n\n#### Sample Output\n```\nA. HTML\nB. CSS\nC. JavaScript\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "upper-alpha\n1\n3\nHTML\nCSS\nJavaScript\n",
+              "output": "A. HTML\nB. CSS\nC. JavaScript",
+              "is_hidden": false
+            },
+            {
+              "input": "lower-roman\n1\n5\na\nb\nc\nd\ne\n",
+              "output": "i. a\nii. b\niii. c\niv. d\nv. e",
+              "is_hidden": true
+            },
+            {
+              "input": "upper-alpha\n25\n4\nYak\nZebra\nAardvark\nAbalone\n",
+              "output": "Y. Yak\nZ. Zebra\nAA. Aardvark\nAB. Abalone",
+              "is_hidden": true
+            },
+            {
+              "input": "upper-roman\n1994\n3\nOne\nTwo\nThree\n",
+              "output": "MCMXCIV. One\nMCMXCV. Two\nMCMXCVI. Three",
+              "is_hidden": true
+            },
+            {
+              "input": "decimal\n9\n3\n  Nine  \nTen\nEleven\n",
+              "output": "9. Nine\n10. Ten\n11. Eleven",
+              "is_hidden": true
+            },
+            {
+              "input": "lower-alpha\n702\n2\nlast double\nfirst triple\n",
+              "output": "zz. last double\naaa. first triple",
+              "is_hidden": true
+            },
+            {
+              "input": "upper-roman\n38\n3\nx\ny\nz\n",
+              "output": "XXXVIII. x\nXXXIX. y\nXL. z",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

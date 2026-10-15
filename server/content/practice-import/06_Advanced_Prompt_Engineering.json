@@ -1,0 +1,302 @@
+{
+  "track": "GenAI",
+  "course": "Introduction to Generative AI",
+  "session": "Advanced Prompt Engineering",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice Advanced Prompt Engineering",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "3fc835de0d974be4b812a96ae5a14870",
+          "question_order": 1,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "What does \"Knowledge Cutoff\" mean in the context of LLMs?",
+          "options": [
+            {
+              "content": "The date after which the model has no information because its training data ends there",
+              "is_correct": true
+            },
+            {
+              "content": "The maximum number of words the model can write in one reply",
+              "is_correct": false
+            },
+            {
+              "content": "The limit on how many users can use the model at the same time",
+              "is_correct": false
+            },
+            {
+              "content": "The point at which the model stops answering because a question is too hard",
+              "is_correct": false
+            }
+          ],
+          "explanation": "An LLM learns only from data collected up to a certain date, so it does not know about events that happened after its knowledge cutoff."
+        },
+        {
+          "question_id": "29f480787cc94c0cb5da1325c7ec7424",
+          "question_order": 2,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Zero-shot prompting means asking the model to perform a task _______.",
+          "options": [
+            {
+              "content": "only after fine-tuning the model",
+              "is_correct": false
+            },
+            {
+              "content": "without giving any examples",
+              "is_correct": true
+            },
+            {
+              "content": "after giving exactly one example",
+              "is_correct": false
+            },
+            {
+              "content": "after giving several examples",
+              "is_correct": false
+            }
+          ],
+          "explanation": "In zero-shot prompting you only describe the task; the model gets no solved examples and relies on what it already learned."
+        },
+        {
+          "question_id": "9b4583b7f50b465395033a45f0b74398",
+          "question_order": 3,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What distinguishes Few-shot prompting from other prompting techniques?",
+          "options": [
+            {
+              "content": "It asks the model to keep its answer to a few words",
+              "is_correct": false
+            },
+            {
+              "content": "It retrains the model on a small new dataset",
+              "is_correct": false
+            },
+            {
+              "content": "It gives the model no examples and only a task description",
+              "is_correct": false
+            },
+            {
+              "content": "It includes a few examples of inputs and desired outputs in the prompt to guide the model",
+              "is_correct": true
+            }
+          ],
+          "explanation": "Few-shot prompting shows the model a handful of worked examples so it can copy the pattern, format and style for the new input."
+        },
+        {
+          "question_id": "7a7e7513747542218aef9df193cc7ca9",
+          "question_order": 4,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What is the primary purpose of Chain-of-Thought prompting?",
+          "options": [
+            {
+              "content": "To make the model answer faster with fewer words",
+              "is_correct": false
+            },
+            {
+              "content": "To link several chatbots together in a chain",
+              "is_correct": false
+            },
+            {
+              "content": "To make the model reason step by step before giving the final answer",
+              "is_correct": true
+            },
+            {
+              "content": "To give the model access to the internet",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Chain-of-Thought prompting asks the model to show its intermediate reasoning, which improves accuracy on multi-step problems like math and logic."
+        },
+        {
+          "question_id": "628f46049471421586fa10b631a60b86",
+          "question_order": 5,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What does Few-Shot, Chain-of-Thought prompting provide to the model?",
+          "options": [
+            {
+              "content": "Examples that show both the step-by-step reasoning and the final answer",
+              "is_correct": true
+            },
+            {
+              "content": "A single instruction with no examples, asking it to think step by step",
+              "is_correct": false
+            },
+            {
+              "content": "Live data from the internet to support its answer",
+              "is_correct": false
+            },
+            {
+              "content": "Examples that show only the final answers, without reasoning",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Few-shot CoT combines both ideas: each example includes the worked reasoning steps along with the answer, so the model learns to reason the same way."
+        },
+        {
+          "question_id": "0d641901c9be4e458865931728504e16",
+          "question_order": 6,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "What does it mean when an LLM is described as passive?",
+          "options": [
+            {
+              "content": "It only responds when given a prompt and cannot take actions on its own",
+              "is_correct": true
+            },
+            {
+              "content": "It refuses to answer questions it finds difficult",
+              "is_correct": false
+            },
+            {
+              "content": "It keeps learning silently from every conversation in real time",
+              "is_correct": false
+            },
+            {
+              "content": "It runs tasks in the background without being asked",
+              "is_correct": false
+            }
+          ],
+          "explanation": "A plain LLM waits for input and returns text; it cannot start tasks, browse, or act in the world unless connected to tools or a workflow."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding Advanced Prompt Engineering",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "ss3-ape-prompt-template",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Fill a Prompt Template",
+          "question_difficulty": "EASY",
+          "question_content": "Prompt templates contain placeholders such as `{topic}` that are replaced with real values before the prompt is sent to the LLM.\n\nA placeholder is a name made of letters, digits or underscores inside curly braces. Replace every placeholder whose name has a value. Placeholders without a value stay unchanged.\n\n#### Input\n- The first line contains the template.\n- The second line contains an integer `K` (K &gt;= 0).\n- Each of the next `K` lines contains `name=value`. Split at the first `=` and remove spaces around both parts.\n\n#### Output\n- On the first line, print the filled prompt.\n- On the second line, print `Missing: ` followed by the names of placeholders that had no value, in order of first appearance, separated by `, ` (each name once). If none are missing, print `Missing: none`.\n\n#### Sample Input\n```\nWrite a {tone} LinkedIn post about {topic} for {audience}.\n2\ntone=friendly\ntopic=AI workflows\n```\n\n#### Sample Output\n```\nWrite a friendly LinkedIn post about AI workflows for {audience}.\nMissing: audience\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "Write a {tone} LinkedIn post about {topic} for {audience}.\n2\ntone=friendly\ntopic=AI workflows\n",
+              "output": "Write a friendly LinkedIn post about AI workflows for {audience}.\nMissing: audience",
+              "is_hidden": false
+            },
+            {
+              "input": "Summarize {article} in {n} bullet points.\n2\narticle = the news link\nn = 3\n",
+              "output": "Summarize the news link in 3 bullet points.\nMissing: none",
+              "is_hidden": true
+            },
+            {
+              "input": "No placeholders here.\n0\n",
+              "output": "No placeholders here.\nMissing: none",
+              "is_hidden": true
+            },
+            {
+              "input": "{a} and {b} and {a} again {c}\n1\nb=x=y\n",
+              "output": "{a} and x=y and {a} again {c}\nMissing: a, c",
+              "is_hidden": true
+            },
+            {
+              "input": "Translate {text} to {language}. Keep {text} short.\n1\ntext=Hello\n",
+              "output": "Translate Hello to {language}. Keep Hello short.\nMissing: language",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-ape-few-shot-builder",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Build a Few-Shot Prompt",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Few-shot prompting gives the model a few solved examples before the real question. Build such a prompt from an instruction, a list of examples and a query.\n\n#### Input\n- The first line contains the instruction.\n- The second line contains an integer `N` (N &gt;= 0), the number of examples.\n- Each of the next `N` lines contains `input =&gt; output`. Split at the first `=&gt;` and remove spaces around both parts.\n- The last line contains the query. Remove spaces around it.\n\n#### Output\nPrint the prompt in this exact layout:\n- The instruction, then an empty line.\n- For each example `i` (starting from 1): `Example i:`, `Input: &lt;input&gt;`, `Output: &lt;output&gt;`, then an empty line.\n- `Now answer:`, then `Input: &lt;query&gt;`, then `Output:` (nothing after the colon).\n\nWhen `N` is 0 (zero-shot), there are no example blocks.\n\n#### Sample Input\n```\nClassify the sentiment as Positive or Negative.\n2\nI love this phone =&gt; Positive\nThe battery died in an hour =&gt; Negative\nThe camera is amazing\n```\n\n#### Sample Output\n```\nClassify the sentiment as Positive or Negative.\n\nExample 1:\nInput: I love this phone\nOutput: Positive\n\nExample 2:\nInput: The battery died in an hour\nOutput: Negative\n\nNow answer:\nInput: The camera is amazing\nOutput:\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "Classify the sentiment as Positive or Negative.\n2\nI love this phone => Positive\nThe battery died in an hour => Negative\nThe camera is amazing\n",
+              "output": "Classify the sentiment as Positive or Negative.\n\nExample 1:\nInput: I love this phone\nOutput: Positive\n\nExample 2:\nInput: The battery died in an hour\nOutput: Negative\n\nNow answer:\nInput: The camera is amazing\nOutput:",
+              "is_hidden": false
+            },
+            {
+              "input": "Translate English to French.\n0\nGood morning\n",
+              "output": "Translate English to French.\n\nNow answer:\nInput: Good morning\nOutput:",
+              "is_hidden": true
+            },
+            {
+              "input": "Convert to uppercase.\n1\n  hello   =>   HELLO  \n  world  \n",
+              "output": "Convert to uppercase.\n\nExample 1:\nInput: hello\nOutput: HELLO\n\nNow answer:\nInput: world\nOutput:",
+              "is_hidden": true
+            },
+            {
+              "input": "Give the result.\n3\n2 + 2 => 4\na => b => c\n10 / 2 => 5\n7 * 6\n",
+              "output": "Give the result.\n\nExample 1:\nInput: 2 + 2\nOutput: 4\n\nExample 2:\nInput: a\nOutput: b => c\n\nExample 3:\nInput: 10 / 2\nOutput: 5\n\nNow answer:\nInput: 7 * 6\nOutput:",
+              "is_hidden": true
+            },
+            {
+              "input": "Name the capital.\n1\nIndia => New Delhi\nJapan\n",
+              "output": "Name the capital.\n\nExample 1:\nInput: India\nOutput: New Delhi\n\nNow answer:\nInput: Japan\nOutput:",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-ape-output-validator",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Validate Structured LLM Output",
+          "question_difficulty": "HARD",
+          "question_content": "We asked an LLM to reply with `key: value` lines, but models often add extra chatter. Write a validator that extracts the required fields and outputs them as JSON.\n\nRules for each response line:\n- A line without `:` is ignored.\n- Otherwise split at the first `:`. The key is the left part with surrounding spaces removed, converted to lowercase. The value is the right part with surrounding spaces removed.\n- If the value is empty, the line is ignored.\n- If the same key appears more than once, keep the first (non-empty) value.\n\nKeys that are not required are ignored.\n\n#### Input\n- The first line contains the required keys (lowercase), separated by commas. Remove spaces around each key.\n- The second line contains an integer `M` (M &gt;= 0).\n- Each of the next `M` lines is one line of the model's response.\n\n#### Output\n- If any required key has no value, print `INVALID: missing ` followed by the missing keys in the required order, separated by `, `.\n- Otherwise print one line of JSON with the required keys in the required order, in the form `{\"key1\": \"value1\", \"key2\": \"value2\"}` (exactly as produced by Python's `json.dumps`).\n\n#### Sample Input\n```\nname, sentiment, score\n5\nSure! Here is the analysis.\nName: Asha\nSentiment: Positive\nScore: 9\nHope this helps\n```\n\n#### Sample Output\n```\n{\"name\": \"Asha\", \"sentiment\": \"Positive\", \"score\": \"9\"}\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "name, sentiment, score\n5\nSure! Here is the analysis.\nName: Asha\nSentiment: Positive\nScore: 9\nHope this helps\n",
+              "output": "{\"name\": \"Asha\", \"sentiment\": \"Positive\", \"score\": \"9\"}",
+              "is_hidden": false
+            },
+            {
+              "input": "title,platform\n2\nTitle: AI News\nplatform:\n",
+              "output": "INVALID: missing platform",
+              "is_hidden": true
+            },
+            {
+              "input": "title, url\n3\nTitle: First\nTITLE: Second\nURL: https://example.com/a\n",
+              "output": "{\"title\": \"First\", \"url\": \"https://example.com/a\"}",
+              "is_hidden": true
+            },
+            {
+              "input": "answer\n0\n",
+              "output": "INVALID: missing answer",
+              "is_hidden": true
+            },
+            {
+              "input": "summary,tone,hashtags\n6\nsummary : A quote \"inside\" here\nTone: friendly\nnoise line\ntone: formal\nextra: ignored\nhashtags: #AI #n8n\n",
+              "output": "{\"summary\": \"A quote \\\"inside\\\" here\", \"tone\": \"friendly\", \"hashtags\": \"#AI #n8n\"}",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

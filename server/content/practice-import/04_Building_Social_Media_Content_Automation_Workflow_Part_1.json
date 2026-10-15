@@ -1,0 +1,307 @@
+{
+  "track": "GenAI",
+  "course": "Introduction to Generative AI",
+  "session": "Building Social Media Content Automation Workflow, Part 1",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice Building Social Media Content Automation Workflow, Part 1",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "648e4bb3fbfa4be8a2bbf3409d6bddc3",
+          "question_order": 1,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which component of an AI workflow serves as the starting point where data or a trigger enters the system?",
+          "options": [
+            {
+              "content": "Connection",
+              "is_correct": false
+            },
+            {
+              "content": "Processing step",
+              "is_correct": false
+            },
+            {
+              "content": "Input (Trigger)",
+              "is_correct": true
+            },
+            {
+              "content": "Output",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Every workflow begins with an input or trigger, such as a new sheet row, a chat message or a schedule, which brings data into the system."
+        },
+        {
+          "question_id": "89fd4ff9e60748969fb08c9167e9d2ae",
+          "question_order": 2,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "_______ are predefined sequences of steps that use artificial intelligence to complete tasks automatically.",
+          "options": [
+            {
+              "content": "AI workflows",
+              "is_correct": true
+            },
+            {
+              "content": "Web browsers",
+              "is_correct": false
+            },
+            {
+              "content": "Spreadsheets",
+              "is_correct": false
+            },
+            {
+              "content": "Manual checklists",
+              "is_correct": false
+            }
+          ],
+          "explanation": "An AI workflow is a predefined sequence of steps, some powered by AI models, that runs a task automatically."
+        },
+        {
+          "question_id": "08363d77487b4462b47a4727d224d432",
+          "question_order": 3,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "What does the Google Sheets Trigger node do in an n8n workflow?",
+          "options": [
+            {
+              "content": "It formats the cells of a Google Sheet automatically",
+              "is_correct": false
+            },
+            {
+              "content": "It starts the workflow when rows are added or updated in a Google Sheet",
+              "is_correct": true
+            },
+            {
+              "content": "It deletes old rows from a Google Sheet after the workflow ends",
+              "is_correct": false
+            },
+            {
+              "content": "It converts a Google Sheet into a PDF file",
+              "is_correct": false
+            }
+          ],
+          "explanation": "The Google Sheets Trigger watches a sheet and starts the workflow when a row is added or updated, passing that row's data to the next node."
+        },
+        {
+          "question_id": "d5fb9699cc174160af54fe10ead02681",
+          "question_order": 4,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "Which of the following is not a valid trigger type in n8n workflows?",
+          "options": [
+            {
+              "content": "Manual trigger",
+              "is_correct": false
+            },
+            {
+              "content": "Output trigger",
+              "is_correct": true
+            },
+            {
+              "content": "Schedule (time-based) trigger",
+              "is_correct": false
+            },
+            {
+              "content": "Webhook (event-based) trigger",
+              "is_correct": false
+            }
+          ],
+          "explanation": "n8n workflows can be started manually, on a schedule, or by an event such as a webhook or app trigger; there is no 'Output trigger'."
+        },
+        {
+          "question_id": "7f10a7eb10e541e7b63db18c88e15a0b",
+          "question_order": 5,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Statement I: n8n allows integration with Google Sheets, Slack, and Twitter. Statement II: n8n workflows cannot be triggered manually.",
+          "options": [
+            {
+              "content": "Statement I is true and Statement II is false",
+              "is_correct": true
+            },
+            {
+              "content": "Statement I is false and Statement II is true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are false",
+              "is_correct": false
+            }
+          ],
+          "explanation": "n8n has built-in nodes for Google Sheets, Slack and Twitter (X), and any workflow can be run manually with the Manual Trigger or the Execute Workflow button."
+        },
+        {
+          "question_id": "40967bd96e0c4029a155752bf41b5830",
+          "question_order": 6,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Statement I: AI workflows are designed to optimize repetitive tasks. Statement II: Human setup is not required in AI workflows.",
+          "options": [
+            {
+              "content": "Statement I is true and Statement II is false",
+              "is_correct": true
+            },
+            {
+              "content": "Statement I is false and Statement II is true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are true",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are false",
+              "is_correct": false
+            }
+          ],
+          "explanation": "AI workflows automate repetitive tasks, but a human must still design the steps, connect the nodes and add credentials before they run on their own."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding Building Social Media Content Automation Workflow, Part 1",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "ss3-smw1-post-formatter",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Post Formatter with Character Limit",
+          "question_difficulty": "EASY",
+          "question_content": "A content workflow takes an article title and its AI-generated summary and turns them into one social media post.\n\nThe post is built as `title: summary` (the title, a colon, one space, then the summary). Some platforms limit the number of characters, so:\n- If the post has at most `L` characters, print it unchanged.\n- Otherwise, keep only the first `L - 3` characters of the post and add `...` at the end, so the result is exactly `L` characters long.\n\n#### Input\n- The first line contains the title.\n- The second line contains the summary.\n- The third line contains an integer `L` (L &gt;= 10), the character limit.\n\n#### Output\nPrint the final post on a single line.\n\n#### Sample Input\n```\nAI News\nGemini launches a faster model for developers\n40\n```\n\n#### Sample Output\n```\nAI News: Gemini launches a faster mod...\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "AI News\nGemini launches a faster model for developers\n40\n",
+              "output": "AI News: Gemini launches a faster mod...",
+              "is_hidden": false
+            },
+            {
+              "input": "Hello\nWorld\n100\n",
+              "output": "Hello: World",
+              "is_hidden": true
+            },
+            {
+              "input": "Daily Tip\nUse automation\n25\n",
+              "output": "Daily Tip: Use automation",
+              "is_hidden": true
+            },
+            {
+              "input": "Daily Tip\nUse automation to save time\n25\n",
+              "output": "Daily Tip: Use automat...",
+              "is_hidden": true
+            },
+            {
+              "input": "Big Update\nOpenRouter adds dozens of new models for chat apps and agents this week\n10\n",
+              "output": "Big Upd...",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-smw1-split-in-batches",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Split In Batches",
+          "question_difficulty": "MEDIUM",
+          "question_content": "The **Split In Batches** (Loop Over Items) node in n8n breaks a large list of items into smaller groups so they can be processed one group at a time.\n\nGiven a list of items and a batch size `B`, split the items in order into batches of `B` items. The last batch may have fewer than `B` items.\n\n#### Input\n- The first line contains the items separated by commas. Remove spaces around each item.\n- The second line contains an integer `B` (B &gt;= 1), the batch size.\n\n#### Output\n- For each batch, print `Batch k: item1, item2, ...` where `k` starts at 1 and items are joined by a comma and a space.\n- Finally print `Total batches: X`.\n\n#### Sample Input\n```\npost1, post2, post3, post4, post5\n2\n```\n\n#### Sample Output\n```\nBatch 1: post1, post2\nBatch 2: post3, post4\nBatch 3: post5\nTotal batches: 3\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "post1, post2, post3, post4, post5\n2\n",
+              "output": "Batch 1: post1, post2\nBatch 2: post3, post4\nBatch 3: post5\nTotal batches: 3",
+              "is_hidden": false
+            },
+            {
+              "input": "a,b,c,d\n2\n",
+              "output": "Batch 1: a, b\nBatch 2: c, d\nTotal batches: 2",
+              "is_hidden": true
+            },
+            {
+              "input": "only\n3\n",
+              "output": "Batch 1: only\nTotal batches: 1",
+              "is_hidden": true
+            },
+            {
+              "input": "row1, row2, row3\n1\n",
+              "output": "Batch 1: row1\nBatch 2: row2\nBatch 3: row3\nTotal batches: 3",
+              "is_hidden": true
+            },
+            {
+              "input": "x1,x2,x3,x4,x5,x6,x7\n10\n",
+              "output": "Batch 1: x1, x2, x3, x4, x5, x6, x7\nTotal batches: 1",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-smw1-schedule-trigger",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Schedule Trigger with Quiet Hours",
+          "question_difficulty": "HARD",
+          "question_content": "A **Schedule Trigger** starts a workflow every `I` minutes. The team does not want posts to go out during *quiet hours*, so any run that falls inside the quiet window is skipped.\n\nThe first run happens at the start time on Day 1. Run number `k` (counting from 0) happens `k * I` minutes after the start time. When the time passes midnight (24:00), the day number increases by 1 and the clock continues from 00:00.\n\nThe quiet window is given as `HH:MM-HH:MM`. A run is inside it if its clock time is at or after the start of the window and before the end of the window. The window can cross midnight (for example `22:00-06:00` covers 22:00 to 05:59). The start and end of the window are never equal. If there are no quiet hours, the line is `NONE`.\n\n#### Input\n- The first line contains the start time `HH:MM` (24-hour format).\n- The second line contains an integer `I` (1 &lt;= I &lt;= 1440), the interval in minutes.\n- The third line contains an integer `N` (N &gt;= 1), the number of times the trigger fires.\n- The fourth line contains the quiet window `HH:MM-HH:MM` or `NONE`.\n\n#### Output\n- For each of the `N` trigger times, in order, print `Day d HH:MM - run` or `Day d HH:MM - skipped` (hours and minutes always use two digits).\n- Finally print `Runs: R, Skipped: S`.\n\n#### Sample Input\n```\n20:00\n90\n5\n22:00-06:00\n```\n\n#### Sample Output\n```\nDay 1 20:00 - run\nDay 1 21:30 - run\nDay 1 23:00 - skipped\nDay 2 00:30 - skipped\nDay 2 02:00 - skipped\nRuns: 2, Skipped: 3\n```\n",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "20:00\n90\n5\n22:00-06:00\n",
+              "output": "Day 1 20:00 - run\nDay 1 21:30 - run\nDay 1 23:00 - skipped\nDay 2 00:30 - skipped\nDay 2 02:00 - skipped\nRuns: 2, Skipped: 3",
+              "is_hidden": false
+            },
+            {
+              "input": "09:00\n60\n3\nNONE\n",
+              "output": "Day 1 09:00 - run\nDay 1 10:00 - run\nDay 1 11:00 - run\nRuns: 3, Skipped: 0",
+              "is_hidden": true
+            },
+            {
+              "input": "23:30\n15\n4\n00:00-00:15\n",
+              "output": "Day 1 23:30 - run\nDay 1 23:45 - run\nDay 2 00:00 - skipped\nDay 2 00:15 - run\nRuns: 3, Skipped: 1",
+              "is_hidden": true
+            },
+            {
+              "input": "08:00\n1440\n3\n09:00-17:00\n",
+              "output": "Day 1 08:00 - run\nDay 2 08:00 - run\nDay 3 08:00 - run\nRuns: 3, Skipped: 0",
+              "is_hidden": true
+            },
+            {
+              "input": "05:59\n1\n3\n22:00-06:00\n",
+              "output": "Day 1 05:59 - skipped\nDay 1 06:00 - run\nDay 1 06:01 - run\nRuns: 2, Skipped: 1",
+              "is_hidden": true
+            },
+            {
+              "input": "12:00\n30\n4\n12:00-13:00\n",
+              "output": "Day 1 12:00 - skipped\nDay 1 12:30 - skipped\nDay 1 13:00 - run\nDay 1 13:30 - run\nRuns: 2, Skipped: 2",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

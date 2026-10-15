@@ -2,11 +2,12 @@
 // The portal appends them after its built-in questions (portal-bridge.js). Students' MCQ answers are stored by
 // position (pPick[gi]), so questions are never removed from the list: "Delete" archives a question (it disappears
 // from Practice but keeps its slot), and new ones always go at the end.
-import { one, all, run, parseJSON } from './db.js';
+import { one, all, run, parseJSON, getSetting, setSetting } from './db.js';
 import * as kv from './kv.js';
 import { parseImport } from './practice-import.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { config } from './config.js';
 
 // Questions used in a Sprint test are hidden from Practice, so students do not see them before the test.
@@ -63,8 +64,30 @@ function checkCode(b) {
 
 const CACHE = 'practiceq:v1';
 export const clearPracticeCache = () => kv.invalidate(CACHE);
+
+// Practice questions kept in the repository (content/practice-import/*.json, same format as Admin → Practice questions →
+// Import JSON; build-portal.js bundles them into generated/practice-seed.json). They are imported once per change of
+// those files: same question_id → updated in place, new ones go at the end (positions of existing questions never move).
+let seedChecked = '';
+// PRACTICE_SEED=0 turns the automatic import off (the tests do; force runs it anyway).
+export async function seedPractice({ force = false } = {}) {
+  if (process.env.PRACTICE_SEED === '0' && !force) return { seeded: false };
+  const file = path.join(path.dirname(config.sprintTestFile), 'practice-seed.json');
+  if (!fs.existsSync(file)) return { seeded: false };
+  const text = fs.readFileSync(file, 'utf8');
+  const hash = crypto.createHash('sha1').update(text).digest('hex');
+  if (seedChecked === hash || (await getSetting('practice_seed_hash')) === hash) { seedChecked = hash; return { seeded: false }; }
+  if (!(await kv.setNX('lock:practice-seed', '1', 120))) return { seeded: false }; // another instance is importing
+  try {
+    const r = await importPractice(JSON.parse(text).files || [], { dry: false, drafts: false }, 'repo:content/practice-import');
+    await setSetting('practice_seed_hash', hash);
+    seedChecked = hash;
+    return { seeded: true, summary: r.summary };
+  } finally { await kv.del('lock:practice-seed'); }
+}
 // For the portal: every question in creation order (archived ones as placeholders that Practice never shows).
-export const practiceExtra = () => kv.cached(CACHE, 30, async () => {
+export const practiceExtra = () => seedPractice().catch((e) => console.error('[practice seed]', e.message)).then(() => practiceExtraRows());
+const practiceExtraRows = () => kv.cached(CACHE, 30, async () => {
   const rows = await all('SELECT id, kind, course, topic, data, archived, draft, src_id FROM practice_questions ORDER BY id');
   const mcq = [], code = [];
   for (const r of rows) {

@@ -1,0 +1,303 @@
+{
+  "track": "WAD",
+  "course": "Web Application Development",
+  "session": "Website: Behind the Scenes",
+  "source": "Sprint 3 Question JSONs (Metabase) + knowledge-graph code; prepared Oct 2026",
+  "mcq_practice": [
+    {
+      "set_name": "Practice Website: Behind the Scenes",
+      "picking_type": "FIXED_QUESTIONS",
+      "question_count": 6,
+      "questions": [
+        {
+          "question_id": "255cbfdbeab740b494b7499c1b96a56c",
+          "question_order": 1,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "Which of the following is used to identify a specific device that is connected to the internet?",
+          "options": [
+            {
+              "content": "IP address",
+              "is_correct": true
+            },
+            {
+              "content": "HTML file",
+              "is_correct": false
+            },
+            {
+              "content": "Web browser",
+              "is_correct": false
+            },
+            {
+              "content": "Domain name",
+              "is_correct": false
+            }
+          ],
+          "explanation": "Every device connected to the internet is identified by a unique IP address."
+        },
+        {
+          "question_id": "abd53062dbde4f248d1275a2ed62b40b",
+          "question_order": 2,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Easy",
+          "question_content": "In the website address varakumar.ccbp.tech, which of the following is the sub domain?",
+          "options": [
+            {
+              "content": "ccbp",
+              "is_correct": false
+            },
+            {
+              "content": "varakumar.ccbp.tech",
+              "is_correct": false
+            },
+            {
+              "content": "tech",
+              "is_correct": false
+            },
+            {
+              "content": "varakumar",
+              "is_correct": true
+            }
+          ],
+          "explanation": "The part before the domain name, here varakumar, is the sub domain; ccbp is the domain name and tech is the top-level domain."
+        },
+        {
+          "question_id": "ade3a9fb064f470f8475ef3da9833b43",
+          "question_order": 3,
+          "question_type": "CODE_ANALYSIS_MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "In the given code, src is an ___.",
+          "code": "<img src=\"https://assets.ccbp.in/frontend/static-website/profile-img.png\" />",
+          "options": [
+            {
+              "content": "HTML attribute",
+              "is_correct": true
+            },
+            {
+              "content": "HTML tag",
+              "is_correct": false
+            },
+            {
+              "content": "CSS property",
+              "is_correct": false
+            },
+            {
+              "content": "HTML element",
+              "is_correct": false
+            }
+          ],
+          "explanation": "src is written inside the start tag of the &lt;img&gt; element as name=\"value\", so it is an HTML attribute."
+        },
+        {
+          "question_id": "2176f1b46cbb468b8ee59ec445cfd0ac",
+          "question_order": 4,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Medium",
+          "question_content": "Which of the following is not an HTML attribute name?",
+          "options": [
+            {
+              "content": "font-size",
+              "is_correct": true
+            },
+            {
+              "content": "href",
+              "is_correct": false
+            },
+            {
+              "content": "alt",
+              "is_correct": false
+            },
+            {
+              "content": "src",
+              "is_correct": false
+            }
+          ],
+          "explanation": "font-size is a CSS property; src, href and alt are HTML attributes."
+        },
+        {
+          "question_id": "dc0f48ce49864e0dadd648fa7eb83c53",
+          "question_order": 5,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Which of the following options is correct?\nStatement-1: To curve the bottom right corner of an HTML element we use the CSS border-top-left-radius property.\nStatement-2: To apply a background color to an HTML element we use the CSS background-color property.",
+          "options": [
+            {
+              "content": "Neither statement is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Only Statement-1 is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Only Statement-2 is correct",
+              "is_correct": true
+            },
+            {
+              "content": "Both statements are correct",
+              "is_correct": false
+            }
+          ],
+          "explanation": "The bottom right corner is curved with border-bottom-right-radius, so Statement-1 is wrong; background-color sets the background color, so Statement-2 is right."
+        },
+        {
+          "question_id": "ccb592c5e4be4c8c89bd35f6097e9dbb",
+          "question_order": 6,
+          "question_type": "MULTIPLE_CHOICE",
+          "question_score": 1,
+          "short_text": "",
+          "difficulty": "Hard",
+          "question_content": "Which of the following options is correct?\nStatement-1: To bold a text we can use the CSS property font-weight.\nStatement-2: To add an overline to a text we can use the CSS property text-decoration.",
+          "options": [
+            {
+              "content": "Only Statement-2 is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Neither statement is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Only Statement-1 is correct",
+              "is_correct": false
+            },
+            {
+              "content": "Both statements are correct",
+              "is_correct": true
+            }
+          ],
+          "explanation": "font-weight: bold makes text bold, and text-decoration: overline draws a line above the text, so both statements are correct."
+        }
+      ]
+    }
+  ],
+  "coding_practice": [
+    {
+      "set_name": "Coding Website: Behind the Scenes",
+      "question_count": 3,
+      "questions": [
+        {
+          "question_id": "ss3-web-split-url",
+          "question_order": 1,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Split a URL",
+          "question_difficulty": "EASY",
+          "question_content": "A URL like `https://www.example.com/about/team` has three parts: the **protocol** (`https`), the **domain** (`www.example.com`) and the **path** (`/about/team`).\n\nGiven a URL, print its three parts. The protocol is everything before `://`. The domain is everything after `://` up to (not including) the first `/`. The path is everything from that `/` to the end. If there is no `/` after the domain, the path is `/`.\n\n#### Input\nA single line containing a URL. It always contains `://` and has no spaces.\n\n#### Output\nThree lines, exactly in this format:\n```\nProtocol: &lt;protocol&gt;\nDomain: &lt;domain&gt;\nPath: &lt;path&gt;\n```\n\n#### Sample Input\n```\nhttps://www.example.com/about/team\n```\n\n#### Sample Output\n```\nProtocol: https\nDomain: www.example.com\nPath: /about/team\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "https://www.example.com/about/team\n",
+              "output": "Protocol: https\nDomain: www.example.com\nPath: /about/team",
+              "is_hidden": false
+            },
+            {
+              "input": "https://varakumar.ccbp.tech\n",
+              "output": "Protocol: https\nDomain: varakumar.ccbp.tech\nPath: /",
+              "is_hidden": true
+            },
+            {
+              "input": "http://ccbp.in/\n",
+              "output": "Protocol: http\nDomain: ccbp.in\nPath: /",
+              "is_hidden": true
+            },
+            {
+              "input": "https://learning.ccbp.in/course/html/session-3/notes.html\n",
+              "output": "Protocol: https\nDomain: learning.ccbp.in\nPath: /course/html/session-3/notes.html",
+              "is_hidden": true
+            },
+            {
+              "input": "ftp://files.example.org/pub/readme.txt\n",
+              "output": "Protocol: ftp\nDomain: files.example.org\nPath: /pub/readme.txt",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-web-status-codes",
+          "question_order": 2,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Classify HTTP Status Codes",
+          "question_difficulty": "MEDIUM",
+          "question_content": "When a browser requests a page, the server replies with a 3-digit HTTP status code. The first digit tells the class:\n\n- `1xx` -&gt; `Informational`\n- `2xx` -&gt; `Success`\n- `3xx` -&gt; `Redirection`\n- `4xx` -&gt; `Client Error`\n- `5xx` -&gt; `Server Error`\n\nA code is valid only if it is made of exactly 3 digits and lies between 100 and 599 (inclusive). Anything else is `Invalid`.\n\nFor each code print its class, then print how many valid codes were errors (4xx or 5xx).\n\n#### Input\nThe first line contains an integer `N` (1 &lt;= N &lt;= 50).\nEach of the next `N` lines contains one code (a string without spaces, which may be invalid).\n\n#### Output\n`N` lines in the form `&lt;code&gt;: &lt;class&gt;` (print the code exactly as given), followed by one line `Errors: E`.\n\n#### Sample Input\n```\n4\n200\n404\n301\n500\n```\n\n#### Sample Output\n```\n200: Success\n404: Client Error\n301: Redirection\n500: Server Error\nErrors: 2\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "4\n200\n404\n301\n500\n",
+              "output": "200: Success\n404: Client Error\n301: Redirection\n500: Server Error\nErrors: 2",
+              "is_hidden": false
+            },
+            {
+              "input": "1\n200\n",
+              "output": "200: Success\nErrors: 0",
+              "is_hidden": true
+            },
+            {
+              "input": "6\n100\n199\n600\n99\n503\nabc\n",
+              "output": "100: Informational\n199: Informational\n600: Invalid\n99: Invalid\n503: Server Error\nabc: Invalid\nErrors: 1",
+              "is_hidden": true
+            },
+            {
+              "input": "5\n404\n403\n401\n502\n418\n",
+              "output": "404: Client Error\n403: Client Error\n401: Client Error\n502: Server Error\n418: Client Error\nErrors: 5",
+              "is_hidden": true
+            },
+            {
+              "input": "3\n0404\n302\n204\n",
+              "output": "0404: Invalid\n302: Redirection\n204: Success\nErrors: 0",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "ss3-web-request-line",
+          "question_order": 3,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Build an HTTP Request",
+          "question_difficulty": "HARD",
+          "question_content": "When you open a URL, the browser sends an HTTP request that starts with a **request line** and a **Host** header. Given a method and a URL, build these lines and also break the host name into its parts.\n\nRules:\n1. Convert the method to uppercase.\n2. If the URL contains `://`, remove everything up to and including `://`.\n3. The **host** is the text up to (not including) the first `/` or `?` (whichever comes first); convert it to lowercase. The **target** is the rest of the text (keep its case). If the target is empty, it is `/`. If the target starts with `?`, put `/` in front of it.\n4. Split the host by `.`: the last label is the **TLD**, the label before it is the **domain**, and all labels before that (joined with `.`) form the **subdomain**. If there are no such labels, the subdomain is `none`.\n\n#### Input\nThe first line contains the method (e.g. `get`, `POST`).\nThe second line contains the URL (no spaces, no port number). The host always has at least two labels (e.g. `ccbp.in`).\n\n#### Output\nFive lines, exactly in this format:\n```\n&lt;METHOD&gt; &lt;target&gt; HTTP/1.1\nHost: &lt;host&gt;\nSubdomain: &lt;subdomain&gt;\nDomain: &lt;domain&gt;\nTLD: &lt;tld&gt;\n```\n\n#### Sample Input\n```\nget\nhttps://varakumar.ccbp.tech/about\n```\n\n#### Sample Output\n```\nGET /about HTTP/1.1\nHost: varakumar.ccbp.tech\nSubdomain: varakumar\nDomain: ccbp\nTLD: tech\n```",
+          "starter_code": "",
+          "test_cases": [
+            {
+              "input": "get\nhttps://varakumar.ccbp.tech/about\n",
+              "output": "GET /about HTTP/1.1\nHost: varakumar.ccbp.tech\nSubdomain: varakumar\nDomain: ccbp\nTLD: tech",
+              "is_hidden": false
+            },
+            {
+              "input": "GET\nccbp.in\n",
+              "output": "GET / HTTP/1.1\nHost: ccbp.in\nSubdomain: none\nDomain: ccbp\nTLD: in",
+              "is_hidden": true
+            },
+            {
+              "input": "post\nhttp://Api.Learning.CCBP.in/v1/Login?User=Ravi\n",
+              "output": "POST /v1/Login?User=Ravi HTTP/1.1\nHost: api.learning.ccbp.in\nSubdomain: api.learning\nDomain: ccbp\nTLD: in",
+              "is_hidden": true
+            },
+            {
+              "input": "Delete\nhttps://shop.example.com?id=7\n",
+              "output": "DELETE /?id=7 HTTP/1.1\nHost: shop.example.com\nSubdomain: shop\nDomain: example\nTLD: com",
+              "is_hidden": true
+            },
+            {
+              "input": "put\nhttps://www.google.com/\n",
+              "output": "PUT / HTTP/1.1\nHost: www.google.com\nSubdomain: www\nDomain: google\nTLD: com",
+              "is_hidden": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
