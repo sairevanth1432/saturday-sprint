@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&amp;family=JetBrains+Mono:wght@400;500;700;800&amp;family=VT323&amp;display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0A0A0A;--panel:#151515;--panel2:#1B1B1B;--well:#050505;--line:#2A2A2A;--line2:#3A3A3A;--muted:#8A8A8A;--soft:#BDBDBD;--text:#FFFFFF;--accent:#FFE45C;--bad:#FF7A7A;--good:#9BE58B;--info:#8EC5FF}
+:root{color-scheme:dark;--bg:#0A0A0A;--panel:#151515;--panel2:#1B1B1B;--well:#050505;--line:#2A2A2A;--line2:#3A3A3A;--muted:#8A8A8A;--soft:#BDBDBD;--text:#FFFFFF;--accent:#FFE45C;--bad:#FF7A7A;--good:#9BE58B;--info:#8EC5FF}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:"JetBrains Mono",system-ui,sans-serif;font-size:14px}
 button,input,select,textarea{font-family:inherit;font-size:14px}
@@ -49,6 +49,8 @@ input[type=text],input[type=email],input[type=password],input[type=number],input
   min-height:40px;padding:0 12px;border:2px solid var(--line2);border-radius:10px;background:var(--well);color:var(--text);outline:none}
 textarea{padding:10px 12px;min-height:80px}
 input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+select option,select optgroup{background:var(--panel2);color:var(--text);font-size:14px;font-weight:600}
+select option:checked{background:var(--accent);color:#000}
 input[type=search]{min-width:280px}
 .btn{min-height:40px;padding:0 16px;border-radius:10px;border:2px solid var(--line2);background:transparent;color:var(--text);font-weight:800;white-space:nowrap}
 .btn:hover{border-color:var(--soft)}
