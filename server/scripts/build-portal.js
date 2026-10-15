@@ -787,16 +787,48 @@ replaceOnce('</head>', `<style>
 .ss-step-mark { width: 20px; height: 20px; border-radius: 50%; background: #262626; color: #8A8A8A; font-size: 11px; display: flex; align-items: center; justify-content: center; }
 .ss-step[aria-selected="true"] .ss-step-mark, .ss-step[data-done="true"] .ss-step-mark { background: #FFE45C; color: #050505; }
 .ss-step[data-done="true"] { color: #DADADA; }
-/* Practice "Hiring" tab */
-.ss-hq-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 1100px) { .ss-hq-grid { grid-template-columns: 1fr; } }
-.ss-hq { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 16px; background: #151515; border: 1px solid #222222; min-width: 0; }
-.ss-hq-n { flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px; background: #262626; color: #BDBDBD; font-family: 'VT323', monospace; font-size: 17px; display: flex; align-items: center; justify-content: center; }
-.ss-hq-lvl { flex-shrink: 0; padding: 2px 8px; border: 1px solid; border-radius: 999px; font-size: 11px; font-weight: 800; }
-.ss-hq-asked { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 36px; }
-.ss-hq-co { padding: 4px 10px; border-radius: 999px; background: #0D0D0D; border: 1px solid #262626; font-size: 12px; color: #8A8A8A; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ss-hq-co b { color: #EDEDED; font-weight: 800; }
-.ss-hq-more { padding: 4px 10px; font-size: 12px; font-weight: 700; color: #FFE45C; }
+/* Practice "Hiring" tab: question on the left, the companies and jobs it was asked for on the right */
+.ss-hq2 { display: flex; flex-direction: column; gap: 26px; }
+.ss-hq2-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #7D7D7D; }
+.ss-hq2-pos { white-space: nowrap; }
+.ss-hq2-pos b { color: #FFE45C; }
+.ss-hq2-bar { flex: 1; min-width: 120px; height: 4px; border-radius: 2px; background: #1C1C1C; overflow: hidden; }
+.ss-hq2-bar i { display: block; height: 100%; background: #FFE45C; transition: width 300ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ss-hq2-tabs { display: flex; gap: 4px; }
+.ss-hq2-tabs button { border: 0; background: none; color: #7D7D7D; font-weight: 700; font-size: 13px; padding: 9px 12px; border-radius: 9px; white-space: nowrap; }
+.ss-hq2-tabs button[aria-pressed="true"] { background: #FFE45C; color: #111111; }
+.ss-hq2-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 56px; }
+@media (max-width: 1100px) { .ss-hq2-grid { grid-template-columns: 1fr; gap: 32px; } }
+.ss-hq2-meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #7D7D7D; font-weight: 700; letter-spacing: .08em; margin-bottom: 14px; }
+.ss-hq2-lvl { border: 1px solid; padding: 3px 10px; border-radius: 999px; letter-spacing: 0; }
+.ss-hq2-q { font-size: 28px; font-weight: 800; color: #FFFFFF; line-height: 1.35; margin-bottom: 26px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .ss-hq2-q { font-size: 21px; } }
+.ss-hq2-code { margin: -8px 0 22px; padding: 16px 18px; background: #050505; border: 1px solid #262626; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.65; color: #FFFFFF; white-space: pre-wrap; overflow-wrap: anywhere; font-variant-ligatures: none; }
+.ss-hq2-opt { width: 100%; display: flex; gap: 16px; align-items: flex-start; text-align: left; background: none; border: 1px solid #262626; border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; color: #FFFFFF; font-size: 15.5px; line-height: 1.5; font-weight: 600; transition: border-color 150ms ease, background-color 150ms ease; }
+@media (hover: hover) { .ss-hq2-opt:hover { border-color: #444444; } }
+.ss-hq2-opt b { flex: none; width: 28px; height: 28px; border-radius: 7px; background: #1A1A1A; color: #FFE45C; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.ss-hq2-opt span { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-variant-ligatures: none; }
+.ss-hq2-opt[data-st="sel"] { border-color: #FFE45C; background: rgba(255,228,92,.06); }
+.ss-hq2-opt[data-st="sel"] b { background: #FFE45C; color: #111111; }
+.ss-hq2-opt[data-st="ok"] { border-color: #9BE58B; background: rgba(155,229,139,.08); }
+.ss-hq2-opt[data-st="ok"] b { background: #9BE58B; color: #111111; }
+.ss-hq2-opt[data-st="bad"] { border-color: #FF7A7A; background: rgba(255,122,122,.07); }
+.ss-hq2-opt[data-st="bad"] b { background: #FF7A7A; color: #111111; }
+.ss-hq2-fb { font-size: 14px; line-height: 1.6; color: #BDBDBD; margin-top: 6px; font-variant-ligatures: none; }
+.ss-hq2-iq { margin-top: 8px; font-size: 12.5px; line-height: 1.5; color: #7D7D7D; }
+.ss-hq2-iq span { color: #BDBDBD; }
+.ss-hq2-act { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.ss-hq2-btn { border: 1px solid #333333; background: none; color: #FFFFFF; font-weight: 800; font-size: 14px; padding: 12px 20px; border-radius: 11px; white-space: nowrap; }
+.ss-hq2-btn[aria-disabled="true"] { opacity: .3; cursor: default; }
+.ss-hq2-btn.y { background: #FFE45C; border-color: #FFE45C; color: #111111; }
+.ss-hq2-asked h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .14em; color: #FFE45C; font-weight: 800; }
+.ss-hq2-asked p { margin: 0 0 18px; font-size: 14px; color: #BDBDBD; line-height: 1.5; }
+.ss-hq2-asked p b { color: #FFFFFF; }
+.ss-hq2-co { padding: 16px 0; border-top: 1px solid #222222; }
+.ss-hq2-co .n { font-size: 17px; font-weight: 800; color: #FFFFFF; overflow-wrap: anywhere; }
+.ss-hq2-co .r { font-size: 14px; color: #FFE45C; margin-top: 4px; font-weight: 700; overflow-wrap: anywhere; }
+.ss-hq2-co .d { font-size: 12.5px; color: #7D7D7D; margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .ss-hq2-bar i, .ss-hq2-opt { transition: none; } }
 /* Profile page: photo, streak, medals (values: portal-bridge.js ssProfileVals) */
 .ss-medal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .ss-medal-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid; border-radius: 14px; background: #151515; min-width: 0; }

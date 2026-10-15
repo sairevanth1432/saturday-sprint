@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   var clock = { offset: 0 }; // serverNow - Date.now()
-  var PROGRESS_KEYS = ['done', 'solved', 'pPick', 'pSel', 'course', 'pc', 'pcSet', 'ssTab', 'stepDone', 'stepDoneById'];
+  var PROGRESS_KEYS = ['done', 'solved', 'pPick', 'pSel', 'course', 'pc', 'pcSet', 'ssTab', 'stepDone', 'stepDoneById', 'ssHqPick'];
 
   function api(method, url, body, opts) {
     var init = { method: method, credentials: 'same-origin', headers: {} };
@@ -830,24 +830,60 @@
       var self = this;
       api('GET', '/api/hiring-questions').then(function (d) { self.setState({ ssHiring: d || { topics: [] } }); }, function () {}).then(function () { self._ssHqBusy = false; });
     }
+    // One MCQ at a time, like the Quiz, made from an interview question (make-hiring-mcq.js). Filter by difficulty;
+    // answers are kept per student in ssHqPick (question id → option), saved with the rest of Practice progress.
     ssHiringVals(v) {
       var S = this.state, self = this, H = S.ssHiring, key = function (s) { return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ''); };
       var label = v.pq && v.pq.topicLabel, k = key(label);
       var topic = H && (H.topics || []).find(function (t) { return key(t.topic) === k; });
-      var list = topic ? topic.questions : [], on = !!S.ssPHire && !!topic && S.tab === 'practice';
+      var all = topic ? topic.questions.filter(function (q) { return Array.isArray(q.o) && q.o.length > 1; }) : [];
+      var on = !!S.ssPHire && !!topic && S.tab === 'practice';
       var LV = { Easy: '#9BE58B', Medium: '#FFE45C', Hard: '#FF7A7A' };
+      var picks = S.ssHqPick || {}, lvl = S.ssHqLvl || '';
+      var list = lvl ? all.filter(function (q) { return q.difficulty === lvl; }) : all;
+      if (lvl && !list.length) { lvl = ''; list = all; }
+      var posKey = k + '|' + lvl, qi = Math.min(Math.max(0, (S.ssHqPos || {})[posKey] || 0), Math.max(0, list.length - 1)), q = list[qi];
+      var go = function (i) { self.setState(function (s) { var m = Object.assign({}, s.ssHqPos); m[posKey] = i; return { ssHqPos: m }; }); };
+      var answered = all.filter(function (x) { return picks[x.id] !== undefined; }), right = answered.filter(function (x) { return picks[x.id] === x.c; });
+      var filters = [['', 'All']].concat(['Easy', 'Medium', 'Hard'].map(function (l) { return [l, l]; })).map(function (f) {
+        var n = f[0] ? all.filter(function (x) { return x.difficulty === f[0]; }).length : all.length;
+        return { label: f[1] + ' ' + n, show: n > 0, pressed: f[0] === lvl, go: function () { self.setState({ ssHqLvl: f[0], ssHqHint: false }); } };
+      }).filter(function (f) { return f.show; });
+      // pick an option (ssHqSel, this visit only), then "Check answer" records it in ssHqPick
+      var pk = q ? picks[q.id] : undefined, shown = pk !== undefined, ok = shown && pk === q.c, sel = q ? (S.ssHqSel || {})[q.id] : undefined;
+      var last = qi >= list.length - 1, asked = q ? q.asked || [] : [];
+      var check = function () {
+        if (sel === undefined) { self.setState({ ssHqHint: true }); return; }
+        self.setState(function (s) { var m = Object.assign({}, s.ssHqPick); m[q.id] = sel; return { ssHqPick: m, ssHqHint: false }; });
+      };
+      var nCo = asked.length;
       return {
-        has: !!topic, n: list.length, on: on, bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#BDBDBD',
-        cardDisp: on ? 'none' : 'flex', inlineDisp: on ? 'none' : 'inline',
+        has: !!topic && all.length > 0, n: all.length, on: on, bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#BDBDBD',
+        cardDisp: on ? 'none' : 'flex', inlineDisp: on ? 'none' : 'inline', barDisp: on ? 'none' : 'block',
         open: function () { self.setState({ ssPHire: true }); },
-        note: 'Asked in real interviews for ' + (label || 'this topic') + '. Each one shows the company and the role it was asked for. Try answering before you look anything up.',
-        empty: on && !list.length, emptyNote: 'No interview questions for this topic yet.',
-        items: list.map(function (q, i) {
-          var shown = (q.asked || []).slice(0, 3);
-          return { n: i + 1, q: q.q, level: q.difficulty || '', lvlFg: LV[q.difficulty] || '#BDBDBD',
-            asked: shown.map(function (a) { return { company: a.company, role: a.role || 'Role not given', title: a.company + ' · ' + (a.role || '') + (a.round ? ' · ' + a.round : '') + (a.ctc ? ' · ' + a.ctc : '') + (a.date ? ' · ' + a.date : '') }; }),
-            more: (q.asked || []).length > 3, moreLabel: '+' + ((q.asked || []).length - 3) + ' more' };
-        })
+        empty: on && !all.length, emptyNote: 'No interview questions for this topic yet.',
+        has1: on && !!q, filters: filters,
+        qn: String(qi + 1), qt: String(list.length), correct: String(right.length),
+        pct: (list.length ? Math.round((qi + 1) / list.length * 100) : 0) + '%',
+        level: q ? q.difficulty : '', lvlFg: q ? (LV[q.difficulty] || '#BDBDBD') : '#BDBDBD',
+        q: q ? q.q : '', hasCode: !!(q && q.code), code: q ? q.code || '' : '',
+        opts: q ? q.o.map(function (t, i) {
+          return { k: 'ABCD'[i] || String(i + 1), t: t,
+            st: shown ? (i === q.c ? 'ok' : i === pk ? 'bad' : '') : (i === sel ? 'sel' : ''),
+            pick: function () { if (shown) return; self.setState(function (s) { var m = Object.assign({}, s.ssHqSel); m[q.id] = i; return { ssHqSel: m, ssHqHint: false }; }); } };
+        }) : [],
+        hint: !shown && !!S.ssHqHint, shown: shown, verdict: ok ? 'Correct.' : 'Not quite.', verdictColor: ok ? '#9BE58B' : '#FF7A7A',
+        why: q ? (q.why || ('Answer: ' + q.o[q.c])) : '', iq: q ? q.iq || '' : '', hasIq: !!(q && q.iq && q.iq !== q.q),
+        // every company that asked it, with the job profile (no "+N more")
+        coLine: nCo + (nCo === 1 ? ' company' : ' companies'),
+        asked: asked.map(function (a) {
+          return { company: a.company, role: a.role || 'Role not given',
+            extra: [a.round && a.round !== 'Unspecified' ? a.round : '', a.ctc ? 'Salary ₹' + a.ctc : ''].filter(Boolean).join(' · ') };
+        }),
+        prev: function () { self.setState({ ssHqHint: false }); go(Math.max(0, qi - 1)); }, prevOff: qi === 0,
+        skip: function () { self.setState({ ssHqHint: false }); go(last ? 0 : qi + 1); },
+        main: shown ? function () { go(last ? 0 : qi + 1); } : check,
+        mainLabel: !shown ? 'Check answer' : last ? 'Back to question 1' : 'Next question →'
       };
     }
     ssBoardVals() {

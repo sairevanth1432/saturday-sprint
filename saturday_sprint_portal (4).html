@@ -1819,28 +1819,40 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 <sc-if value="{{ pq.hasCoding }}" hint-placeholder-val="{{ true }}"><button onClick="{{ pq.toCode }}" aria-pressed="{{ pq.isCodeItem }}" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: {{ pq.cBg }}; color: {{ pq.cFg }}; font-size: 15px; font-weight: 800">Coding · {{ pq.nCode }}</button></sc-if>
 </div>
 <span style="display: {{ hq.inlineDisp }}; font-size: 15px; font-weight: 800; color: #FFFFFF; white-space: nowrap">{{ pq.posLabel }}</span>
-<div style="flex-grow: 1; height: 6px; border-radius: 3px; background: #262626; overflow: hidden"><div style="height: 100%; width: {{ pq.pct }}; background: #FFE45C; transition: width 260ms cubic-bezier(0.23, 1, 0.32, 1)"></div></div>
+<div style="display: {{ hq.barDisp }}; flex-grow: 1; height: 6px; border-radius: 3px; background: #262626; overflow: hidden"><div style="height: 100%; width: {{ pq.pct }}; background: #FFE45C; transition: width 260ms cubic-bezier(0.23, 1, 0.32, 1)"></div></div>
 </div>
 
 <sc-if value="{{ hq.on }}" hint-placeholder-val="{{ false }}">
-<div class="pop" style="display: flex; flex-direction: column; gap: 14px">
-<div style="font-size: 14px; color: #8A8A8A">{{ hq.note }}</div>
+<div class="pop ss-hq2">
 <sc-if value="{{ hq.empty }}" hint-placeholder-val="{{ false }}"><div class="well" style="background: #050505; border-radius: 18px; padding: 28px; font-size: 15px; color: #BDBDBD">{{ hq.emptyNote }}</div></sc-if>
-<div class="ss-hq-grid">
-<sc-for list="{{ hq.items }}" as="hi" hint-placeholder-count="4">
-<div class="ss-hq">
-<div style="display: flex; align-items: flex-start; gap: 10px">
-<span class="ss-hq-n">{{ hi.n }}</span>
-<div style="flex-grow: 1; min-width: 0; font-size: 15px; font-weight: 700; line-height: 1.45; color: #FFFFFF; white-space: pre-wrap">{{ hi.q }}</div>
-<span class="ss-hq-lvl" style="color: {{ hi.lvlFg }}; border-color: {{ hi.lvlFg }}">{{ hi.level }}</span>
+<sc-if value="{{ hq.has1 }}" hint-placeholder-val="{{ true }}">
+<div class="ss-hq2-top">
+<span class="ss-hq2-pos">Question <b>{{ hq.qn }}</b> of {{ hq.qt }}</span>
+<div class="ss-hq2-bar"><i style="width: {{ hq.pct }}"></i></div>
+<span class="ss-hq2-pos"><b style="color: #9BE58B">{{ hq.correct }}</b> correct</span>
+<div role="group" aria-label="Difficulty" class="ss-hq2-tabs"><sc-for list="{{ hq.filters }}" as="hf" hint-placeholder-count="4"><button onClick="{{ hf.go }}" aria-pressed="{{ hf.pressed }}">{{ hf.label }}</button></sc-for></div>
 </div>
-<div class="ss-hq-asked">
-<sc-for list="{{ hi.asked }}" as="ha" hint-placeholder-count="2"><span class="ss-hq-co" title="{{ ha.title }}"><b>{{ ha.company }}</b> · {{ ha.role }}</span></sc-for>
-<sc-if value="{{ hi.more }}" hint-placeholder-val="{{ false }}"><span class="ss-hq-more">{{ hi.moreLabel }}</span></sc-if>
+<div class="ss-hq2-grid">
+<section style="min-width: 0">
+<div class="ss-hq2-meta"><span>MCQ</span><span class="ss-hq2-lvl" style="color: {{ hq.lvlFg }}; border-color: {{ hq.lvlFg }}">{{ hq.level }}</span></div>
+<div class="ss-hq2-q">{{ hq.q }}</div>
+<sc-if value="{{ hq.hasCode }}" hint-placeholder-val="{{ false }}"><pre class="ss-hq2-code">{{ hq.code }}</pre></sc-if>
+<sc-for list="{{ hq.opts }}" as="o" hint-placeholder-count="4"><button class="ss-hq2-opt" data-st="{{ o.st }}" onClick="{{ o.pick }}"><b>{{ o.k }}</b><span>{{ o.t }}</span></button></sc-for>
+<sc-if value="{{ hq.hint }}" hint-placeholder-val="{{ false }}"><div class="ss-hq2-fb">Pick an option first.</div></sc-if>
+<sc-if value="{{ hq.shown }}" hint-placeholder-val="{{ false }}"><div class="ss-hq2-fb pop"><b style="color: {{ hq.verdictColor }}">{{ hq.verdict }}</b> {{ hq.why }}</div>
+<sc-if value="{{ hq.hasIq }}" hint-placeholder-val="{{ false }}"><div class="ss-hq2-iq">Interview question: <span>{{ hq.iq }}</span></div></sc-if></sc-if>
+<div class="ss-hq2-act">
+<button class="ss-hq2-btn" onClick="{{ hq.prev }}" aria-disabled="{{ hq.prevOff }}">← Previous</button>
+<div style="display: flex; gap: 10px"><button class="ss-hq2-btn" onClick="{{ hq.skip }}">Skip</button><button class="ss-hq2-btn y" onClick="{{ hq.main }}">{{ hq.mainLabel }}</button></div>
 </div>
+</section>
+<aside class="ss-hq2-asked">
+<h3>✦ ASKED IN REAL INTERVIEWS</h3>
+<p><b>{{ hq.coLine }}</b> asked this question while hiring for these jobs:</p>
+<sc-for list="{{ hq.asked }}" as="ha" hint-placeholder-count="2"><div class="ss-hq2-co"><div class="n">{{ ha.company }}</div><div class="r">{{ ha.role }}</div><div class="d">{{ ha.extra }}</div></div></sc-for>
+</aside>
 </div>
-</sc-for>
-</div>
+</sc-if>
 </div>
 </sc-if>
 <div class="d3" style="background: #151515; border-radius: 22px; padding: 30px 34px; display: {{ hq.cardDisp }}; flex-direction: column; gap: 18px">
