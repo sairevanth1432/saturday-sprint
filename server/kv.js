@@ -101,4 +101,3 @@ export async function invalidate(key) {
   if (redis) await del(key).catch(() => {});
   else mem.delete(key);
 }
-export function clearLocal() { local.clear(); }

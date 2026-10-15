@@ -4,11 +4,6 @@
 **/.git
 **/.env
 **/.env.local
-dist
-index.html
-vite.config.js
-package.json
-package-lock.json
 README.md
 server/data
 server/generated

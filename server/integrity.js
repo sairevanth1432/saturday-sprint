@@ -22,7 +22,6 @@ export function integrityConfig() {
   }
   return cfg;
 }
-export const setIntegrityConfigForTest = (c) => { cfg = c ? { ...DEFAULTS, ...c, thresholds: { ...DEFAULTS.thresholds, ...(c.thresholds || {}) } } : null; };
 const trapFor = (qid) => { const c = integrityConfig(); return (c.questions && c.questions[qid]) || c.trap; };
 
 // What the portal needs to show the traps (the tokens are inside the instruction text anyway).
