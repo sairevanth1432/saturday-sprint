@@ -5,7 +5,7 @@ import * as kv from './kv.js';
 import { getSprint, getQuestions } from './sprint.js';
 import { packUnits, unitRegistry } from './media.js';
 import { practiceCatalogue } from './practice.js';
-import { periodOf, unitInPeriod, topicInPeriod } from './periods.js';
+import { periodOf, unitInPeriod, topicInPeriod, allPeriods } from './periods.js';
 
 export const AREAS = ['home', 'learn', 'practice', 'code', 'test', 'board'];
 const AREA_SET = new Set(AREAS);
@@ -256,6 +256,22 @@ const fmtDay = (d) => (d ? new Date(Date.parse(d + 'T00:00:00Z')).toLocaleDateSt
 const durTxt = (ms) => { const m = Math.round(ms / 60000); return m < 1 ? Math.round(ms / 1000) + 's' : m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
 const fmtTs = (t) => (t ? fmtDay(istDay(Number(t))) : '');
 // one metric: value (null = not available), unit (count | pct | ms | ratio | perUser), definition, basis, reason
+// New and returning users per Sprint: an account created inside the Sprint's dates is new (in the simple log-in
+// the account is created at the first log-in); one created earlier is returning when the student used the portal
+// during that Sprint. All students ever listed, TEST batch excluded, so earlier Sprints keep their numbers.
+async function registrationsBySprint() {
+  const NT = "m.batch IS DISTINCT FROM 'TEST'";
+  return Promise.all(allPeriods().map(async (p) => {
+    const [reg, act] = await Promise.all([
+      one(`SELECT COUNT(*) AS n FROM users u JOIN students_master m ON m.roll_no = u.roll_no WHERE ${NT} AND u.created_at >= ? AND u.created_at < ?`, p.from, p.to),
+      one(`SELECT COUNT(DISTINCT CASE WHEN u.created_at < ? THEN a.roll_no END) AS returning, COUNT(DISTINCT CASE WHEN u.created_at >= ? THEN a.roll_no END) AS fresh
+           FROM activity a JOIN users u ON u.roll_no = a.roll_no JOIN students_master m ON m.roll_no = a.roll_no
+           WHERE ${NT} AND a.day >= ? AND a.day < ?`, p.from, p.from, p.fromDay, p.toDay)
+    ]);
+    return { id: p.id, label: p.label, from: p.from, to: p.to, newUsers: Number(reg.n), newActive: Number(act.fresh), returningActive: Number(act.returning) };
+  }));
+}
+
 const M = (label, value, unit, def, basis, reason) => ({ label, value: value == null || Number.isNaN(value) ? null : value, unit, def, basis: basis || '', reason: value == null ? (reason || 'No data yet.') : '' });
 
 // Record when a step became finished (✓ in the portal), comparing the saved progress with the new one.
@@ -274,7 +290,7 @@ export async function recordStepEvents(roll, oldData, newData) {
 }
 
 export async function businessMetrics({ sprintId, fresh = false, period = null } = {}) {
-  const k = 'bm:v2:' + (sprintId || '') + ':' + (periodOf(period) ? period : '');
+  const k = 'bm:v3:' + (sprintId || '') + ':' + (periodOf(period) ? period : '');
   if (fresh) await kv.invalidate(k).catch(() => {});
   return kv.cached(k, 60, () => computeBusiness(sprintId, period), { localMs: 60000 });
 }
@@ -309,6 +325,8 @@ async function computeBusiness(sprintIdParam, period) {
     all(`SELECT a.sprint_id, COUNT(*) AS n FROM attempts a ${J('a')} AND a.roll_no NOT LIKE 'ADMIN-%' GROUP BY a.sprint_id`),
     getQuestions(sprintId)
   ]);
+  const registrations = await registrationsBySprint();
+  const regNow = PER ? registrations.find((r) => r.id === PER.id) : null;
 
   // ---- per-student facts
   const cohort = cohortRows.length;
@@ -354,6 +372,10 @@ async function computeBusiness(sprintIdParam, period) {
   const reach = [
     M('Students in the list', cohort, 'count', 'Active students in Master data (TEST batch excluded).', ''),
     M('Registered users', registered.size, 'count', 'Students from the list who have an account (logged in at least once).', pct(registered.size, cohort) == null ? '' : pct(registered.size, cohort) + '% of the list'),
+    ...(regNow ? [
+      M('New registrations', regNow.newUsers, 'count', `Students whose account was created during ${PER.label} (their first log-in), not counting anyone registered before.`, registered.size ? pct(regNow.newUsers, registered.size) + '% of registered' : ''),
+      M('Returning users', regNow.returningActive, 'count', `Students registered before ${PER.label} who used the portal during it.`, '')
+    ] : []),
     M('Activated users', activated.size, 'count', 'Registered students who started learning: opened a unit, finished a step, spent time in Learn/Practice/Code, answered a practice question or solved a coding problem.', registered.size ? pct(activated.size, registered.size) + '% of registered' : '')
   ];
 
@@ -525,7 +547,7 @@ async function computeBusiness(sprintIdParam, period) {
   };
 
   return {
-    at: now, today, period: PER ? { id: PER.id, label: PER.label } : null, since: { activity: actSince, sessions: sessSince, unitEvents: evSince }, charts,
+    at: now, today, period: PER ? { id: PER.id, label: PER.label } : null, since: { activity: actSince, sessions: sessSince, unitEvents: evSince }, charts, registrations,
     sprint: { id: sprintId, current: sprintId === cur.id, list: sprintList.map((s) => ({ id: s.sprint_id, attempts: Number(s.n) })), passMark: pm },
     funnel: [
       { key: 'reach', title: 'Reach', metrics: reach }, { key: 'activity', title: 'Activity', metrics: activity },
