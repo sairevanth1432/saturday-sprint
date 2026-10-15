@@ -1562,6 +1562,30 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-1
   assert.ok(s3.rows.some((r) => r.roll_no === 'PERIOD02'), 'Sprint 3: active students');
 });
 
+test('Student analytics: new registrations per Sprint exclude students registered before; returning users counted apart', async () => {
+  const { SPRINT2_START, SPRINT3_START } = await import('../periods.js');
+  const regs = async () => Object.fromEntries((await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s3')).body.registrations.map((r) => [r.id, r]));
+  const before = await regs();
+  const now = Date.now();
+  // REGOLD01 registered during Sprint 2 and came back in Sprint 3; REGNEW01 registered in Sprint 3; REGTEST1 is a TEST account
+  for (const [roll, batch] of [['REGOLD01', ''], ['REGNEW01', ''], ['REGTEST1', 'TEST']]) {
+    await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES (?, 'Reg', '', ?, '', 1, 'file', ?) ON CONFLICT (roll_no) DO NOTHING", roll, batch, now);
+  }
+  for (const [roll, at] of [['REGOLD01', SPRINT2_START + 86400000], ['REGNEW01', SPRINT3_START + 86400000], ['REGTEST1', SPRINT3_START + 86400000]]) {
+    await db.run("INSERT INTO users (roll_no, phone, status, created_at) VALUES (?, '', 'active', ?) ON CONFLICT (roll_no) DO NOTHING", roll, at);
+    await db.run("INSERT INTO activity (roll_no, day, area, item, step, ms, opens, video_ms, video_pct, updated_at) VALUES (?, '2026-10-16', 'home', '', '', 60000, 1, 0, 0, ?) ON CONFLICT DO NOTHING", roll, now);
+  }
+  const after = await regs(), d = (id, k) => after[id][k] - before[id][k];
+  assert.equal(d('s2', 'newUsers'), 1, 'Sprint 2: REGOLD01 is new there');
+  assert.equal(d('s3', 'newUsers'), 1, 'Sprint 3: only REGNEW01 is new (REGOLD01 registered earlier, TEST never counts)');
+  assert.equal(d('s3', 'newActive'), 1);
+  assert.equal(d('s3', 'returningActive'), 1, 'Sprint 3: REGOLD01 is returning');
+  const reach = (await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s3')).body.funnel.find((f) => f.key === 'reach').metrics;
+  assert.equal(reach.find((m) => m.label === 'New registrations').value, after.s3.newUsers);
+  assert.equal(reach.find((m) => m.label === 'Returning users').value, after.s3.returningActive);
+  assert.ok(!(await ADM('GET', '/api/admin/analytics/business?fresh=1')).body.funnel[0].metrics.some((m) => m.label === 'New registrations'), 'All Sprints: no single-Sprint split in Reach');
+});
+
 test('9 Oct cleanup: of the first list only ALARD stays active; later uploads and students without a university are untouched', async () => {
   const old = db.KEEP_ONLY_ALARD_BEFORE - 60000, later = db.KEEP_ONLY_ALARD_BEFORE + 60000;
   const rows = [['CLEAN01', 'ALARD - Pune', old], ['CLEAN02', 'GMR Institute Of Technology - Vizianagaram', old], ['CLEAN03', 'Geeta University - Panipat', later], ['CLEAN04', '', old]];

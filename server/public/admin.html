@@ -783,7 +783,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var max = opts && opts.max || Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.value || 0; })));
     return h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, rows.map(function (r) {
       return h('div', { style: 'display:grid;grid-template-columns:' + (opts && opts.labelW || '120px') + ' minmax(0,1fr) 80px;gap:10px;align-items:center;font-size:13px' },
-        h('span', { class: 'soft', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: r.label }, r.label),
+        h('span', { style: 'color:var(--text);font-weight:600;line-height:1.3;overflow-wrap:anywhere', title: r.label }, r.label),
         h('span', { style: 'height:12px;border-radius:6px;background:var(--well);overflow:hidden' }, h('span', { style: 'display:block;height:100%;width:' + Math.min(100, Math.round((r.value || 0) / max * 100)) + '%;background:' + (r.color || 'var(--accent)') })),
         h('span', { class: 'mono', style: 'text-align:right' }, r.text));
     }));
@@ -856,7 +856,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var pc = function (x) { return x == null ? '–' : x + '%'; };
       var unitRows = B.units.map(function (u) {
         return h('tr', { class: 'click', onclick: function () { openUnit(u, B); } },
-          h('td', null, u.title, u.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted' }, u.courseTitle)),
+          h('td', { style: 'min-width:220px' }, h('b', { style: 'color:var(--text);font-size:14px' }, u.title), u.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted' }, u.courseTitle)),
           h('td', { class: 'num mono' }, u.started, h('div', { class: 'muted' }, pc(u.startedPct) + ' of activated')),
           h('td', { class: 'num mono' }, u.done.watch + ' · ' + u.done.play + ' · ' + u.done.read),
           h('td', { class: 'num mono', style: 'color:var(--good)' }, u.completed, h('div', { class: 'muted' }, pc(u.completionRate))),
@@ -929,10 +929,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var unitsCard = h('div', { class: 'card' }, h('h2', null, 'Units: started vs completed'),
         B.units.length ? h('div', { style: 'display:flex;flex-direction:column;gap:12px' }, B.units.map(function (u) {
           var bar = function (n, c) { return h('span', { style: 'display:block;height:8px;border-radius:4px;width:' + Math.round(n / topStart * 100) + '%;background:' + c }); };
-          return h('div', { style: 'display:grid;grid-template-columns:150px minmax(0,1fr) 90px;gap:10px;align-items:center;font-size:13px' },
-            h('span', { class: 'soft', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: u.title }, u.title),
-            h('span', { style: 'display:flex;flex-direction:column;gap:3px;background:var(--well);border-radius:4px;padding:2px 0' }, bar(u.started, 'var(--accent)'), bar(u.completed, 'var(--good)')),
-            h('span', { class: 'mono', style: 'text-align:right' }, u.started + ' → ' + u.completed));
+          return h('div', { style: 'display:flex;flex-direction:column;gap:6px;font-size:14px' },
+            h('div', { class: 'row', style: 'justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:nowrap' },
+              h('span', { style: 'color:var(--text);font-weight:700;line-height:1.35;overflow-wrap:anywhere;min-width:0' }, u.title, h('span', { class: 'muted', style: 'font-weight:400;font-size:12px' }, ' · ' + u.courseTitle)),
+              h('span', { class: 'mono', style: 'white-space:nowrap' }, u.started + ' → ' + u.completed)),
+            h('span', { style: 'display:flex;flex-direction:column;gap:3px;background:var(--well);border-radius:4px;padding:2px 0' }, bar(u.started, 'var(--accent)'), bar(u.completed, 'var(--good)')));
         })) : h('p', { class: 'muted' }, 'No units.'),
         legend([['var(--accent)', 'Started'], ['var(--good)', 'Completed all 3 steps']]));
       var pm = Number(B.sprint.passMark) || 0, bands = B.charts.scoreBands, scored = bands.reduce(function (n, b) { return n + b.n; }, 0);
@@ -942,7 +943,22 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         })) : h('p', { class: 'muted' }, 'No submitted attempts for this Sprint yet.'),
         scored && pm > 0 ? legend([['var(--bad)', 'Below the pass mark'], ['var(--good)', 'At or above ' + pm + '%']].concat(pm % 10 ? [['var(--accent)', 'Band containing the pass mark']] : [])) : null,
         scored ? note('Students per score band (% of total marks), ' + scored + ' submitted attempts. Average ' + (mv('Avg. score') == null ? '–' : mv('Avg. score') + '%') + '.') : null);
-      var bizCharts = h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start' }, journeyCard, ratesCard, activeCard, retCard, unitsCard, scoreCard);
+      var R = B.registrations || [], rmax = Math.max(1, Math.max.apply(null, R.map(function (r) { return r.newUsers + r.returningActive; })));
+      var regCard = h('div', { class: 'card' }, h('h2', null, 'New vs returning users'),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Sprint', 'New registrations', 'Returning users', ''].map(function (t, i) { return h('th', { class: i && i < 3 ? 'num' : null }, t); }))),
+          h('tbody', null, R.map(function (r) {
+            var sel = B.period && B.period.id === r.id;
+            var seg = function (n, c) { return h('span', { style: 'display:block;height:100%;width:' + (n / rmax * 100) + '%;background:' + c }); };
+            return h('tr', { style: sel ? 'background:var(--panel2)' : null },
+              h('td', { style: 'white-space:nowrap' }, h('b', null, r.label), sel ? [' ', pill('selected', 'info')] : null),
+              h('td', { class: 'num mono', style: 'color:var(--accent)' }, r.newUsers.toLocaleString('en-IN'), h('div', { class: 'muted' }, r.newActive.toLocaleString('en-IN') + ' used the portal')),
+              h('td', { class: 'num mono', style: 'color:var(--info)' }, r.returningActive.toLocaleString('en-IN')),
+              h('td', { style: 'width:40%;min-width:120px' }, h('span', { style: 'display:flex;gap:2px;height:12px;border-radius:6px;background:var(--well);overflow:hidden' }, seg(r.newUsers, 'var(--accent)'), seg(r.returningActive, 'var(--info)'))));
+          })))),
+        legend([['var(--accent)', 'New: account created during the Sprint'], ['var(--info)', 'Returning: registered earlier, used the portal during the Sprint']]),
+        note('A student is counted once per Sprint. In the simple log-in an account is created at the first log-in, so New is the number of first-time students in that Sprint; anyone registered before it is not counted again.'));
+      var bizCharts = h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start' }, regCard, journeyCard, ratesCard, activeCard, retCard, unitsCard, scoreCard);
       return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
         header('~/admin/analytics', 'Student analytics', 'Real students only (TEST accounts are never counted). Every number is computed from recorded data; anything that cannot be measured yet says why. ' + since,
           [h('button', { class: 'btn', onclick: function () { st.fresh = true; refresh(); } }, 'Refresh now'), h('button', { class: 'btn', onclick: function () { download('/api/admin/export/activity.csv?days=' + st.days); } }, 'Export CSV')]),
@@ -1014,7 +1030,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           h('thead', null, h('tr', null, ['Unit', 'Clicks', 'Watch', 'Video played', 'Video watched', 'Play', 'Read'].map(function (t, i) { return h('th', { class: i ? 'num' : null }, t); }))),
           h('tbody', null, x.units.map(function (u) {
             var w = u.steps.watch, p = u.steps.play, r = u.steps.read;
-            return h('tr', null, h('td', null, u.title, u.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)), h('td', { class: 'num mono' }, u.opens),
+            return h('tr', null, h('td', { style: 'min-width:220px' }, h('b', { style: 'color:var(--text);font-size:14px' }, u.title), u.removed ? [' ', pill('removed from portal', '')] : null, h('div', { class: 'muted' }, COURSE_NAMES[u.course] || u.course)), h('td', { class: 'num mono' }, u.opens),
               h('td', { class: 'num mono' }, dur(w.ms), tick(w.done)), h('td', { class: 'num mono' }, dur(w.videoMs)), h('td', { class: 'num mono' }, w.videoPct ? w.videoPct + '%' : '–'),
               h('td', { class: 'num mono' }, dur(p.ms), tick(p.done)), h('td', { class: 'num mono' }, dur(r.ms), tick(r.done)));
           }))))),

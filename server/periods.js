@@ -21,6 +21,7 @@ const PERIODS = {
 export const LATEST_PERIOD = 's3';
 export const periodOf = (p) => PERIODS[p] || null;
 export const PERIOD_LIST = Object.values(PERIODS).map((p) => ({ id: p.id, label: p.label }));
+export const allPeriods = () => Object.values(PERIODS);
 
 // Topics added in Admin → Courses & topics have ids "u-…" (media.js addUnit); the built-in ones do not.
 export const isSprint2Unit = (u) => String((u && u.id) || u || '').startsWith('u-');
