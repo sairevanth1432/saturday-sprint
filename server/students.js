@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { one, all, run, tx, getSetting, setSetting } from './db.js';
 import { normRoll, validRoll, normPhone, sha256 } from './security.js';
 import { universityOf } from './universities.js';
+import { forgetSessions } from './auth.js';
 
 // Header names we recognise (case/spacing/punctuation-insensitive).
 const ALIASES = {
@@ -141,6 +142,7 @@ export async function importStudents(input, { source = 'file', fileName = '', ad
       source, fileName, res.rowsTotal, res.inserted, res.updated, res.unchanged, res.deactivated,
       JSON.stringify({ errors: res.errors.slice(0, 500), warnings: res.warnings.slice(0, 500) }), adminId, now);
   });
+  if (res.updated || res.deactivated) await forgetSessions(); // names and removed students apply on every instance
   return res;
 }
 

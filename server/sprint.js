@@ -9,6 +9,7 @@ import { runTests } from './grader.js';
 import crypto from 'node:crypto';
 import { maskRoll, photoToken } from './security.js';
 import { universityOf } from './universities.js';
+import { reportError } from './alerts.js';
 
 // Marks per question type. MCQ: 1 each. Coding: partial credit by hidden tests passed.
 // Written problems ("reviewed by panel"): awarded by an admin, 0..MARKS.text each.
@@ -132,11 +133,31 @@ export async function restartPreview(who) {
   await run('DELETE FROM attempt_events WHERE attempt_id = ?', a.id);
   await run('DELETE FROM attempts WHERE id = ?', a.id);
   if (kv.kvShared) kv.del(draftKey(a)).catch(() => {});
+  await forgetAttempt(a);
 }
 
 export async function getAttempt(who, sprint) {
   sprint = sprint || (await sprintFor(who));
   return one('SELECT * FROM attempts WHERE sprint_id = ? AND roll_no = ?', sprint.id, attemptKey(who));
+}
+
+// ---------- running attempt in Redis: autosave (every 15 s per student) and code checks read it instead of Postgres.
+// Only the fields those paths use; deleted on submit, auto-submit and reset, and it expires when the attempt can no
+// longer be saved. A stale copy after a submit can at most write a draft that is never read again.
+const attKey = (sprintId, roll) => `att:${sprintId}|${roll}`;
+export const forgetAttempt = (a) => (kv.kvShared && a ? kv.del(attKey(a.sprint_id, a.roll_no)).catch(() => {}) : null);
+async function runningAttempt(who) {
+  if (!kv.kvShared) return getAttempt(who);
+  const sprint = await sprintFor(who), k = attKey(sprint.id, attemptKey(who));
+  const hit = await kv.get(k).catch(() => null);
+  if (hit && hit.status === 'running') return hit;
+  const a = await getAttempt(who, sprint);
+  const ttl = a && a.status === 'running' ? Math.ceil((a.deadline_at + sprint.graceMs - Date.now()) / 1000) : 0;
+  if (ttl > 0) {
+    const { id, sprint_id, roll_no, status, started_at, deadline_at } = a;
+    await kv.set(k, { id, sprint_id, roll_no, status, started_at, deadline_at }, Math.min(ttl, 3600)).catch(() => {});
+  }
+  return a;
 }
 
 // ---------- autosave drafts: Redis when configured (keeps ~1,000 writes/s off Postgres at 15k users), else the attempts row
@@ -194,7 +215,7 @@ export async function startAttempt(who) {
   const sprint = await sprintFor(who), now = Date.now();
   const existing = await getAttempt(who, sprint);
   if (who.kind === 'admin') {
-    if (existing && existing.status === 'submitted') { await run('DELETE FROM attempt_events WHERE attempt_id = ?', existing.id); await run('DELETE FROM attempts WHERE id = ?', existing.id); }
+    if (existing && existing.status === 'submitted') { await run('DELETE FROM attempt_events WHERE attempt_id = ?', existing.id); await run('DELETE FROM attempts WHERE id = ?', existing.id); await forgetAttempt(existing); }
     else if (existing) return existing;
   } else {
     if (existing && existing.status === 'running') return existing;
@@ -227,7 +248,7 @@ export function cleanAnswers(body, qs) {
 }
 
 export async function saveDraft(who, body) {
-  const a = await getAttempt(who);
+  const a = await runningAttempt(who);
   if (!a || a.status !== 'running') throw new SprintError('NOT_RUNNING', 'No Sprint in progress.', 409);
   const sprint = await getSprint();
   if (Date.now() > a.deadline_at + sprint.graceMs) throw new SprintError('TIME_UP', 'Time is up.', 409);
@@ -235,7 +256,7 @@ export async function saveDraft(who, body) {
 }
 
 export async function checkCode(who, index, code) {
-  const a = await getAttempt(who);
+  const a = await runningAttempt(who);
   if (!a || a.status !== 'running') throw new SprintError('NOT_RUNNING', 'No Sprint in progress.', 409);
   const q = (await getQuestions(a.sprint_id))[index];
   if (!q || q.type !== 'code') throw new SprintError('BAD_QUESTION', 'Not a coding question.');
@@ -295,6 +316,7 @@ async function finalize(a, answers, auto) {
       submittedAt, auto ? 1 : 0, JSON.stringify(answers), JSON.stringify(g.detail), g.mcqScore, g.codeScore, g.textScore, g.total, g.maxTotal, used,
       g.detail.textN ? 0 : 1, now, a.id); // nothing to mark when the test has no written questions
     if (kv.kvShared) kv.del(draftKey(a)).catch(() => {});
+    await forgetAttempt(a);
     return one('SELECT * FROM attempts WHERE id = ?', a.id);
   } finally {
     kv.del('grading:' + a.id).catch(() => {});
@@ -319,7 +341,7 @@ export async function finalizeExpired({ limit = 300, budgetMs = 45000 } = {}) {
   let done = 0;
   for (let i = 0; i < due.length && Date.now() - t0 < budgetMs; i += 8) {
     await Promise.all(due.slice(i, i + 8).map(async (a) => {
-      try { await finalize(a, cleanAnswers(await readDraft(a), await getQuestions(a.sprint_id)), true); done++; } catch (e) { if (e.code !== 'BUSY') console.error('[sprint] auto-submit failed', a.id, e.message); }
+      try { await finalize(a, cleanAnswers(await readDraft(a), await getQuestions(a.sprint_id)), true); done++; } catch (e) { if (e.code !== 'BUSY') reportError('auto-submit', e, { id: 'attempt ' + a.id }); }
     }));
   }
   if (done) await clearBoardCache();
@@ -425,10 +447,11 @@ export async function boardSprints(university = null) {
     (await all(`SELECT a.sprint_id, COUNT(*) AS n, MAX(a.submitted_at) AS last ${FROM} WHERE a.status = 'submitted' AND a.roll_no NOT LIKE 'ADMIN-%'${uniWhere(university)}
       GROUP BY a.sprint_id ORDER BY MAX(a.submitted_at) DESC`, ...uniArgs(university))).map((r) => ({ id: r.sprint_id, participants: Number(r.n) })), { localMs: 15000 });
 }
-export async function studentUniversity(roll) {
+// Looked up on every leaderboard poll (each 30 s per student): cached, so a changed university shows within 10 minutes.
+export const studentUniversity = (roll) => kv.cached('uni:' + roll, 600, async () => {
   const m = await one('SELECT university FROM students_master WHERE roll_no = ?', roll);
   return (m && m.university) || universityOf(roll);
-}
+}, { localMs: 60000 });
 
 // Students see their own university's board. Until the current Sprint has its first result, the board shows the latest
 // Sprint that has results (labelled as such), so it is never empty between Sprints. Every Sprint's results are kept.
