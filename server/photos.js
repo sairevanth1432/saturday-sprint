@@ -3,6 +3,7 @@
 //   student_photos  roll_no → photo of an account (registration in secure mode, or the portal's "Add your photo")
 //   request_photos  registration request → photo, copied to student_photos when the request is approved
 import { one, all, run } from './db.js';
+import * as kv from './kv.js';
 
 // ---------- photos as ZIP files for admins (Admin → Master data → Profile photos)
 // A Vercel response is at most 4.5 MB, so a university's photos come in parts of up to ~3.5 MB each.
@@ -82,13 +83,24 @@ export const photoStamp = async (roll) => {
   return r ? r.updated_at : 0;
 };
 export const studentPhoto = (roll) => one('SELECT photo, updated_at FROM student_photos WHERE roll_no = ?', roll);
+// Leaderboard photos: every student on a board loads the same top 100, so each one is read from Postgres once and
+// then served from Redis. The URL carries the photo's version (?v=updated_at), so a changed photo is a new key.
+export async function boardPhoto(roll, version) {
+  if (!kv.kvShared) return studentPhoto(roll);
+  const k = `bphoto:${roll}:${Number(version) || 0}`;
+  const hit = await kv.get(k).catch(() => null);
+  if (hit && hit.photo) return hit;
+  const row = await studentPhoto(roll);
+  if (row) await kv.set(k, { photo: row.photo, updated_at: Number(row.updated_at) }, 6 * 3600).catch(() => {});
+  return row;
+}
 export const requestPhoto = (id) => one('SELECT photo, created_at AS updated_at FROM request_photos WHERE request_id = ?', id);
 
 // Sends a stored data URL as an image. Private: photos are only for the student and admins.
-export function sendPhoto(res, row) {
+export function sendPhoto(res, row, { immutable = false } = {}) {
   if (!row) return res.status(404).type('text/plain').send('No photo');
   const m = /^data:(image\/[a-z]+);base64,(.*)$/.exec(row.photo);
   if (!m) return res.status(404).type('text/plain').send('No photo');
-  res.set({ 'Content-Type': m[1], 'Cache-Control': 'private, max-age=86400', 'Content-Security-Policy': "default-src 'none'" });
+  res.set({ 'Content-Type': m[1], 'Cache-Control': immutable ? 'private, max-age=604800, immutable' : 'private, max-age=86400', 'Content-Security-Policy': "default-src 'none'" });
   res.send(Buffer.from(m[2], 'base64'));
 }

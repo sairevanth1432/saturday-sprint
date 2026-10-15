@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { one, all, run, tx, getSetting } from './db.js';
+import * as kv from './kv.js';
 import { rateLimit } from './kv.js';
 import { deliverOtp } from './otp.js';
 import { checkPhoto, saveRequestPhoto, copyRequestPhoto } from './photos.js';
@@ -30,13 +31,28 @@ function setCookie(res, name, value, maxAgeMs) {
   res.append('Set-Cookie', bits.join('; '));
 }
 
-// Per-instance cache of resolved sessions: most portal requests skip the database entirely.
-// Disabling an account clears it on this instance immediately and everywhere else within SESSION_CACHE_MS.
-const SESSION_CACHE_MS = 30000;
+// Resolved student sessions are cached per instance (30 s) and in Redis (up to 10 min), so most portal requests skip
+// the database: on Vercel a student's requests land on many instances and the per-instance cache alone mostly misses.
+// Redis entries carry a shared "epoch": anything that changes or revokes sessions bumps it, which drops every cached
+// session at once (each instance re-reads the epoch every 2 s). Disabling an account therefore applies everywhere
+// within SESSION_CACHE_MS, as before.
+const SESSION_CACHE_MS = 30000, SESSION_REDIS_SEC = 600, EPOCH_KEY = 'sess:epoch';
 const sessionCache = new Map();
 const cacheKey = (kind, hash) => kind + ':' + hash;
 function cacheSet(k, v) { if (sessionCache.size > 50000) sessionCache.clear(); sessionCache.set(k, { at: Date.now(), v }); }
-export function forgetSessions() { sessionCache.clear(); }
+let epochLocal = { at: 0, v: 0 };
+async function sessionEpoch() {
+  if (Date.now() - epochLocal.at < 2000) return epochLocal.v;
+  const v = Number(await kv.get(EPOCH_KEY)) || 0;
+  epochLocal = { at: Date.now(), v };
+  return v;
+}
+const redisKey = (epoch, hash) => `sess:${epoch}:${hash}`;
+export function forgetSessions() {
+  sessionCache.clear();
+  if (!kv.kvShared) return Promise.resolve();
+  return kv.incr(EPOCH_KEY, 90 * 86400).then((v) => { epochLocal = { at: Date.now(), v }; }, (e) => console.error('[auth] session epoch', e.message));
+}
 
 export async function createSession(req, res, kind, subjectId, { stage = 'full', ttlMs } = {}) {
   const token = randomToken(), now = Date.now();
@@ -62,13 +78,18 @@ async function readSession(req, kind) {
 export async function endSession(req, res, kind) {
   const name = kind === 'admin' ? ADMIN_COOKIE : STUDENT_COOKIE;
   const token = parseCookies(req)[name];
-  if (token) { await run('DELETE FROM sessions WHERE token_hash = ?', sha256(token)); sessionCache.delete(cacheKey(kind, sha256(token))); }
+  if (token) {
+    const hash = sha256(token);
+    await run('DELETE FROM sessions WHERE token_hash = ?', hash);
+    sessionCache.delete(cacheKey(kind, hash));
+    if (kv.kvShared && kind === 'student') await kv.del(redisKey(await sessionEpoch().catch(() => 0), hash)).catch(() => {});
+  }
   setCookie(res, name, '', 0);
 }
 
 export async function revokeSessions(kind, subjectId) {
   await run('DELETE FROM sessions WHERE kind = ? AND subject_id = ?', kind, subjectId);
-  sessionCache.clear();
+  await forgetSessions();
 }
 
 export async function cleanupExpired() {
@@ -83,6 +104,15 @@ export async function loadStudent(req) {
   const k = cacheKey('student', sha256(token));
   const hit = sessionCache.get(k);
   if (hit && Date.now() - hit.at < SESSION_CACHE_MS) return hit.v;
+  const hash = k.slice('student:'.length);
+  let rk = null;
+  if (kv.kvShared) {
+    try {
+      rk = redisKey(await sessionEpoch(), hash);
+      const r = await kv.get(rk);
+      if (r && r.kind === 'student') { cacheSet(k, r); return r; }
+    } catch (e) { rk = null; console.error('[auth] session cache', e.message); }
+  }
   const s = await readSession(req, 'student');
   let v = null;
   if (s) {
@@ -91,6 +121,9 @@ export async function loadStudent(req) {
     if (u && u.status === 'active' && u.master_active) v = { kind: 'student', id: u.id, roll_no: u.roll_no, name: u.name, batch: u.batch, phone: u.phone, hasPassword: !!u.password_hash };
   }
   cacheSet(k, v);
+  // Only valid sessions go to Redis (never longer than the session itself lives).
+  const ttl = v && s ? Math.min(SESSION_REDIS_SEC, Math.floor((s.expires_at - Date.now()) / 1000)) : 0;
+  if (rk && ttl > 0) await kv.set(rk, v, ttl).catch(() => {});
   return v;
 }
 
@@ -358,7 +391,7 @@ export async function setStudentPassword(req, password, current) {
   await run('UPDATE users SET password_hash = ?, password_set_at = ?, failed_logins = 0, locked_until = 0 WHERE id = ?', hashPassword(String(password)), Date.now(), u.id);
   // Sign out the student's other devices.
   await run("DELETE FROM sessions WHERE kind = 'student' AND subject_id = ? AND token_hash <> ?", u.id, s.token_hash);
-  sessionCache.clear();
+  await forgetSessions();
 }
 
 // Admin: clear a student's password (they set a new one after an OTP login).

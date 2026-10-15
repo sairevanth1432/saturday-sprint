@@ -18,7 +18,7 @@ import { rollFromPhotoToken, normRoll, validRoll, normPhone, maskPhone, hashPass
 import { readStudents, rowsFrom, importStudents, syncStudentsFile, watchStudentsFile, studentsFilePath, studentCounts, logImport } from './students.js';
 import {
   SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
-  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, boardSprints, studentUniversity, clearBoardCache, readDraft, MARKS, RANK_RULE
+  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, boardSprints, studentUniversity, clearBoardCache, readDraft, forgetAttempt, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
@@ -31,7 +31,7 @@ import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS }
 import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
 import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, setArchivedMany, importPractice } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
-import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
+import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, boardPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
 import { periodOf, LATEST_PERIOD } from './periods.js';
 import { journey } from './journey.js';
@@ -175,7 +175,7 @@ api.put('/me/name', who, async (req, res) => {
   if (!/^[\p{L}][\p{L} .'-]{1,79}$/u.test(name)) return res.status(400).json({ error: 'BAD_NAME', message: 'Type your full name using letters only.' });
   const r = await one("UPDATE students_master SET name = ?, updated_at = ? WHERE roll_no = ? AND name = '' RETURNING roll_no", name, Date.now(), req.who.roll_no);
   if (!r) return res.json({ ok: true, unchanged: true }); // a name is already in the list (kept)
-  forgetSessions();
+  await forgetSessions();
   await clearBoardCache();
   res.json({ ok: true, name });
 });
@@ -304,8 +304,8 @@ async function maybeFinalize() {
 
 // Photos on the leaderboard (logged-in users only; the link does not show the NIAT ID).
 api.get('/board-photo/:token', who, async (req, res) => {
-  const roll = rollFromPhotoToken(req.params.token);
-  sendPhoto(res, roll ? await studentPhoto(roll) : null);
+  const roll = rollFromPhotoToken(req.params.token), v = Number(req.query.v) || 0;
+  sendPhoto(res, roll ? await boardPhoto(roll, v) : null, { immutable: !!v });
 });
 api.get('/leaderboard', who, async (req, res) => {
   noStore(res);
@@ -586,6 +586,7 @@ adm.patch('/students/:roll', async (req, res) => {
   await run('UPDATE students_master SET name = ?, phone = ?, batch = ?, email = ?, university = ?, active = ?, updated_at = ? WHERE roll_no = ?',
     s.name, s.phone, s.batch, s.email, s.university, active, Date.now(), roll);
   if (!active) { const u = await one('SELECT id FROM users WHERE roll_no = ?', roll); if (u) await revokeSessions('student', u.id); }
+  else await forgetSessions(); // name / batch shown from the cached session
   await clearBoardCache();
   await audit(req, 'student.updated', roll, { before: { name: m.name, phone: m.phone, batch: m.batch, email: m.email, university: m.university, active: m.active }, after: { ...s, active } });
   res.json({ ok: true });
@@ -597,7 +598,7 @@ adm.post('/users/:roll/status', async (req, res) => {
   if (!u) return res.status(404).json({ error: 'NOT_FOUND', message: 'This student has not registered.' });
   await run('UPDATE users SET status = ? WHERE id = ?', status, u.id);
   if (status === 'disabled') await revokeSessions('student', u.id);
-  forgetSessions();
+  await forgetSessions();
   await clearBoardCache();
   await audit(req, status === 'disabled' ? 'user.disabled' : 'user.enabled', roll);
   res.json({ ok: true });
@@ -702,7 +703,7 @@ adm.post('/approvals/decide', async (req, res) => {
 adm.patch('/users/:roll/phone', async (req, res) => {
   const roll = normRoll(req.params.roll);
   const r = await changeAccountPhone(roll, req.body.phone);
-  forgetSessions();
+  await forgetSessions();
   await audit(req, 'user.phone_changed', roll, r);
   res.json({ ok: true });
 });
@@ -710,7 +711,7 @@ adm.patch('/users/:roll/phone', async (req, res) => {
 adm.post('/users/:roll/password-reset', async (req, res) => {
   const roll = normRoll(req.params.roll);
   await resetStudentPassword(roll);
-  forgetSessions();
+  await forgetSessions();
   await audit(req, 'user.password_reset', roll);
   res.json({ ok: true });
 });
@@ -847,6 +848,7 @@ adm.delete('/attempts/:id', requireSuper, async (req, res) => {
   const events = await all('SELECT * FROM attempt_events WHERE attempt_id = ?', a.id);
   await run('DELETE FROM attempt_events WHERE attempt_id = ?', a.id);
   await run('DELETE FROM attempts WHERE id = ?', a.id);
+  await forgetAttempt(a);
   await binPut('attempt', a.roll_no, a.roll_no + ' · ' + a.sprint_id + (a.total != null ? ' · score ' + a.total : ''), { attempt: a, events }, req.admin.email);
   await clearBoardCache();
   await audit(req, 'attempt.reset', a.roll_no, { snapshot: { ...a, draft: parseJSON(a.draft), answers: parseJSON(a.answers), detail: parseJSON(a.detail) } });
@@ -894,7 +896,7 @@ adm.post('/import', requireSuper, async (req, res) => {
   const r = await importStudents(req.body, { source: mode === 'replace' ? 'file' : 'admin', fileName: String(req.body.fileName || 'upload.csv'), adminId: req.admin.id, fullSync: mode === 'replace' });
   if (r.error) return res.status(400).json({ error: 'BAD_FILE', message: r.error, errors: (r.errors || []).slice(0, 200) });
   logImport(req.body.fileName || 'upload', r);
-  forgetSessions();
+  await forgetSessions();
   await clearBoardCache();
   await audit(req, 'students.imported', req.body.fileName || null, { mode, inserted: r.inserted, updated: r.updated, deactivated: r.deactivated, rejected: r.errors.length });
   res.json({ ...r, errors: r.errors.slice(0, 200), warnings: r.warnings.slice(0, 200) });
@@ -903,7 +905,7 @@ adm.post('/import/reload', requireSuper, async (req, res) => {
   if (config.isVercel) return res.status(400).json({ error: 'NO_FILE', message: 'On Vercel, upload the CSV here instead.' });
   const r = await syncStudentsFile({ force: true, adminId: req.admin.id });
   if (r.error) return res.status(400).json({ error: 'BAD_FILE', message: r.error, errors: (r.errors || []).slice(0, 200) });
-  forgetSessions();
+  await forgetSessions();
   await audit(req, 'students.reloaded', path.basename(studentsFilePath()), { inserted: r.inserted, updated: r.updated, deactivated: r.deactivated });
   res.json({ ...r, errors: r.errors.slice(0, 200), warnings: r.warnings.slice(0, 200) });
 });

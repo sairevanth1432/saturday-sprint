@@ -51,6 +51,11 @@ Admin   → /admin → email + password + authenticator app → full data access
 | Leaderboard after submit | ~500 req/s → cache hits |
 | Postgres | Low hundreds of queries/s, plus a short write burst at submit (one UPDATE per student) |
 
+What Redis holds so Postgres stays quiet: rate limits, autosave drafts, the leaderboard top 100, cached content, student
+sessions (`sess:<epoch>:…`, up to 10 min; revoking or changing accounts bumps the epoch), the running attempt for
+autosave and code checks (`att:…`, removed on submit), each student's university (`uni:…`) and leaderboard photos
+(`bphoto:<roll>:<version>`).
+
 ## Learning bytes (videos)
 
 One MP4 per lesson. It **replaces that lesson's animated explainer** in the same place, with the same concept and progress tracking. Lessons without a video keep the explainer. There are 20 lessons (IDs such as `pl`, `morph`, `clear`, `few`); see **Admin → Learning bytes** or `data/lessons.json`.
@@ -145,6 +150,17 @@ node loadtest/simulate.js make-csv 15000 > loadtest-students.csv
    node loadtest/simulate.js run --url https://staging.example.com --students 3000 --offset 3000 --ramp 120
    ```
 3. Watch p95/p99 latency and errors in the output, and Neon / Upstash / Vercel Observability dashboards.
+
+### How much load did a real Sprint take?
+
+`scripts/load-report.js` reads the recorded attempts, portal visits and log-ins (read-only) and reports the most
+students in the test and on the portal at the same moment, the busiest minutes, database size, and a projection:
+
+```powershell
+$env:DATABASE_URL = "postgres://...-pooler.../neondb?sslmode=require"   # Neon → Connection string (pooled)
+node scripts/load-report.js --users 2000 --days 14
+Remove-Item Env:DATABASE_URL
+```
 
 ## How the pieces fit
 
