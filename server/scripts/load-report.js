@@ -83,19 +83,19 @@ if (!sprints.length) line('  no attempts yet');
 
 // ---------- portal visits
 line(`\nPORTAL VISITS (last ${DAYS} days)`);
-const visits = await q('SELECT started_at, last_at FROM activity_sessions WHERE started_at > $1', [since]);
+const visits = await q('SELECT roll_no, started_at, last_at FROM activity_sessions WHERE started_at > $1', [since]);
 // A visit's last report is up to ~2.5 min before it ended.
 const pv = peak(visits.map((v) => [v.started_at, Number(v.last_at) + 150000]));
 const daily = await q(`SELECT day, COUNT(DISTINCT roll_no) AS users, SUM(ms) / 3600000.0 AS hours, SUM(video_ms) / 3600000.0 AS video_hours
   FROM activity WHERE day >= $1 GROUP BY day ORDER BY day`, [new Date(since + IST).toISOString().slice(0, 10)]);
 const busiestDay = daily.reduce((b, d) => (Number(d.users) > Number(b.users || 0) ? d : b), {});
-line(`  visits: ${n(visits.length)} · most students on the portal at once: ${n(pv.max)} (${pv.at ? fmt(pv.at) : '-'}) ≈ ${(pv.max * RPS_PORTAL).toFixed(1)} requests/s`);
+line(`  visits: ${n(visits.length)} by ${n(new Set(visits.map((v) => v.roll_no)).size)} students · most students on the portal at once: ${n(pv.max)} (${pv.at ? fmt(pv.at) : '-'}) ≈ ${(pv.max * RPS_PORTAL).toFixed(1)} requests/s`);
 if (busiestDay.day) line(`  busiest day: ${busiestDay.day}, ${n(busiestDay.users)} students, ${Number(busiestDay.hours).toFixed(0)} active hours, ${Number(busiestDay.video_hours).toFixed(0)} video hours`);
 for (const d of daily.slice(-7)) line(`    ${d.day}: ${n(d.users)} students · ${Number(d.hours).toFixed(1)} h on the portal · ${Number(d.video_hours).toFixed(1)} h video`);
 const [lg] = await q('SELECT COUNT(*) AS n FROM student_logins WHERE at > $1', [since]);
 const [lgMin, lgAt] = perMinutePeak((await q('SELECT at FROM student_logins WHERE at > $1', [since])).map((r) => r.at));
 line(`  log-ins: ${n(lg.n)} · busiest minute: ${n(lgMin)} (${lgAt ? fmt(lgAt) : '-'})`);
-const activeUsers = Number(st.logged_in) || 1;
+const activeUsers = new Set(visits.map((v) => v.roll_no)).size || 1; // log-ins undercount: a session lasts 7 days
 const portalShare = pv.max / activeUsers;
 
 // ---------- database
