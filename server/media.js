@@ -10,12 +10,17 @@ import * as kv from './kv.js';
 
 import { binPut } from './recycle.js';
 export const SLOTS = ['watch', 'play', 'read'];
+// A topic can have more than one Watch video, played one after another: watch (video 1), watch2 … watch6.
+export const MAX_VIDEOS = 6;
+export const WATCH_SLOTS = ['watch'].concat(Array.from({ length: MAX_VIDEOS - 1 }, (_, i) => 'watch' + (i + 2)));
+export const isWatch = (slot) => WATCH_SLOTS.includes(slot);
+export const isSlot = (slot) => SLOTS.includes(slot) || isWatch(slot);
 export const VIDEO_TYPES = ['video/mp4', 'video/webm'];
 export const HTML_TYPES = ['text/html'];
 // Watch videos go to file storage (R2/S3, Vercel Blob or local disk). Play/Read HTML is stored in the database
 // and served by this site at /api/content/<unit>/<slot> (works everywhere, and Vercel Blob cannot host HTML pages).
-export const typesFor = (slot) => (slot === 'watch' ? VIDEO_TYPES : HTML_TYPES);
-export const maxBytesFor = (slot) => (slot === 'watch' ? config.maxVideoBytes : 3 * 1024 * 1024); // HTML: fits Vercel's 4.5 MB request limit
+export const typesFor = (slot) => (isWatch(slot) ? VIDEO_TYPES : HTML_TYPES);
+export const maxBytesFor = (slot) => (isWatch(slot) ? config.maxVideoBytes : 3 * 1024 * 1024); // HTML: fits Vercel's 4.5 MB request limit
 const EXT = /\.(mp4|webm)$/i;
 
 let lessonsCache = null;
@@ -74,7 +79,10 @@ export async function catalog() {
       const def = d[slot] || null;
       steps[slot] = { upload: up, folder: fd, default: def, active: up ? 'upload' : fd ? 'folder' : def ? 'pack' : 'none', url: up ? up.url : fd ? fd.url : def };
     }
-    return { ...l, steps };
+    // videos 2…6 of the topic (uploads only), in order
+    const moreVideos = WATCH_SLOTS.slice(1).map((slot) => uploads.find((u) => u.unit_id === l.id && u.slot === slot)).filter(Boolean)
+      .map((up) => ({ slot: up.slot, upload: up, url: up.url }));
+    return { ...l, steps, moreVideos };
   });
 }
 
@@ -123,7 +131,7 @@ export const blobEnabled = () => !!config.blobToken;
 export const storageKind = () => (s3Enabled() ? 's3' : blobEnabled() ? 'blob' : config.isVercel ? 'none' : 'local');
 export const isBlobUrl = (u) => { try { return /\.blob\.vercel-storage\.com$/.test(new URL(u).hostname); } catch { return false; } };
 export const isS3Url = (u) => s3Enabled() && typeof u === 'string' && u.startsWith(S3.publicUrl + '/learning-bytes/');
-export const extFor = (slot, contentType) => (slot === 'watch' ? (contentType === 'video/webm' ? 'webm' : 'mp4') : 'html');
+export const extFor = (slot, contentType) => (isWatch(slot) ? (contentType === 'video/webm' ? 'webm' : 'mp4') : 'html');
 
 let aws = null;
 async function awsClient() {

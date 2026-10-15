@@ -1835,9 +1835,13 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 <div class="ss-hq2-grid">
 <section style="min-width: 0">
 <div class="ss-hq2-meta"><span>MCQ</span><span class="ss-hq2-lvl" style="color: {{ hq.lvlFg }}; border-color: {{ hq.lvlFg }}">{{ hq.level }}</span></div>
+<div data-ssq="{{ hq.hpQid }}">
+<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ hq.hpTrap }}</span>
 <div class="ss-hq2-q">{{ hq.q }}</div>
 <sc-if value="{{ hq.hasCode }}" hint-placeholder-val="{{ false }}"><pre class="ss-hq2-code">{{ hq.code }}</pre></sc-if>
 <sc-for list="{{ hq.opts }}" as="o" hint-placeholder-count="4"><button class="ss-hq2-opt" data-st="{{ o.st }}" onClick="{{ o.pick }}"><b>{{ o.k }}</b><span>{{ o.t }}</span></button></sc-for>
+<span aria-hidden="true" style="font-size: 0; line-height: 0; color: transparent">{{ hq.hpTrap }}</span>
+</div>
 <sc-if value="{{ hq.hint }}" hint-placeholder-val="{{ false }}"><div class="ss-hq2-fb">Pick an option first.</div></sc-if>
 <sc-if value="{{ hq.shown }}" hint-placeholder-val="{{ false }}"><div class="ss-hq2-fb pop"><b style="color: {{ hq.verdictColor }}">{{ hq.verdict }}</b> {{ hq.why }}</div>
 <sc-if value="{{ hq.hasIq }}" hint-placeholder-val="{{ false }}"><div class="ss-hq2-iq">Interview question: <span>{{ hq.iq }}</span></div></sc-if></sc-if>

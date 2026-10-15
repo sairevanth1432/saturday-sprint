@@ -393,6 +393,32 @@ test('unit content: admin uploads Watch (MP4), Play and Read (HTML) per unit; re
   assert.equal((await A('GET', '/api/bootstrap')).body.unitContent[unit.id], undefined);
 });
 
+test('unit content: a topic can have more Watch videos (watch2 … watch6), played one after another', async () => {
+  const id = 'tp-forloop';
+  const put = (slot, type, body) => fetch(base + '/api/admin/media/' + id + '/' + slot + '/local', { method: 'PUT', headers: { 'content-type': type, cookie: ADM.cookie(), 'x-file-name': slot + '.mp4' }, body });
+  const fake = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypmp42'), Buffer.alloc(3000, 5)]);
+  assert.equal((await put('watch2', 'video/mp4', fake)).status, 200);
+  assert.equal((await put('watch3', 'video/mp4', fake)).status, 200);
+  assert.equal((await put('watch3', 'text/html', '<html></html>')).status, 415, 'extra videos must be videos too');
+  assert.equal((await ADM('POST', '/api/admin/media/' + id + '/watch2/html', { html: '<!doctype html><html></html>' })).status, 415);
+  assert.equal((await put('watch7', 'video/mp4', fake)).status, 404, 'at most 6 videos per topic');
+  assert.ok([404, 415].includes((await put('watch1', 'video/mp4', fake)).status), 'unknown step refused');
+
+  const unit = (await ADM('GET', '/api/admin/media')).body.lessons.find((l) => l.id === id);
+  assert.deepEqual(unit.moreVideos.map((v) => v.slot), ['watch2', 'watch3']);
+  assert.equal(unit.steps.watch.active, 'pack', 'video 1 is untouched');
+  const c = (await A('GET', '/api/bootstrap')).body.unitContent[id];
+  assert.match(c.watch2, /^\/uploads\/tp-forloop-watch2-.+\.mp4$/);
+  assert.match(c.watch3, /^\/uploads\/tp-forloop-watch3-.+\.mp4$/);
+  assert.equal((await fetch(base + c.watch2, { headers: { range: 'bytes=0-99' } })).status, 206);
+
+  assert.equal((await ADM('DELETE', '/api/admin/media/' + id + '/watch2')).status, 200);
+  const left = (await ADM('GET', '/api/admin/media')).body.lessons.find((l) => l.id === id);
+  assert.deepEqual(left.moreVideos.map((v) => v.slot), ['watch3'], 'the others stay');
+  assert.equal((await ADM('DELETE', '/api/admin/media/' + id + '/watch3')).status, 200);
+  assert.equal((await A('GET', '/api/bootstrap')).body.unitContent[id], undefined);
+});
+
 test('learning bytes: files named <lessonId>.mp4 in the folder are picked up; unknown names ignored', async () => {
   const { scanFolder } = await import('../media.js');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bytes-'));
@@ -1277,6 +1303,27 @@ test('coding practice honeypots: AI trap, heavy paste, fast solve and bot field 
   await ADM('POST', '/api/practice/submission', { qid: 'q-admin', correct: true, timeMs: 1000, code: 'zeta_count = 1' });
   const adm = (await ADM('GET', '/api/admin/integrity?type=AI_TRAP')).body.rows.find((r) => r.question_id === 'q-admin');
   assert.match(adm.roll_no, /^ADMIN-\d+$/);
+});
+
+test('hiring honeypot: copying a Hiring MCQ flags HIRING_COPY; picking the trap option after a copy flags AI_TRAP', async () => {
+  const boot = await A('GET', '/api/bootstrap');
+  assert.match(boot.body.integrity.hiring, /\{option\}/, 'the portal gets the hidden line with the option placeholder');
+  const ev = (b) => A('POST', '/api/practice/hiring-event', { qid: 'abc123', topic: 'For Loop', ...b });
+  const mine = async (type) => (await ADM('GET', '/api/admin/integrity?type=' + type)).body.rows.filter((r) => r.question_id === 'hiring:abc123');
+  // an answer without the trap option: nothing
+  assert.deepEqual((await ev({ event: 'answer', pick: 1, trap: 2, correct: true })).body, { ok: true });
+  assert.equal((await mine('AI_TRAP')).length, 0);
+  await ev({ event: 'copy' });
+  await ev({ event: 'copy' });
+  const cp = await mine('HIRING_COPY');
+  assert.equal(cp.length, 1, 'one flag per question');
+  assert.equal(cp[0].evidence.topic, 'For Loop');
+  await ev({ event: 'answer', pick: 2, trap: 2, correct: false });
+  const ai = await mine('AI_TRAP');
+  assert.equal(ai.length, 1);
+  assert.deepEqual([ai[0].evidence.picked, ai[0].evidence.trapOption, ai[0].evidence.copied], ['C', 'C', true]);
+  assert.ok((await ADM('GET', '/api/admin/integrity')).body.types.includes('HIRING_COPY'));
+  assert.equal((await fetch(base + '/api/practice/hiring-event', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401);
 });
 
 test('downloads: uploaded Play/Read HTML downloads as a file with ?download=1', async () => {

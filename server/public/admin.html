@@ -1450,9 +1450,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     play: { label: 'Play', what: 'HTML game', accept: '.html,.htm,text/html' },
     read: { label: 'Read', what: 'HTML notes', accept: '.html,.htm,text/html' }
   };
+  // A topic's Watch step can hold several videos played one after another: watch (video 1), watch2 … watch6.
+  var isWatchSlot = function (slot) { return /^watch\d*$/.test(slot); };
   function uploadStep(info, lesson, slot, file, onProgress) {
     var type;
-    if (slot === 'watch') {
+    if (isWatchSlot(slot)) {
       // Some systems give .mp4 files no type; trust the extension then.
       type = file.type || (/\.mp4$/i.test(file.name) ? 'video/mp4' : /\.webm$/i.test(file.name) ? 'video/webm' : '');
       if (!/^video\/(mp4|webm)$/.test(type)) return Promise.reject(new Error('Watch needs an MP4 video (.mp4).'));
@@ -1463,11 +1465,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       if (file.size > info.maxHtmlBytes) return Promise.reject(new Error('HTML file is ' + fmtMB(file.size) + '. Maximum is ' + fmtMB(info.maxHtmlBytes) + '.'));
     }
     if (file.type !== type) file = new File([file], file.name, { type: type });
-    var check = slot === 'watch' ? (type === 'video/mp4' ? checkMp4(file) : Promise.resolve({ warnings: [] })) : checkHtml(file);
+    var check = isWatchSlot(slot) ? (type === 'video/mp4' ? checkMp4(file) : Promise.resolve({ warnings: [] })) : checkHtml(file);
     return check.then(function (c) {
       if (c.error) throw new Error(c.error);
       if (c.warnings.length && !confirm(c.warnings.join('\n\n') + '\n\nUpload anyway?')) throw Object.assign(new Error('Upload cancelled.'), { silent: true });
-      return slot === 'watch' ? doUpload(info, lesson, slot, file, onProgress) : uploadHtml(lesson, slot, file, onProgress);
+      return isWatchSlot(slot) ? doUpload(info, lesson, slot, file, onProgress) : uploadHtml(lesson, slot, file, onProgress);
     });
   }
   // Play/Read HTML is sent as text and stored by the server (works on every host; Vercel Blob cannot serve HTML pages).
@@ -1484,7 +1486,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   }
   function doUpload(info, lesson, slot, file, onProgress) {
     var base = '/api/admin/media/' + encodeURIComponent(lesson.id) + '/' + slot;
-    var ext = slot === 'watch' ? (file.type === 'video/webm' ? 'webm' : 'mp4') : 'html';
+    var ext = isWatchSlot(slot) ? (file.type === 'video/webm' ? 'webm' : 'mp4') : 'html';
     if (info.blob) {
       return loadBlobLib().then(function (B) {
         return B.upload('learning-bytes/' + lesson.id + '-' + slot + '.' + ext, file, {
@@ -1524,13 +1526,14 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       x.send(file);
     });
   }
-  function previewStep(l, slot) {
-    var st = l.steps[slot], d = drawer();
-    var body = slot === 'watch'
-      ? h('video', { src: st.url, controls: true, playsinline: true, preload: 'metadata', style: 'max-width:100%;max-height:70vh;margin:0 auto;display:block;background:#000;border-radius:12px' })
-      : h('iframe', { src: st.url, title: l.title + ' · ' + SLOT_INFO[slot].label, style: 'width:100%;height:72vh;border:0;border-radius:12px;background:#0A0A0A' });
+  // url / label: for videos 2…6 of the Watch step (they are not in l.steps)
+  function previewStep(l, slot, url, label) {
+    var st = l.steps[slot] || { url: url }, d = drawer(), name = label || SLOT_INFO[slot].label;
+    var body = isWatchSlot(slot)
+      ? h('video', { src: url || st.url, controls: true, playsinline: true, preload: 'metadata', style: 'max-width:100%;max-height:70vh;margin:0 auto;display:block;background:#000;border-radius:12px' })
+      : h('iframe', { src: st.url, title: l.title + ' · ' + name, style: 'width:100%;height:72vh;border:0;border-radius:12px;background:#0A0A0A' });
     d.set(h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
-      header('~/admin/learning-bytes/' + l.id + '/' + slot, l.title + ' · ' + SLOT_INFO[slot].label, l.courseName + ' · shows what students see in this step'), body));
+      header('~/admin/learning-bytes/' + l.id + '/' + slot, l.title + ' · ' + name, l.courseName + ' · shows what students see in this step'), body));
   }
   VIEWS.media = function () {
     return api('GET', '/api/admin/media').then(function (info) {
@@ -1555,7 +1558,43 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
             st.upload ? h('button', { class: 'btn sm bad', onclick: function () {
               if (!confirm('Remove the uploaded ' + SLOT_INFO[slot].what + ' for "' + l.title + '"? ' + (st.default || st.folder ? 'The built-in one will show again.' : (slot === 'read' ? 'Students will see "Reading material is coming soon".' : 'This step will be empty.')))) return;
               api('DELETE', '/api/admin/media/' + encodeURIComponent(l.id) + '/' + slot).then(function () { toast('File moved to the Recycle bin.'); refresh(); }, fail);
-            } }, 'Remove') : null)));
+            } }, 'Remove') : null),
+          slot === 'watch' ? moreVideos(l) : null));
+      };
+      // Watch videos 2…6: students get them one after another, each as its own video ("Video 2 of 3").
+      var fileButton = function (l, slot, text, cls, done) {
+        var prog = h('span', { class: 'muted mono' }), btn;
+        var input = h('input', { type: 'file', accept: SLOT_INFO.watch.accept, hidden: true, onchange: function () {
+          var f = input.files[0]; if (!f) return;
+          btn.disabled = true; prog.textContent = '0%';
+          uploadStep(info, l, slot, f, function (p) { prog.textContent = p + '%'; }).then(function () { toast(done); refresh(); },
+            function (e) { fail(e); btn.disabled = false; prog.textContent = ''; input.value = ''; });
+        } });
+        btn = h('button', { class: 'btn sm ' + cls, onclick: function () { input.click(); } }, text);
+        return [input, btn, prog];
+      };
+      var moreVideos = function (l) {
+        var more = l.moreVideos || [], max = info.maxVideos || 6;
+        if (l.steps.watch.active === 'none' && !more.length) return null; // video 1 comes first
+        var used = more.map(function (v) { return v.slot; }), free = null;
+        for (var n = 2; n <= max && !free; n++) if (used.indexOf('watch' + n) < 0) free = 'watch' + n;
+        var rows = more.map(function (v, i) {
+          var label = 'Video ' + (i + 2), up = v.upload || {};
+          return h('div', { style: 'display:flex;flex-direction:column;gap:4px;padding-top:8px;border-top:1px dashed #333' },
+            h('div', { class: 'row', style: 'gap:6px' }, pill(label, 'ok'),
+              h('span', { class: 'muted', style: 'font-size:12px' }, (up.file_name || '').slice(0, 24) + (up.size_bytes ? ' ' + fmtMB(up.size_bytes) : ''))),
+            h('div', { class: 'row', style: 'gap:6px' },
+              h('button', { class: 'btn sm', onclick: function () { previewStep(l, v.slot, v.url, 'Watch · ' + label); } }, 'Preview'),
+              fileButton(l, v.slot, 'Replace', 'pri', label + ' replaced for "' + l.title + '". Students see it after reloading the page.'),
+              h('button', { class: 'btn sm bad', onclick: function () {
+                if (!confirm('Remove ' + label + ' from "' + l.title + '"? The videos after it move up one place.')) return;
+                api('DELETE', '/api/admin/media/' + encodeURIComponent(l.id) + '/' + v.slot).then(function () { toast('File moved to the Recycle bin.'); refresh(); }, fail);
+              } }, 'Remove')));
+        });
+        var add = free ? h('div', { class: 'row', style: 'gap:6px;padding-top:8px;border-top:1px dashed #333' },
+          fileButton(l, free, '+ Add video ' + (more.length + 2), '', 'Video ' + (more.length + 2) + ' added to "' + l.title + '". Students see it after reloading the page.'))
+          : h('span', { class: 'muted', style: 'font-size:12px' }, 'Maximum of ' + max + ' videos reached.');
+        return h('div', { style: 'display:flex;flex-direction:column;gap:6px;margin-top:4px' }, rows, add);
       };
       var groups = {};
       (info.courses || []).forEach(function (c) { groups[c.id] = []; });
@@ -1638,7 +1677,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
           [h('button', { class: 'btn pri', type: 'button', onclick: addCourse }, '+ Add course'), pill('Watch ' + count('watch') + '/' + info.lessons.length, 'ok'), pill('Play ' + count('play') + '/' + info.lessons.length, 'ok'), pill('Read ' + count('read') + '/' + info.lessons.length, count('read') ? 'ok' : 'warn')]),
         h('div', { class: 'grid g2' },
           h('div', { class: 'card' }, h('h2', null, 'What to upload'), h('div', { class: 'soft', style: 'line-height:1.6' },
-            h('b', null, 'Watch: '), 'an .mp4 video (H.264). Upright 9:16 videos are shown upright.', h('br'),
+            h('b', null, 'Watch: '), 'an .mp4 video (H.264). Upright 9:16 videos are shown upright. A topic can have up to ' + (info.maxVideos || 6) + ' videos (+ Add video): students get them one after another, each as its own video.', h('br'),
             h('b', null, 'Play and Read: '), 'one .html file that works on its own: styles, scripts and images inside it, or linked with full https:// addresses. Up to ' + fmtMB(info.maxHtmlBytes) + '.')),
           h('div', { class: 'card' }, h('h2', null, 'Good to know'), h('div', { class: 'soft', style: 'line-height:1.6' },
             'Uploaded HTML runs in a safe sandbox: it cannot see students’ accounts. Because of that, an uploaded game cannot remember progress in the browser between visits. ',
@@ -1864,7 +1903,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     return out;
   }
   var FLAG_INFO = {
-    AI_TRAP: ['AI trap', 'bad', 'The code contains a token from the hidden instruction in the question text.'],
+    AI_TRAP: ['AI trap', 'bad', 'Coding: the code contains a token from the hidden instruction in the question text. Hiring MCQ: after copying the question, the student picked the wrong option the hidden instruction tells an AI to name.'],
+    HIRING_COPY: ['Hiring copy', 'warn', 'The student copied a Practice → Hiring question (the clipboard got a different question of the same topic).'],
     DECOY: ['Decoy solved', 'bad', 'The student copied the question (the clipboard got a different problem) and submitted code that solves that other problem.'],
     PASTE_HEAVY: ['Paste heavy', 'warn', 'A large single paste, or most of the final code was pasted.'],
     FAST_SOLVE: ['Fast solve', 'warn', 'Correct much faster than the usual solve time for this question.'],
@@ -1878,6 +1918,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
       var set = function (k, v) { F[k] = v; refresh(); };
       var evText = function (r) {
         var e = r.evidence || {}, bits = [];
+        // Hiring MCQ events carry no code metrics: their own short line
+        if (/^hiring:/.test(r.question_id || '')) {
+          if (r.flag_type === 'AI_TRAP') return [e.topic, 'copied the question, then picked option ' + e.picked + ' (the option the hidden line tells an AI to name)'].filter(Boolean).join(' · ');
+          return [e.topic, 'copied the question'].filter(Boolean).join(' · ');
+        }
         if (r.flag_type === 'AI_TRAP') bits.push('tokens: ' + (e.tokens || []).join(', '), e.snippet ? 'line: ' + e.snippet : '');
         if (r.flag_type === 'PASTE_HEAVY') bits.push('largest paste ' + e.pasteMax + ' chars', 'pasted ' + e.pasteTotal + ' of ' + e.codeLen + ' chars (' + Math.round((e.share || 0) * 100) + '%)', e.pasteCount + ' paste(s)');
         if (r.flag_type === 'FAST_SOLVE') bits.push('solved in ' + Math.round(e.timeMs / 1000) + 's', 'median ' + Math.round(e.medianMs / 1000) + 's (' + e.samples + ' solves)');

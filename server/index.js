@@ -20,7 +20,7 @@ import {
   SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
   submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, boardSprints, studentUniversity, clearBoardCache, readDraft, forgetAttempt, MARKS, RANK_RULE
 } from './sprint.js';
-import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, SLOTS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
+import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, isSlot, isWatch, MAX_VIDEOS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
   builtinCourses, hiddenLessons, hiddenState, hideBuiltinUnit, hideBuiltinCourse, restoreBuiltin, hiddenCustom, purgeStoredFile, clearCustomCache } from './media.js';
 import { startGrader, stopGrader } from './grader.js';
@@ -28,7 +28,7 @@ import { practiceAnalytics, practiceQuestion, practiceCounts } from './practice.
 import { recordActivity, recordStepEvents, businessMetrics, overview as analyticsOverview, studentRows, studentDetail } from './analytics.js';
 import { listSprints, listQuestions, addQuestion, updateQuestion, deleteQuestion, reorderQuestions, copyQuestions, reviewMode, setReviewMode, reviewFor, restoreQuestionRow } from './questions.js';
 import { proctorSettings, recordEvents, attemptEvents, proctorView, VIOLATIONS } from './proctor.js';
-import { clientIntegrity, recordSubmission, listFlags } from './integrity.js';
+import { clientIntegrity, recordSubmission, recordHiring, listFlags } from './integrity.js';
 import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPractice, updatePractice, setArchived, setArchivedMany, importPractice } from './practiceq.js';
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, boardPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
@@ -56,7 +56,7 @@ app.use((req, res, next) => {
 });
 
 // Local video upload streams the raw body; everything else is JSON.
-const LOCAL_UPLOAD = /^\/api\/admin\/media\/[^/]+\/(watch|play|read)\/local$/;
+const LOCAL_UPLOAD = /^\/api\/admin\/media\/[^/]+\/(watch[2-9]?|play|read)\/local$/; // watch2 … watch6: more videos for a topic
 app.use((req, res, next) => (LOCAL_UPLOAD.test(req.path) ? next() : express.json({ limit: '4mb' })(req, res, next)));
 
 // CSRF defence: state-changing requests must come from this site (cookies are also SameSite=Lax).
@@ -197,6 +197,13 @@ api.post('/practice/submission', who, async (req, res) => {
   const roll = req.who.kind === 'student' ? req.who.roll_no : 'ADMIN-' + req.who.id;
   if (!(await kv.rateLimit('psub:' + roll, 120, 3600000)).ok) return res.json({ ok: true });
   await recordSubmission(roll, req.body || {});
+  res.json({ ok: true });
+});
+// Practice "Hiring" honeypot: copying a Hiring question, and the answer picked after a copy (integrity.js recordHiring).
+api.post('/practice/hiring-event', who, async (req, res) => {
+  const roll = req.who.kind === 'student' ? req.who.roll_no : 'ADMIN-' + req.who.id;
+  if (!(await kv.rateLimit('phire:' + roll, 300, 3600000)).ok) return res.json({ ok: true });
+  await recordHiring(roll, req.body || {});
   res.json({ ok: true });
 });
 
@@ -461,13 +468,13 @@ adm.post('/media/blob-upload', async (req, res) => {
         const a = await loadAdmin(req);
         if (!a) throw new Error('Not authenticated');
         const { lessonId, slot } = parseClientPayload(clientPayload);
-        if (!lessonIds().has(lessonId) || !SLOTS.includes(slot)) throw new Error('Unknown unit or step');
+        if (!lessonIds().has(lessonId) || !isSlot(slot)) throw new Error('Unknown unit or step');
         return { allowedContentTypes: typesFor(slot), maximumSizeInBytes: maxBytesFor(slot), addRandomSuffix: true,
           tokenPayload: JSON.stringify({ lessonId, slot, admin: a.email }) };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         const p = parseClientPayload(tokenPayload);
-        if (lessonIds().has(p.lessonId) && SLOTS.includes(p.slot)) await setContent(p.lessonId, p.slot, { url: blob.url, storage: 'blob', fileName: blob.pathname, contentType: blob.contentType, by: p.admin });
+        if (lessonIds().has(p.lessonId) && isSlot(p.slot)) await setContent(p.lessonId, p.slot, { url: blob.url, storage: 'blob', fileName: blob.pathname, contentType: blob.contentType, by: p.admin });
       }
     });
     res.json(out);
@@ -917,16 +924,16 @@ adm.post('/import/reload', requireSuper, async (req, res) => {
 const slotOk = (req, res) => {
   const { unitId, slot } = req.params;
   if (!lessonIds().has(unitId)) { res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown unit.' }); return false; }
-  if (!SLOTS.includes(slot)) { res.status(404).json({ error: 'NOT_FOUND', message: 'Step must be watch, play or read.' }); return false; }
+  if (!isSlot(slot)) { res.status(404).json({ error: 'NOT_FOUND', message: 'Step must be watch (watch2 … watch' + MAX_VIDEOS + ' for more videos), play or read.' }); return false; }
   return true;
 };
-const typeError = (slot) => (slot === 'watch' ? 'Upload an MP4 (or WebM) video.' : 'Upload a single .html file.');
+const typeError = (slot) => (isWatch(slot) ? 'Upload an MP4 (or WebM) video.' : 'Upload a single .html file.');
 adm.get('/media', async (req, res) => {
   const kind = storageKind();
   res.json({ lessons: await catalog(), hidden: { units: hiddenLessons().filter((l) => hiddenState().units.includes(l.id)).map((l) => ({ id: l.id, title: l.title, course: l.course, courseName: l.courseName }))
     .concat(hiddenCustom().units.map((u) => ({ id: u.id, title: u.title, course: u.course, courseName: courseNames()[u.course] || u.course, added: true }))), courses: BUILTIN_COURSES.filter((c) => hiddenState().courses.includes(c.id)).concat(hiddenCustom().courses.map((c) => ({ id: c.id, name: c.name, added: true }))) },
     courses: builtinCourses().map((c) => ({ ...c, custom: false })).concat(customCourses().map((c) => ({ id: c.id, name: c.name, custom: true }))), storage: kind, blob: kind === 'blob', s3: kind === 's3', localUpload: kind === 'local',
-    maxBytes: config.maxVideoBytes, maxHtmlBytes: maxBytesFor('play'),
+    maxBytes: config.maxVideoBytes, maxHtmlBytes: maxBytesFor('play'), maxVideos: MAX_VIDEOS,
     folder: config.isVercel ? 'server/public/learning-bytes/ (in the repository; redeploy after adding files)' : config.learningBytesDir });
 });
 // S3-compatible storage (Cloudflare R2…): hand the browser a signed URL to PUT the file to directly.
@@ -952,7 +959,7 @@ adm.post('/media/:unitId/:slot', async (req, res) => {
 adm.post('/media/:unitId/:slot/html', async (req, res) => {
   if (!slotOk(req, res)) return;
   const { unitId, slot } = req.params;
-  if (slot === 'watch') return res.status(415).json({ error: 'BAD_TYPE', message: 'Watch needs an MP4 video.' });
+  if (isWatch(slot)) return res.status(415).json({ error: 'BAD_TYPE', message: 'Watch needs an MP4 video.' });
   const html = typeof req.body.html === 'string' ? req.body.html : '';
   if (!html.trim()) return res.status(400).json({ error: 'EMPTY', message: 'The file is empty.' });
   if (Buffer.byteLength(html) > maxBytesFor(slot)) return res.status(413).json({ error: 'TOO_LARGE', message: 'HTML file too large (max 3 MB).' });

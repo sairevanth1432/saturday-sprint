@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   var clock = { offset: 0 }; // serverNow - Date.now()
-  var PROGRESS_KEYS = ['done', 'solved', 'pPick', 'pSel', 'course', 'pc', 'pcSet', 'ssTab', 'stepDone', 'stepDoneById', 'ssHqPick'];
+  var PROGRESS_KEYS = ['done', 'solved', 'pPick', 'pSel', 'course', 'pc', 'pcSet', 'ssTab', 'stepDone', 'stepDoneById', 'ssHqPick', 'ssVidSeen'];
 
   function api(method, url, body, opts) {
     var init = { method: method, credentials: 'same-origin', headers: {} };
@@ -434,7 +434,14 @@
         var row = self.ssActRow('learn|' + unit + '|watch'), t = el.currentTime;
         if (last !== null && !el.paused && t > last && t - last < 2) row.videoMs += (t - last) * 1000;
         last = t;
-        if (isFinite(el.duration) && el.duration > 0) row.videoPct = Math.max(row.videoPct, Math.min(100, t / el.duration * 100 + (el.ended ? 100 : 0)));
+        if (isFinite(el.duration) && el.duration > 0) {
+          // a topic with several videos: progress is the average over its videos (each counted up to its furthest point)
+          var pos = (self._ssVidList || {})[cur] || { i: 0, n: 1 }, p = Math.min(100, t / el.duration * 100 + (el.ended ? 100 : 0));
+          var VP = self._ssVidPct || (self._ssVidPct = {}), vp = VP[unit] || (VP[unit] = {}); // kept across activity flushes
+          vp[pos.i] = Math.max(vp[pos.i] || 0, p);
+          var sum = 0; for (var k in vp) sum += vp[k];
+          row.videoPct = Math.max(row.videoPct, sum / pos.n);
+        }
       });
       el.addEventListener('seeking', function () { last = null; });
     }
@@ -830,6 +837,32 @@
       var self = this;
       api('GET', '/api/hiring-questions').then(function (d) { self.setState({ ssHiring: d || { topics: [] } }); }, function () {}).then(function () { self._ssHqBusy = false; });
     }
+    // ---------- Hiring honeypot (content/integrity.json "hiring"): a hidden line asks an AI to name one WRONG option
+    // (the same one every time for a question); copying the question is reported and swapped for another question.
+    ssHqTrap(q) {
+      var I = this.ss.integrity || {}, U = this.ss.user || {};
+      if (!q || !I.enabled || !I.hiring) return null;
+      var wrong = q.o.map(function (o, i) { return i; }).filter(function (i) { return i !== q.c; }), h = 0;
+      for (var k = 0; k < q.id.length; k++) h = (h * 31 + q.id.charCodeAt(k)) >>> 0;
+      var idx = wrong[h % wrong.length], wm = I.watermark ? zwEncode(U.kind === 'student' ? U.rollNo : 'ADMIN-' + (U.email || '')) : '';
+      return { idx: idx, line: ' ' + I.hiring.split('{option}').join('ABCDEF'[idx]) + wm + ' ', wm: wm };
+    }
+    // the question a copied Hiring question is swapped for: another of the same topic, the same one for a student every time
+    ssHqDecoyFor(id) {
+      var topics = (this.state.ssHiring || {}).topics || [], t = topics.find(function (x) { return x.questions.some(function (q) { return q.id === id; }); });
+      var pool = t ? t.questions.filter(function (q) { return q.id !== id && Array.isArray(q.o) && q.o.length > 1; }) : [];
+      if (!pool.length) return null;
+      var seed = String((this.ss.user || {}).rollNo || '') + id, h = 0;
+      for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+      return pool[h % pool.length];
+    }
+    ssHqEvent(id, body) {
+      var I = this.ss.integrity || {};
+      if (!I.enabled || !I.hiring || !id) return;
+      if (body.event === 'copy') { this._hqCopied = this._hqCopied || {}; this._hqCopied[id] = true; }
+      var t = ((this.state.ssHiring || {}).topics || []).find(function (x) { return x.questions.some(function (q) { return q.id === id; }); });
+      api('POST', '/api/practice/hiring-event', Object.assign({ qid: id, topic: t ? t.topic : '' }, body)).catch(function () {});
+    }
     // One MCQ at a time, like the Quiz, made from an interview question (make-hiring-mcq.js). Filter by difficulty;
     // answers are kept per student in ssHqPick (question id → option), saved with the rest of Practice progress.
     ssHiringVals(v) {
@@ -852,11 +885,15 @@
       // pick an option (ssHqSel, this visit only), then "Check answer" records it in ssHqPick
       var pk = q ? picks[q.id] : undefined, shown = pk !== undefined, ok = shown && pk === q.c, sel = q ? (S.ssHqSel || {})[q.id] : undefined;
       var last = qi >= list.length - 1, asked = q ? q.asked || [] : [];
+      var trap = q ? this.ssHqTrap(q) : null;
       var check = function () {
         if (sel === undefined) { self.setState({ ssHqHint: true }); return; }
+        // after a copy, report the pick: the trap option flags AI_TRAP (the server ignores other picks)
+        if (trap && (self._hqCopied || {})[q.id]) self.ssHqEvent(q.id, { event: 'answer', pick: sel, trap: trap.idx, correct: sel === q.c });
         self.setState(function (s) { var m = Object.assign({}, s.ssHqPick); m[q.id] = sel; return { ssHqPick: m, ssHqHint: false }; });
       };
-      var nCo = asked.length;
+      var nCo = asked.length, qtext = q ? q.q : '', sp = qtext.indexOf(' ');
+      if (trap && trap.wm && sp > 0) qtext = qtext.slice(0, sp) + trap.wm + qtext.slice(sp); // NIAT ID watermark after the first word
       return {
         has: !!topic && all.length > 0, n: all.length, on: on, bg: on ? '#FFE45C' : 'transparent', fg: on ? '#050505' : '#BDBDBD',
         cardDisp: on ? 'none' : 'flex', inlineDisp: on ? 'none' : 'inline', barDisp: on ? 'none' : 'block',
@@ -866,7 +903,8 @@
         qn: String(qi + 1), qt: String(list.length), correct: String(right.length),
         pct: (list.length ? Math.round((qi + 1) / list.length * 100) : 0) + '%',
         level: q ? q.difficulty : '', lvlFg: q ? (LV[q.difficulty] || '#BDBDBD') : '#BDBDBD',
-        q: q ? q.q : '', hasCode: !!(q && q.code), code: q ? q.code || '' : '',
+        q: qtext, hasCode: !!(q && q.code), code: q ? q.code || '' : '',
+        hpQid: q && trap ? 'hq:' + q.id : '', hpTrap: trap ? trap.line : '',
         opts: q ? q.o.map(function (t, i) {
           return { k: 'ABCD'[i] || String(i + 1), t: t,
             st: shown ? (i === q.c ? 'ok' : i === pk ? 'bad' : '') : (i === sel ? 'sel' : ''),
@@ -940,6 +978,9 @@
         if (el._src === src) return;
         if (el._hls) { el._hls.destroy(); el._hls = null; }
         el._src = src; el._ssStarted = false; el.preload = 'metadata'; el.src = src;
+        // the next video of a topic (Up next / a video picked in the list) starts from 0:00, so no cover frame
+        if (self._ssAutoPlay === src) { el._ssStarted = true; el.preload = 'auto'; }
+        if (!el._ssEndHook) { el._ssEndHook = true; el.addEventListener('ended', function () { self.ssVidEnded(el._src); }); }
         // Many learning bytes open on a black frame. Show a frame from ~3 s in as the cover,
         // and start from 0:00 when the student presses play.
         var cover = function () {
@@ -965,6 +1006,39 @@
           });
         }
       });
+    }
+    // ---------- several videos per topic: one after another, each shown as its own video
+    ssVidStopUp() { if (this._ssUpT) { clearInterval(this._ssUpT); this._ssUpT = null; } }
+    // a video ended: tick it off; if another follows, count down 5 s ("Up next") and then play it
+    ssVidEnded(src) {
+      var info = (this._ssVidList || {})[src], self = this;
+      if (!info) return;
+      this.setState(function (s) { var m = Object.assign({}, s.ssVidSeen), o = Object.assign({}, m[info.les]); o[info.i] = true; m[info.les] = o; return { ssVidSeen: m }; });
+      if (info.i >= info.n - 1) return;
+      this.ssVidStopUp();
+      this.setState({ ssVidUp: { les: info.les, i: info.i + 1, at: Date.now() } });
+      this._ssUpT = setInterval(function () {
+        var u = self.state.ssVidUp;
+        if (!u || self._ssVidCtx !== u.les) { self.ssVidStopUp(); if (u) self.setState({ ssVidUp: null }); return; }
+        if (Date.now() - u.at >= 5000) self.ssVidGo(u.les, u.i);
+        else self.setState({ ssVidTick: Date.now() });
+      }, 250);
+    }
+    // switch to video i of a topic: a short "VIDEO 2" title card, then it plays from 0:00
+    ssVidGo(les, i) {
+      var vids = (this._ssVidLists || {})[les] || [], url = vids[i], self = this;
+      if (!url) return;
+      this.ssVidStopUp();
+      if (this._ssIntroT) clearTimeout(this._ssIntroT);
+      this._ssAutoPlay = url;
+      this.setState(function (s) { var m = Object.assign({}, s.ssVidIdx); m[les] = i; return { ssVidIdx: m, ssVidUp: null, ssVidIntro: { les: les, i: i } }; });
+      this._ssIntroT = setTimeout(function () {
+        self._ssIntroT = null;
+        self.setState({ ssVidIntro: null });
+        var el = document.querySelector('#ss-reel video');
+        if (el && el._src === url) { try { el.currentTime = 0; var p = el.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+        if (self._ssAutoPlay === url) self._ssAutoPlay = null;
+      }, 1400);
     }
     ssToast(text, err) {
       var self = this, at = Date.now();
@@ -1101,7 +1175,13 @@
         if (trap) text = text.split(trap).join(' ');
         var mode = I.copyGuard || (I.scrambleCopy === false ? 'off' : 'decoy');
         var out = null, qid = box.getAttribute('data-ssq');
-        if (mode === 'decoy') {
+        if (!qid) return; // no honeypot on this question (e.g. the Hiring one turned off in integrity.json)
+        if (/^hq:/.test(qid)) {
+          // Practice → Hiring MCQ: report the copy (HIRING_COPY), and give the clipboard another question of the topic
+          var hid0 = qid.slice(3), hd = mode === 'decoy' ? self.ssHqDecoyFor(hid0) : null;
+          self.ssHqEvent(hid0, { event: 'copy' });
+          if (hd) out = hd.q + (hd.code ? '\n\n' + hd.code : '') + '\n\n' + hd.o.map(function (o, i) { return 'ABCDEF'[i] + '. ' + o; }).join('\n');
+        } else if (mode === 'decoy') {
           // a different, real problem: the AI solves the wrong task; Submit then flags DECOY if the code passes its tests
           var d = self.ssDecoyFor(qid);
           if (d) {
@@ -1295,6 +1375,7 @@
           });
         });
       }
+      this._ssVidCtx = null; // the topic whose Watch step is on screen (set below); the "Up next" countdown stops without it
       if (v.show.learn && les && les.tabs) {
         var over = (this.ss.unitContent || {})[les.id] || {};
         var src = {
@@ -1331,10 +1412,28 @@
         // Content for the current step
         v.xpShow = false; v.recShow = true; v.recAvail = false;
         if (tab === 'watch') {
-          if (src.watch) { this._ssVidUnit = this._ssVidUnit || {}; this._ssVidUnit[src.watch] = les.id; }
-          var rs = reelSize(src.watch);
-          v.wt = Object.assign({}, v.wt, { isVideo: !!src.watch, isSlides: false, src: src.watch, title: les.title, groups: [], tall: false,
-            vw: portrait ? 'min(100%, 440px)' : '100%', aspect: rs.aspect, boxW: rs.boxW, ar: rs.ar, ref: src.watch ? this.ssVideoRef(src.watch) : null });
+          // A topic can have several videos (Admin: watch, watch2 … watch6). They play one after another, each as its own video.
+          var vids = src.watch ? [src.watch].concat(['watch2', 'watch3', 'watch4', 'watch5', 'watch6'].map(function (k) { return over[k]; }).filter(Boolean)) : [];
+          var vi = Math.min(Math.max(0, (S.ssVidIdx || {})[les.id] || 0), Math.max(0, vids.length - 1)), vcur = vids[vi] || '';
+          this._ssVidUnit = this._ssVidUnit || {}; this._ssVidList = this._ssVidList || {}; this._ssVidLists = this._ssVidLists || {};
+          this._ssVidLists[les.id] = vids; this._ssVidCtx = les.id;
+          vids.forEach(function (u, i) { self._ssVidUnit[u] = les.id; self._ssVidList[u] = { les: les.id, i: i, n: vids.length }; });
+          var rs = reelSize(vcur);
+          v.wt = Object.assign({}, v.wt, { isVideo: !!vcur, isSlides: false, src: vcur, title: les.title + (vids.length > 1 ? ' · video ' + (vi + 1) + ' of ' + vids.length : ''), groups: [], tall: false,
+            vw: portrait ? 'min(100%, 440px)' : '100%', aspect: rs.aspect, boxW: rs.boxW, ar: rs.ar, ref: vcur ? this.ssVideoRef(vcur) : null });
+          if (vids.length > 1) {
+            var seen = (S.ssVidSeen || {})[les.id] || {}, up = S.ssVidUp && S.ssVidUp.les === les.id ? S.ssVidUp : null;
+            var intro = S.ssVidIntro && S.ssVidIntro.les === les.id ? S.ssVidIntro : null;
+            var left = up ? Math.max(0, Math.ceil((5000 - (Date.now() - up.at)) / 1000)) : 0;
+            v.ss_pl = { on: true, n: String(vids.length), badge: 'VIDEO ' + (vi + 1) + ' / ' + vids.length,
+              items: vids.map(function (u, i) {
+                return { label: 'Video ' + (i + 1), pressed: i === vi, tick: seen[i] && i !== vi ? '✓' : '', go: function () { if (i !== vi) self.ssVidGo(les.id, i); } };
+              }),
+              up: !!up, upLabel: up ? 'Video ' + (up.i + 1) + ' of ' + vids.length : '', upLeft: String(left), upPct: up ? Math.min(100, (Date.now() - up.at) / 50) + '%' : '0%',
+              upNow: function () { if (self.state.ssVidUp) self.ssVidGo(les.id, self.state.ssVidUp.i); },
+              upCancel: function () { self.ssVidStopUp(); self.setState({ ssVidUp: null }); },
+              intro: !!intro, introBig: intro ? 'VIDEO ' + (intro.i + 1) : '', introSub: intro ? 'of ' + vids.length + ' · ' + les.title : '' };
+          }
         } else {
           v.wt = Object.assign({}, v.wt, { isVideo: false, isSlides: !!src[tab], src: src[tab], title: les.title, groups: [], tall: true, ref: null });
         }
@@ -1508,6 +1607,7 @@
         })(),
         tools: v.ss_tools || { on: false, hint: '', fs: false, fsGo: null },
         like: v.ss_like || { on: false },
+        pl: v.ss_pl || { on: false, items: [], up: false, intro: false },
         split: this.ssSplitVals(),
         reel: { max: !!S.ssReelMax, cls: S.ssReelMax ? 'ss-reel-max' : '', close: function () { self.setState({ ssReelMax: false }); } },
         hp: this.ssHoneypot(v),

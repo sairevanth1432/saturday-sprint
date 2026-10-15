@@ -685,9 +685,19 @@ replaceOnce('<sc-if value="{{ recShow }}" hint-placeholder-val="{{ false }}">\n<
 
 // Watch: a like button pinned on the right side of the video, like a reel
 replaceOnce('<video ref="{{ wt.ref }}" controls playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: {{ wt.vw }}; aspect-ratio: {{ wt.aspect }}; max-height: 78vh; margin: 0 auto; border-radius: 12px; background: #000000"></video>',
-  `<div id="ss-reel" class="{{ ss.reel.cls }}" style="position: relative; width: 100%; margin: 0 auto">
+  `<sc-if value="{{ ss.pl.on }}" hint-placeholder-val="{{ false }}">
+<div class="ss-pl" role="group" aria-label="Videos in this topic"><span class="ss-pl-k">{{ ss.pl.n }} videos</span><sc-for list="{{ ss.pl.items }}" as="pv" hint-placeholder-count="3"><button class="ss-pl-chip" onClick="{{ pv.go }}" aria-pressed="{{ pv.pressed }}">{{ pv.label }}<b>{{ pv.tick }}</b></button></sc-for></div>
+</sc-if>
+<div id="ss-reel" class="{{ ss.reel.cls }}" style="position: relative; width: 100%; margin: 0 auto">
 <div class="ss-reel-box" style="position: relative; width: {{ wt.boxW }}; aspect-ratio: {{ wt.aspect }}; margin: 0 auto; --ar: {{ wt.ar }}">
 <video ref="{{ wt.ref }}" onDblClick="{{ ss.like.dbl }}" controls controlslist="nofullscreen" playsinline preload="metadata" aria-label="{{ wt.title }}" style="display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background: #000000"></video>
+<sc-if value="{{ ss.pl.on }}" hint-placeholder-val="{{ false }}"><span class="ss-pl-badge">{{ ss.pl.badge }}</span></sc-if>
+<sc-if value="{{ ss.pl.up }}" hint-placeholder-val="{{ false }}"><div class="ss-pl-up" role="status">
+<div class="ss-pl-up-card"><span class="ss-pl-up-k">&gt; up next</span><b>{{ ss.pl.upLabel }}</b><span class="ss-pl-up-t">Starts in {{ ss.pl.upLeft }}s</span>
+<div class="ss-pl-up-bar"><i style="width: {{ ss.pl.upPct }}"></i></div>
+<div style="display: flex; gap: 8px"><button class="ss-pl-btn y" onClick="{{ ss.pl.upNow }}">Play now</button><button class="ss-pl-btn" onClick="{{ ss.pl.upCancel }}">Cancel</button></div></div>
+</div></sc-if>
+<sc-if value="{{ ss.pl.intro }}" hint-placeholder-val="{{ false }}"><div class="ss-pl-intro" aria-hidden="true"><b>{{ ss.pl.introBig }}</b><span>{{ ss.pl.introSub }}</span></div></sc-if>
 <sc-if value="{{ ss.like.on }}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; right: 10px; bottom: 76px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px">
 <button class="ss-like-btn" onClick="{{ ss.like.toggle }}" aria-pressed="{{ ss.like.liked }}" aria-label="{{ ss.like.label }}" title="{{ ss.like.label }}" style="width: 48px; height: 48px; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg class="{{ ss.like.cls }}" width="32" height="32" viewBox="0 0 24 24" fill="{{ ss.like.fill }}" stroke="{{ ss.like.stroke }}" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true" style="filter: drop-shadow(0 1px 3px rgba(0,0,0,.55))"><path d="M12 21s-7.6-4.6-9.6-9.4C.9 8 3.1 4.3 6.8 4.3c2.2 0 3.8 1.2 5.2 3.1 1.4-1.9 3-3.1 5.2-3.1 3.7 0 5.9 3.7 4.4 7.3-2 4.8-9.6 9.4-9.6 9.4z"></path></svg></button>
@@ -711,6 +721,34 @@ replaceOnce('</head>', `<style>
 #ss-reel:fullscreen video, #ss-reel.ss-reel-max video { border-radius: 0 !important; }
 #ss-reel:-webkit-full-screen video { border-radius: 0 !important; }
 .ss-like-btn:active svg { transform: scale(0.88); }
+/* Watch with several videos: the list above the player, a badge on the video, "Up next" and a title card between videos */
+.ss-pl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.ss-pl-k { font-family: 'VT323', monospace; font-size: 20px; color: #FFE45C; margin-right: 6px; }
+.ss-pl-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid #333333; border-radius: 10px; background: transparent; color: #BDBDBD; font-size: 13px; font-weight: 800; cursor: pointer; }
+.ss-pl-chip b { color: #9BE58B; }
+.ss-pl-chip[aria-pressed="true"] { background: #FFE45C; border-color: #FFE45C; color: #111111; }
+.ss-pl-chip[aria-pressed="true"] b { color: #111111; }
+/* the badge only in full screen, where the list above the player is out of sight */
+.ss-pl-badge { display: none; }
+#ss-reel:fullscreen .ss-pl-badge, #ss-reel.ss-reel-max .ss-pl-badge { display: block; }
+#ss-reel:-webkit-full-screen .ss-pl-badge { display: block; }
+.ss-pl-badge { position: absolute; left: 12px; top: 12px; z-index: 2; padding: 4px 10px; border-radius: 8px; background: rgba(5,5,5,.72); color: #FFE45C; font-family: 'VT323', monospace; font-size: 18px; line-height: 1; letter-spacing: .04em; pointer-events: none; }
+.ss-pl-up { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; padding: 16px; border-radius: 12px; background: rgba(5,5,5,.78); animation: ssPlIn 200ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ss-pl-up-card { width: min(320px, 100%); display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid #333333; border-radius: 16px; background: #111111; }
+.ss-pl-up-k { font-family: 'VT323', monospace; font-size: 20px; color: #FFE45C; line-height: 1; }
+.ss-pl-up-card > b { font-size: 20px; font-weight: 800; color: #FFFFFF; }
+.ss-pl-up-t { font-size: 13px; color: #BDBDBD; }
+.ss-pl-up-bar { height: 4px; border-radius: 2px; background: #262626; overflow: hidden; margin: 4px 0 6px; }
+.ss-pl-up-bar i { display: block; height: 100%; background: #FFE45C; transition: width 250ms linear; }
+.ss-pl-btn { min-height: 40px; padding: 0 16px; border: 1px solid #333333; border-radius: 10px; background: transparent; color: #FFFFFF; font-size: 14px; font-weight: 800; cursor: pointer; }
+.ss-pl-btn.y { background: #FFE45C; border-color: #FFE45C; color: #111111; }
+.ss-pl-intro { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; border-radius: 12px; background: #050505; animation: ssPlIntro 1400ms ease both; pointer-events: none; }
+.ss-pl-intro b { font-family: 'Silkscreen', 'Press Start 2P', monospace; font-size: clamp(28px, 6vw, 52px); color: #FFE45C; line-height: 1; }
+.ss-pl-intro span { font-size: 14px; font-weight: 700; color: #BDBDBD; }
+@keyframes ssPlIn { from { opacity: 0; } }
+@keyframes ssPlIntro { 0% { opacity: 0; } 15% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; } }
+#ss-reel:fullscreen .ss-pl-up, #ss-reel:fullscreen .ss-pl-intro, #ss-reel.ss-reel-max .ss-pl-up, #ss-reel.ss-reel-max .ss-pl-intro { border-radius: 0; }
+@media (prefers-reduced-motion: reduce) { .ss-pl-up, .ss-pl-intro { animation: none; } .ss-pl-up-bar i { transition: none; } }
 .ss-nav { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 16px; border-top: 1px solid #1F1F1F; }
 .ss-nav-hint { font-size: 13px; font-weight: 700; color: #8A8A8A; text-align: center; }
 .ss-nav-row { display: flex; justify-content: center; gap: 14px; width: 100%; }
