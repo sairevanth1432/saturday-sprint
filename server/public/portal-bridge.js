@@ -870,6 +870,30 @@
       var t = ((this.state.ssHiring || {}).topics || []).find(function (x) { return x.questions.some(function (q) { return q.id === id; }); });
       api('POST', '/api/practice/hiring-event', Object.assign({ qid: id, topic: t ? t.topic : '' }, body)).catch(function () {});
     }
+    // Practice topic dropdown (under the Practice title): every topic that has Quiz or Hiring questions, by course.
+    // Picking one does what the sidebar topic does on Practice (ssTopicItems).
+    ssPracticeTopicVals(v, hqOnly) {
+      var self = this, S = this.state, open = S.ssMenu === 'ptopic';
+      var k = function (x) { return String(x || '').toLowerCase().replace(/&/g, ' and ').replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, ''); };
+      var part = function (x) { var m = /\bpart\s*-?\s*(\d+)\b/i.exec(String(x || '')); return m ? m[1] : ''; };
+      var same = function (a, b) { return !!a && !!b && k(a) === k(b) && (!part(a) || !part(b) || part(a) === part(b)); };
+      var ptopics = [];
+      ((v.pq && v.pq.groups) || []).forEach(function (g) { (g.topics || []).forEach(function (t) { ptopics.push(t); }); });
+      var cur = v.pq ? v.pq.topicLabel : '', groups = [];
+      this.ssTopicItems(v).forEach(function (it) {
+        var tp = ptopics.find(function (t) { return same(it.name, t.name) || same(it.practiceTopic, t.name); });
+        var nq = tp ? parseInt(String(tp.count), 10) || 0 : 0;
+        var hq = self.ssHqFind(it.name) || self.ssHqFind(it.practiceTopic), nh = hq ? hq.questions.length : 0;
+        if (!nq && !nh) return; // nothing to practise yet: not listed
+        var g = groups.find(function (x) { return x.name === it.course; });
+        if (!g) groups.push(g = { name: it.course, items: [] });
+        var on = hqOnly ? hqOnly.name === it.name : !!tp && same(cur, tp.name);
+        g.items.push({ name: it.name, on: on, count: [nq ? nq + ' quiz' : '', nh ? nh + ' hiring' : ''].filter(Boolean).join(' · '),
+          go: function () { self.setState({ ssMenu: '' }); it.go(); } });
+      });
+      return { open: open, groups: groups, has: groups.length > 0,
+        toggle: function () { self.setState(function (s) { return { ssMenu: s.ssMenu === 'ptopic' ? '' : 'ptopic' }; }); } };
+    }
     // The Hiring topic for a portal topic name: same words ignoring case, punctuation and "&"/"and"; then also a trailing
     // "s" and "Introduction"/"Intro". A Part number must match ("… Part 1" is not "… Part 2").
     ssHqFind(name) {
@@ -1608,6 +1632,7 @@
       if (hqOnly) Object.assign(v.pq, { topicLabel: hqOnly.name, courseLabel: hqOnly.course, nQuiz: '0', hasCoding: false, isQuizItem: false, isCodeItem: false });
       v.hq = this.ssHiringVals(v);
       if (hqOnly && v.hq) v.pq.score = v.hq.correct + ' / ' + v.hq.n; // the score is this topic's Hiring score
+      v.ss_pt = S.tab === 'practice' ? this.ssPracticeTopicVals(v, hqOnly) : null;
       if (v.pq && v.hq) {
         var baseQuiz = v.pq.toQuiz, baseCode = v.pq.toCode;
         v.pq.toQuiz = hqOnly ? function () { self.ssToast('This topic has no quiz questions yet. Practise its Hiring questions.'); }
@@ -1631,6 +1656,7 @@
         tools: v.ss_tools || { on: false, hint: '', fs: false, fsGo: null },
         like: v.ss_like || { on: false },
         pl: v.ss_pl || { on: false, items: [], up: false, intro: false },
+        pt: v.ss_pt || { open: false, groups: [], has: false, toggle: null },
         split: this.ssSplitVals(),
         reel: { max: !!S.ssReelMax, cls: S.ssReelMax ? 'ss-reel-max' : '', close: function () { self.setState({ ssReelMax: false }); } },
         hp: this.ssHoneypot(v),

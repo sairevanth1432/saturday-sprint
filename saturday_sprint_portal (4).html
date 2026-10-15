@@ -1802,7 +1802,15 @@ Sk.misceval.op2method_={Eq:Sk.builtin.str.$eq,NotEq:Sk.builtin.str.$ne,Gt:Sk.bui
 <div style="display: flex; align-items: center; gap: 14px">
 <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0; flex-grow: 1">
 <h2 style="margin: 0; font-family: 'Silkscreen', monospace; font-size: 24px; font-weight: 700; line-height: 1">Practice</h2>
-<span style="font-size: 14px; font-weight: 700; color: #8A8A8A">{{ pq.courseLabel }} · <span style="color: #EDEDED">{{ pq.topicLabel }}</span></span>
+<div class="ss-menu-wrap ss-pt-wrap">
+<button class="ss-pt-btn" onClick="{{ ss.pt.toggle }}" aria-haspopup="menu" aria-expanded="{{ ss.pt.open }}" title="Change topic">{{ pq.courseLabel }} · <span class="ss-pt-t">{{ pq.topicLabel }}</span> <span class="ss-pt-caret" aria-hidden="true">▾</span></button>
+<sc-if value="{{ ss.pt.open }}" hint-placeholder-val="{{ false }}">
+<div class="ss-menu ss-pt-menu pop" role="menu">
+<sc-for list="{{ ss.pt.groups }}" as="pg" hint-placeholder-count="2"><div class="ss-topic-head">{{ pg.name }}</div>
+<sc-for list="{{ pg.items }}" as="pi" hint-placeholder-count="3"><button class="ss-menu-item ss-pt-item" role="menuitem" data-on="{{ pi.on }}" onClick="{{ pi.go }}"><span class="ss-pt-n">{{ pi.name }}</span><span class="ss-pt-c">{{ pi.count }}</span></button></sc-for></sc-for>
+</div>
+</sc-if>
+</div>
 </div>
 <div style="font-size: 15px; font-weight: 700; color: #8A8A8A; white-space: nowrap">score <span style="color: #FFE45C">{{ pq.score }}</span></div>
 </div>

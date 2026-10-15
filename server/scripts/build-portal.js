@@ -794,6 +794,22 @@ replaceOnce('</head>', `<style>
 .ss-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #3A3A3A; display: flex; align-items: center; justify-content: center; color: transparent; flex-shrink: 0; }
 .ss-menu-item[data-on="true"] .ss-check { background: #FFE45C; border-color: #FFE45C; color: #050505; }
 .ss-check svg { width: 12px; height: 12px; color: inherit; }
+/* Practice: the topic dropdown under the title */
+.ss-pt-wrap { align-self: flex-start; max-width: 100%; }
+.ss-pt-btn { display: inline-block; max-width: 100%; min-height: 32px; padding: 6px 12px 6px 10px; margin-left: -10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #8A8A8A; font-size: 14px; font-weight: 700; line-height: 1.4; cursor: pointer; text-align: left; white-space: nowrap; vertical-align: top; }
+@media (max-width: 760px) { .ss-pt-btn { white-space: normal; } }
+.ss-pt-t { color: #EDEDED; font-weight: 800; }
+.ss-pt-caret { display: inline-block; }
+.ss-pt-btn:hover, .ss-pt-btn[aria-expanded="true"] { border-color: #333333; background: #151515; }
+.ss-pt-caret { color: #FFE45C; font-size: 12px; transition: transform 160ms ease; }
+.ss-pt-btn[aria-expanded="true"] .ss-pt-caret { transform: rotate(180deg); }
+.ss-pt-menu { left: -10px; right: auto; min-width: 320px; max-width: min(440px, 90vw); max-height: min(70vh, 520px); overflow-y: auto; }
+.ss-pt-item { justify-content: space-between; gap: 14px; }
+.ss-pt-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-pt-c { flex-shrink: 0; font-family: 'VT323', monospace; font-size: 16px; font-weight: 400; color: #8A8A8A; }
+.ss-pt-item[data-on="true"] { background: rgba(255,228,92,.10); color: #FFE45C; }
+.ss-pt-item[data-on="true"] .ss-pt-c { color: #FFE45C; }
+@media (prefers-reduced-motion: reduce) { .ss-pt-caret { transition: none; } }
 /* sidebar topic list */
 .ss-topic-list { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 6px; }
 .ss-topic-head { padding: 10px 12px 4px; font-family: 'VT323', monospace; font-size: 17px; letter-spacing: .02em; color: #5E5E5E; text-transform: uppercase; }
