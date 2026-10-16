@@ -6,7 +6,7 @@
 // What it does (re-run it whenever the portal HTML is updated):
 //   1. Extracts the Sprint test (questions + answers + hidden tests) into data/sprint-test.json (server only)
 //      and removes it from the page, so answers never reach the browser.
-//   2. Adds the Leaderboard tab, a Home leaderboard card, the post-test leaderboard, and the user/logout block.
+//   2. Adds the Leaderboard tab, the post-test leaderboard, and the user/logout block.
 //   3. Replaces the boot call with /portal-bridge.js (login session, autosave, server grading, progress sync).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -506,28 +506,6 @@ const PROFILE_TAB = `<!-- ============ PROFILE ============ -->
 `;
 replaceOnce('<!-- ============ HOME (Today) ============ -->', (a) => PROFILE_TAB + a, 'profile tab');
 
-const HOME_CARD = `<div style="display: flex; flex-direction: column; gap: 12px">
-<div style="display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap">
-<span style="font-size: 13px; font-weight: 800; color: #FFE45C">Leaderboard · {{ lb.participants }} on the board</span>
-<button class="k3" onClick="{{ nav.board.go }}" style="margin-left: auto; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: #BDBDBD; font-size: 13px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer">Full leaderboard →</button>
-</div>
-<span style="display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; color: #FFFFFF">{{ lb.homeLine }}</span>
-<sc-if value="{{ lb.hasRows }}" hint-placeholder-val="{{ false }}">
-<div style="display: flex; flex-direction: column">
-<sc-for list="{{ lb.top5 }}" as="hr" hint-placeholder-count="5">
-<div style="display: grid; grid-template-columns: 44px minmax(0, 1fr) 90px 60px; align-items: center; gap: 10px; min-height: 36px; border-bottom: 1px solid #1F1F1F; color: {{ hr.rankText }}">
-<span style="font-family: 'VT323', monospace; font-size: 20px">{{ hr.rank }}</span>
-<span style="font-size: 14px; font-weight: 700; color: #FFFFFF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ hr.name }} <span style="color: #FFE45C">{{ hr.youTag }}</span></span>
-<span style="font-family: 'VT323', monospace; font-size: 20px; color: #FFE45C; text-align: right">{{ hr.score }}</span>
-<span style="font-family: 'VT323', monospace; font-size: 19px; color: #8A8A8A; text-align: right">{{ hr.time }}</span>
-</div>
-</sc-for>
-</div>
-</sc-if>
-</div>
-`;
-// The leaderboard card sits in the Home right column (aside.ss-home-side, after the festival greeting); two columns from 1360 px (CSS below).
-replaceOnce('</sc-if>\n</aside>\n<div style="display: flex; flex-direction: column; gap: 10px">', (a) => '</sc-if>\n' + HOME_CARD + '</aside>\n<div style="display: flex; flex-direction: column; gap: 10px">', 'home leaderboard card');
 
 
 const DONE_BOARD = `
