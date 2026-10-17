@@ -772,7 +772,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   var TIME_NOTE = 'Time on units = Learn (Watch, Play, Read) + Practice (quiz and Write code) + Sprint test. Time on portal = time on units + Home + Leaderboard. Sprint time is the test clock, from start to submit. Only time the student is present counts: a click, key, scroll or mouse move at least every 1–3 minutes, or a video playing. A tab left open, or a window behind another app, adds nothing.';
   // the areas that make up time spent, for the "Where the time goes" bars
   function spentAreas(areas) { return areas.filter(function (a) { return a.counted; }).map(function (a) { return { label: AREA_NAMES[a.area] || a.area, value: a.ms, text: dur(a.ms) }; }); }
-  var COURSE_NAMES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+  var COURSE_NAMES = { pf: 'Programming Foundations', genai: 'Intro to GenAI', wad: 'Web Application Development' };
   function dur(ms) {
     ms = Number(ms) || 0;
     if (ms < 60000) return ms ? Math.round(ms / 1000) + 's' : '–';
@@ -1063,7 +1063,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var st = CACHE.practice;
     return api('GET', '/api/admin/practice?v=1' + (st.fresh ? '&fresh=1' : '') + per()).then(function (d) {
       st.fresh = false;
-      var COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI' };
+      var COURSES = { pf: 'Programming Foundations', genai: 'Intro to GenAI', wad: 'Web Application Development' };
       var pct = function (n, of) { return of ? Math.round(n / of * 100) + '%' : '–'; };
       var stat = function (k, v, sub) { return h('div', { class: 'card stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v), sub ? h('div', { class: 's' }, sub) : null); };
       var answers = d.quiz.reduce(function (n, q) { return n + q.attempted; }, 0), right = d.quiz.reduce(function (n, q) { return n + q.correct; }, 0);
@@ -1103,7 +1103,7 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
         if (st.sort === 'least') qs.sort(function (a, b) { return a.attempted - b.attempted; });
         if (st.sort === 'hard') qs.sort(function (a, b) { return (a.attempted ? rate(a) : 2) - (b.attempted ? rate(b) : 2); });
         if (st.sort === 'easy') qs.sort(function (a, b) { return rate(b) - rate(a); });
-        var cs = d.code.filter(function (c) { return (st.course === 'all' || st.course === 'pf') && (st.sess === 'all' || c.topic === st.sess); });
+        var cs = d.code.filter(function (c) { return (st.course === 'all' || (c.course || 'pf') === st.course) && (st.sess === 'all' || c.topic === st.sess); });
         var ts = d.topics.filter(function (t) { return st.course === 'all' || t.course === st.course; });
         holder.replaceChildren(
           h('div', { class: 'card', style: 'margin-bottom:14px' }, h('h2', null, 'By topic'), h('div', { class: 'tablewrap' }, h('table', null,

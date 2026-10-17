@@ -25,12 +25,14 @@ export const allPeriods = () => Object.values(PERIODS);
 
 // Topics added in Admin → Courses & topics have ids "u-…" (media.js addUnit); the built-in ones do not.
 export const isSprint2Unit = (u) => String((u && u.id) || u || '').startsWith('u-');
-// Which Sprint a topic belongs to: built-in → s1; added before 15 Oct → s2; added from then → s3.
+// Which Sprint a topic belongs to: built-in → s1; added before 12 Oct → s2; added from then → s3. Topics are added in
+// the days before their Sprint starts (the Sprint 3 topics on 14 Oct), so the cut-off is SPRINT3_START minus a lead time.
+const UNIT_LEAD_MS = 3 * 864e5;
 export function unitSprint(u) {
   const id = String((u && u.id) || u || '');
   if (!id.startsWith('u-')) return 's1';
   const at = unitCreatedAt(id);
-  return at && at >= SPRINT3_START ? 's3' : 's2';
+  return at && at >= SPRINT3_START - UNIT_LEAD_MS ? 's3' : 's2';
 }
 export const unitInPeriod = (period, u) => !period || unitSprint(u) === period.id;
 

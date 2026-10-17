@@ -35,7 +35,7 @@ async function fullCatalogue() {
   return {
     quiz: base.quiz.concat(mcq.map((r, i) => ({ gi: (base.total || 0) + i, course: r.course, sess: r.topic, q: d(r).q || '', o: d(r).o || [], c: d(r).c, multi: false, code: d(r).code || '',
       removed: !!r.archived, draft: !!r.draft })).filter((q) => q.o.length || q.removed || q.draft)),
-    code: base.code.concat(code.map((r) => ({ id: 'x' + r.id, topic: r.topic, title: d(r).title || '', removed: !!r.archived, draft: !!r.draft })))
+    code: base.code.map((c) => ({ course: 'pf', ...c })).concat(code.map((r) => ({ id: 'x' + r.id, course: r.course, topic: r.topic, title: d(r).title || '', removed: !!r.archived, draft: !!r.draft })))
   };
 }
 
@@ -74,7 +74,7 @@ async function compute(period) {
     return t;
   };
   for (const q of quiz) { const t = topic(q.course, q.sess); t.quiz++; t.attempts += q.attempted; t.correct += q.correct; }
-  for (const c of code) { const t = topic('pf', c.topic); t.code++; t.solved += c.solved; }
+  for (const c of code) { const t = topic(c.course || 'pf', c.topic); t.code++; t.solved += c.solved; }
   return { at: Date.now(), period: P ? { id: P.id, label: P.label } : null, students: rows.length, active, quiz, code, topics };
 }
 
