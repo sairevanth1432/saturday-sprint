@@ -300,18 +300,13 @@ export async function verifyOtp(req, res, purpose, rawRoll, rawCode, rawPhone, r
   return result;
 }
 
-// ---------- simple login (initial roll-out): NIAT ID + name as in the student list
+// ---------- simple login (initial roll-out): NIAT ID from the student list + any name
 // Setting "student_login_mode": "simple" (default) or "secure" (phone code, password, admin approval).
-// Simple mode has no secret: anyone who knows a student's NIAT ID and name can log in as them. Every login is
+// Simple mode has no secret: anyone who knows a student's NIAT ID can log in as them (the name typed is not checked). Every login is
 // recorded (student_logins) and admins can still disable an account. Switch to "secure" before wider roll-out.
 export async function loginMode() {
   const m = await getSetting('student_login_mode', 'simple');
   return m === 'secure' ? 'secure' : 'simple';
-}
-// "Asha  K. Kumar" ≈ "asha k kumar" ≈ "Kumar Asha K": case, dots, extra spaces and word order do not matter.
-export function nameKey(name) {
-  return String(name || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
 }
 export async function recordLogin(req, roll, method) {
   await run('INSERT INTO student_logins (roll_no, at, method, ip, ua) VALUES (?, ?, ?, ?, ?)',
@@ -323,12 +318,11 @@ export async function nameLogin(req, res, rawRoll, rawName) {
   // generous per network (a whole campus can share one address), strict per NIAT ID
   await limitOrThrow('name-ip:' + req.ip, 3000, 15 * 60000, 'Too many log-ins from this network. Try again in a few minutes.');
   await limitOrThrow('name-roll:' + roll, 10, 15 * 60000, 'Too many attempts for this NIAT ID. Try again in 15 minutes.');
+  if (!String(rawName || '').trim()) throw new AuthError('BAD_NAME', 'Enter your name.', 400);
+  // Only the NIAT ID decides: any name is accepted and the student list is never changed by it.
   const m = await one('SELECT * FROM students_master WHERE roll_no = ?', roll);
-  const given = nameKey(rawName);
-  if (!given) throw new AuthError('BAD_NAME', 'Enter your name as it is in the student list.', 400);
-  // A NIAT ID listed without a name accepts any name (the record stays as listed); otherwise the name must match.
-  if (!m || !m.active || (nameKey(m.name) && nameKey(m.name) !== given)) {
-    throw new AuthError('BAD_LOGIN', 'That NIAT ID and name do not match the student list. Check the spelling, or ask your mentor.', 401);
+  if (!m || !m.active) {
+    throw new AuthError('BAD_LOGIN', 'This NIAT ID is not in the student list. Check it (the digit 0, not the letter O), or ask your mentor.', 401);
   }
   let u = await one('SELECT * FROM users WHERE roll_no = ?', roll);
   const now = Date.now();

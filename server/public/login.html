@@ -110,7 +110,7 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
         <p class="why" data-mode="secure">Five steps from registering to your rank on the leaderboard.</p>
         <p class="why" data-mode="simple">Four steps from logging in to your rank on the leaderboard.</p>
         <ol data-mode="simple">
-          <li><b>1</b><span><strong>Log in</strong> with your NIAT ID and your name exactly as in the college list. No registration is needed.</span></li>
+          <li><b>1</b><span><strong>Log in</strong> with your NIAT ID and your name. No registration is needed.</span></li>
           <li><b>2</b><span><strong>Finish the learning units</strong> in <em>Learn</em>. Each unit is Watch → Play → Read.</span></li>
           <li><b>3</b><span><strong>Practise every topic</strong> in <em>Practice</em>: quizzes and coding problems, with explanations.</span></li>
           <li><b>4</b><span><strong>Take the End-of-Sprint Test</strong> <span class="sprint-when">on Saturday</span>. It is timed and proctored, and you get one attempt. Then see your rank.</span></li>
@@ -131,10 +131,10 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
         <ol>
           <li><b>1</b><span><strong>Get your account</strong> from the program super admin, then log in at the <a href="/admin">mentor console</a> with your email, password and an authenticator app.</span></li>
           <li data-mode="secure"><b>2</b><span><strong>Approve registrations</strong> in <em>Approvals</em>. Check that the NIAT ID and name belong to your student.</span></li>
-          <li data-mode="simple"><b>2</b><span><strong>Check the student list</strong> in <em>Master data</em>. Students log in with their NIAT ID and the name written there, so the names must be right.</span></li>
+          <li data-mode="simple"><b>2</b><span><strong>Check the student list</strong> in <em>Master data</em>. Students log in with their NIAT ID, so every student must be in the list and active.</span></li>
           <li><b>3</b><span><strong>Follow the learning</strong> in <em>Students</em> (each student's progress) and <em>Practice analytics</em> (which questions the batch gets wrong). Reteach those topics.</span></li>
           <li data-mode="secure"><b>4</b><span><strong>Help students get in</strong>: change a login phone number or reset a password from the student's page.</span></li>
-          <li data-mode="simple"><b>4</b><span><strong>Help students get in</strong>: if a name does not match, correct it in <em>Master data</em>. Each student's logins are listed in <em>Student analytics</em>.</span></li>
+          <li data-mode="simple"><b>4</b><span><strong>Help students get in</strong>: if a NIAT ID is not accepted, add or re-activate the student in <em>Master data</em>. Each student's logins are listed in <em>Student analytics</em>.</span></li>
           <li><b>5</b><span><strong>On Sprint day</strong>, follow <em>Results</em> live: proctoring flags and each attempt's activity timeline. Then share the <em>Leaderboard</em>.</span></li>
         </ol>
         <div class="go"><a class="pri" href="/admin">Open the mentor console →</a><a href="/help#mentors">Mentor notes</a></div>
@@ -146,7 +146,7 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
     <form id="f-name" data-mode="simple" novalidate style="display:flex;flex-direction:column;gap:16px">
       <div>
         <h1>Welcome</h1>
-        <p class="sub">Log in with your NIAT ID and your name as it is in the college list.</p>
+        <p class="sub">Log in with your NIAT ID and your name.</p>
       </div>
       <div>
         <label for="n-roll">NIAT ID</label>
@@ -251,7 +251,7 @@ body.m-simple [data-mode="secure"],body.m-secure [data-mode="simple"]{display:no
       <div id="dev" class="msg dev" hidden></div>
     </div>
 
-    <p class="foot">New here? <a href="/help">How the Sprint works</a>. <span data-mode="secure">Changed your phone number, or your NIAT ID is not accepted?</span><span data-mode="simple">NIAT ID or name not accepted?</span> Contact your mentor.</p>
+    <p class="foot">New here? <a href="/help">How the Sprint works</a>. <span data-mode="secure">Changed your phone number, or your NIAT ID is not accepted?</span><span data-mode="simple">NIAT ID not accepted?</span> Contact your mentor.</p>
   </section>
 </main>
 
