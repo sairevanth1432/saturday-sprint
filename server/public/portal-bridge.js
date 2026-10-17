@@ -269,16 +269,16 @@
       this.ssActMount();
       this.ssWindowNotice();
     }
-    // A test window that runs past its opening day (e.g. extended to the next evening): tell students who have not
-    // taken the test yet, once per browser for each close time.
+    // A test window that runs past its opening day (e.g. extended to the next evening): tell students (and admins
+    // previewing the portal) who have not taken the test yet, once per browser tab session for each close time.
     ssWindowNotice() {
       var B = this.ss, sp = B.sprint, now = Date.now();
-      if (B.user.kind !== 'student' || B.attempt || sp.preview || now < sp.openMs || now >= sp.closeMs) return;
+      if ((B.attempt && B.attempt.status !== 'none') || now < sp.openMs || now >= sp.closeMs) return;
       var fmt = function (ms, o) { try { return new Date(ms).toLocaleString('en-IN', Object.assign({ timeZone: 'Asia/Kolkata' }, o)); } catch (e) { return new Date(ms).toLocaleString(); } };
       var day = function (ms) { return fmt(ms, { weekday: 'long', day: 'numeric', month: 'short' }); };
       if (day(sp.openMs) === day(sp.closeMs)) return;
       var key = 'ss-window-' + sp.id + '-' + sp.closeMs;
-      try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) {}
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
       var tm = fmt(sp.closeMs, { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?(am|pm)$/i, function (x) { return ' ' + x.trim().toUpperCase(); });
       ssQuotePop('📢 TEST WINDOW EXTENDED', 'The Sprint test is now open till ' + day(sp.closeMs) + ', ' + tm + ' IST. Take it any time before then.', 'Got it 👍');
     }
