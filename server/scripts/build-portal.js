@@ -244,8 +244,14 @@ fs.writeFileSync(config.lessonsFile, JSON.stringify(lessonsOut, null, 2));
     if (!Array.isArray(set) || !set.length) throw new Error(`content/sprint-sets/${f}: needs a list of questions.`);
     set.forEach((q, i) => {
       const where = `content/sprint-sets/${f} question ${i + 1}`;
-      if (q.type !== 'mcq') throw new Error(`${where}: only "mcq" questions are supported here.`);
+      if (!['mcq', 'code'].includes(q.type)) throw new Error(`${where}: type must be "mcq" or "code".`);
       if (!['pf', 'genai', 'wad'].includes(q.course)) throw new Error(`${where}: course must be pf, genai or wad.`);
+      if (q.type === 'code') {
+        // Python coding problem: tests are [input, expected output] pairs; sample is shown to the student
+        if (!(Array.isArray(q.tests) && q.tests.length && q.tests.every((t) => Array.isArray(t) && t.length === 2 && t.every((x) => typeof x === 'string')))) throw new Error(`${where}: coding question needs "tests" as [input, output] pairs.`);
+        if (!(Array.isArray(q.sample) && q.sample.length === 2)) throw new Error(`${where}: coding question needs a "sample" [input, output].`);
+        return;
+      }
       if (!(Array.isArray(q.o) && q.o.length >= 2 && q.o.length <= 6 && Number.isInteger(q.c) && q.c >= 0 && q.c < q.o.length)) throw new Error(`${where}: needs 2–6 options "o" and a valid answer index "c".`);
       if (new Set(q.o.map((o) => String(o).toLowerCase())).size !== q.o.length) throw new Error(`${where}: two options are the same.`);
     });

@@ -1,0 +1,249 @@
+[
+  {
+    "course": "genai",
+    "level": "medium",
+    "topic": "Building Social Media Content Automation Workflow, Part 1",
+    "type": "mcq",
+    "q": "Which of the following is not a valid trigger type in n8n workflows?",
+    "o": [
+      "Manual trigger",
+      "Output trigger",
+      "Schedule (time-based) trigger",
+      "Webhook (event-based) trigger"
+    ],
+    "c": 1,
+    "src": "d5fb9699cc174160af54fe10ead02681"
+  },
+  {
+    "course": "genai",
+    "level": "hard",
+    "topic": "Advanced Prompt Engineering",
+    "type": "mcq",
+    "q": "What does Few-Shot, Chain-of-Thought prompting provide to the model?",
+    "o": [
+      "Examples that show both the step-by-step reasoning and the final answer",
+      "A single instruction with no examples, asking it to think step by step",
+      "Live data from the internet to support its answer",
+      "Examples that show only the final answers, without reasoning"
+    ],
+    "c": 0,
+    "src": "628f46049471421586fa10b631a60b86"
+  },
+  {
+    "course": "wad",
+    "level": "medium",
+    "topic": "HTML Void Elements & Lists",
+    "type": "mcq",
+    "q": "Which group of HTML elements are void elements?",
+    "o": [
+      "<p>, <h1> and <div>",
+      "<img>, <br> and <hr>",
+      "<a>, <span> and <button>",
+      "<ul>, <ol> and <li>"
+    ],
+    "c": 1,
+    "src": "f0c8ea0625b94bd7bad1acadda247bf7"
+  },
+  {
+    "course": "wad",
+    "level": "easy",
+    "topic": "Website: Behind the Scenes",
+    "type": "mcq",
+    "q": "In the website address varakumar.ccbp.tech, which of the following is the sub domain?",
+    "o": [
+      "ccbp",
+      "varakumar.ccbp.tech",
+      "tech",
+      "varakumar"
+    ],
+    "c": 3,
+    "src": "abd53062dbde4f248d1275a2ed62b40b"
+  },
+  {
+    "course": "wad",
+    "level": "hard",
+    "topic": "HTML Hyperlinks",
+    "type": "mcq",
+    "q": "What is the mistake in the given code if clicking the link should scroll to the bio section?",
+    "code": "<a href=\"#bio\">My Bio</a>\n<div class=\"bio\">\n  <h1>About Me</h1>\n  <p>I love building websites.</p>\n</div>",
+    "o": [
+      "The href value must not start with #",
+      "The bio section uses class=\"bio\" instead of id=\"bio\", so href=\"#bio\" cannot find it",
+      "The target=\"_blank\" attribute is missing on the anchor element",
+      "The anchor element must not have a closing tag"
+    ],
+    "c": 1,
+    "src": "a9c7dfbb88724987800b2efa9975ced0"
+  },
+  {
+    "course": "pf",
+    "level": "easy",
+    "topic": "For Loop",
+    "type": "code",
+    "q": "Coding problem. Read n. Print the first n terms of the Fibonacci series on one line, separated by spaces. The series starts 0 1, and each next term is the sum of the two before it.",
+    "starter": "n = int(input())\n",
+    "sample": [
+      "7",
+      "0 1 1 2 3 5 8"
+    ],
+    "tests": [
+      [
+        "7",
+        "0 1 1 2 3 5 8"
+      ],
+      [
+        "1",
+        "0"
+      ],
+      [
+        "2",
+        "0 1"
+      ],
+      [
+        "10",
+        "0 1 1 2 3 5 8 13 21 34"
+      ],
+      [
+        "15",
+        "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377"
+      ]
+    ],
+    "asked": "Fibonacci series up to n terms (asked at 6 companies)"
+  },
+  {
+    "course": "pf",
+    "level": "medium",
+    "topic": "For Loop",
+    "type": "code",
+    "q": "Coding problem. Read a line of integers separated by spaces. Print the second largest distinct value, without sorting. At least two different values are given.",
+    "starter": "nums = list(map(int, input().split()))\n",
+    "sample": [
+      "4 9 2 9 7",
+      "7"
+    ],
+    "tests": [
+      [
+        "4 9 2 9 7",
+        "7"
+      ],
+      [
+        "1 2",
+        "1"
+      ],
+      [
+        "5 5 3 5",
+        "3"
+      ],
+      [
+        "-4 -1 -7 -1",
+        "-4"
+      ],
+      [
+        "10 20 30 40 50 40",
+        "40"
+      ]
+    ],
+    "asked": "Second largest element without sorting (asked at 4 companies)"
+  },
+  {
+    "course": "pf",
+    "level": "easy",
+    "topic": "String Methods",
+    "type": "code",
+    "q": "Coding problem. Read a word. Print Yes if it reads the same forwards and backwards, ignoring upper and lower case. Otherwise print No.",
+    "starter": "word = input()\n",
+    "sample": [
+      "Madam",
+      "Yes"
+    ],
+    "tests": [
+      [
+        "Madam",
+        "Yes"
+      ],
+      [
+        "python",
+        "No"
+      ],
+      [
+        "a",
+        "Yes"
+      ],
+      [
+        "RaceCar",
+        "Yes"
+      ],
+      [
+        "abca",
+        "No"
+      ]
+    ],
+    "asked": "Check if a string is a palindrome (asked at 10+ companies)"
+  },
+  {
+    "course": "pf",
+    "level": "medium",
+    "topic": "String Methods",
+    "type": "code",
+    "q": "Coding problem. Read a word in lower case. Print the first character that appears only once in it. If every character repeats, print -1.",
+    "starter": "word = input()\n",
+    "sample": [
+      "swiss",
+      "w"
+    ],
+    "tests": [
+      [
+        "swiss",
+        "w"
+      ],
+      [
+        "aabbcc",
+        "-1"
+      ],
+      [
+        "leetcode",
+        "l"
+      ],
+      [
+        "z",
+        "z"
+      ],
+      [
+        "aabbcdc",
+        "d"
+      ]
+    ],
+    "asked": "First non-repeating character in a string (asked at 2 companies)"
+  },
+  {
+    "course": "pf",
+    "level": "medium",
+    "topic": "Nested Loops",
+    "type": "code",
+    "q": "Coding problem. Read n. Print n rows. Row 1 counts up from 1 to n and back down to 1, with no spaces (for n = 4: 1234321). Each next row does the same up to one less, so the last row is 1.",
+    "starter": "n = int(input())\n",
+    "sample": [
+      "4",
+      "1234321\n12321\n121\n1"
+    ],
+    "tests": [
+      [
+        "4",
+        "1234321\n12321\n121\n1"
+      ],
+      [
+        "1",
+        "1"
+      ],
+      [
+        "2",
+        "121\n1"
+      ],
+      [
+        "6",
+        "12345654321\n123454321\n1234321\n12321\n121\n1"
+      ]
+    ],
+    "asked": "Print the pattern 1234321 / 12321 / 121 / 1 (asked at 2 companies)"
+  }
+]

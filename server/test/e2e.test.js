@@ -1208,10 +1208,12 @@ test('Sprint question sets per Sprint ID: content/sprint-sets is used for that S
   const next = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'sprint-schedule.json'), 'utf8'));
   if (next) {
     const qs = await sp.getQuestions(next.id);
-    assert.equal(qs.length, 18, 'the next Sprint has its own 18 questions');
+    assert.equal(qs.length, 10, 'the next Sprint has its own 10 questions');
     const count = (k, v) => qs.filter((q) => q[k] === v).length;
-    assert.deepEqual([count('level', 'easy'), count('level', 'medium'), count('level', 'hard')], [3, 10, 5], 'mixed difficulty');
-    assert.deepEqual([count('course', 'pf'), count('course', 'wad'), count('course', 'genai')], [7, 7, 4]);
+    assert.deepEqual([count('type', 'mcq'), count('type', 'code')], [5, 5], '5 MCQs and 5 coding problems');
+    assert.deepEqual([count('level', 'easy'), count('level', 'medium'), count('level', 'hard')], [3, 5, 2], 'mixed difficulty');
+    assert.deepEqual([count('course', 'pf'), count('course', 'wad'), count('course', 'genai')], [5, 3, 2]);
+    assert.ok((await sp.publicQuestions(next.id)).every((q) => q.tests === undefined && q.asked === undefined), 'no hidden tests in what students get');
     assert.ok(qs.every((q) => !JSON.stringify(q).includes('—')), 'no em dashes');
   }
   assert.notDeepEqual(await sp.getQuestions('some-other-sprint'), await sp.getQuestions(next ? next.id : 'x'));
