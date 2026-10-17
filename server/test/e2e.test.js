@@ -1161,7 +1161,7 @@ test('built-in courses and topics: a super admin removes them from the portal an
 
 test('next Sprint: switched to once, after the current Sprint closes; the Learn page gets its topics', async () => {
   const sp = await import('../sprint.js');
-  const keys = ['sprint_id', 'sprint_title', 'sprint_open', 'sprint_close', 'sprint_duration_min', 'sprint_schedule_applied'];
+  const keys = ['sprint_id', 'sprint_title', 'sprint_open', 'sprint_close', 'sprint_duration_min', 'sprint_schedule_applied', 'sprint_schedule_close'];
   const saved = {};
   for (const k of keys) saved[k] = await db.getSetting(k, null);
   const next = { id: 'sprint-next-test', title: 'Next One', open: '2030-01-05T17:00:00+05:30', close: '2030-01-05T17:20:00+05:30', durationMin: 20 };
@@ -1179,6 +1179,13 @@ test('next Sprint: switched to once, after the current Sprint closes; the Learn 
   assert.equal(s.closeMs, Date.parse(next.close));
   assert.equal(s.durationMin, 20);
   assert.ok(await db.one("SELECT 1 AS x FROM audit_log WHERE action = 'settings.next_sprint_applied' AND target = 'sprint-next-test'"));
+  // a later close for the same id (window extended) is applied once; an admin's change afterwards wins
+  const ext = { ...next, close: '2030-01-06T23:00:00+05:30' };
+  sp.setScheduleForTest(ext);
+  assert.equal((await sp.getSprint()).closeMs, Date.parse(ext.close));
+  await db.setSetting('sprint_close', new Date(Date.parse(ext.close) + 3600000).toISOString());
+  sp.setScheduleForTest(ext);
+  assert.equal((await sp.getSprint()).closeMs, Date.parse(ext.close) + 3600000);
   // an admin changing the settings afterwards wins: the switch never runs again for that id
   await db.setSetting('sprint_id', 'admin-choice');
   await db.setSetting('sprint_close', new Date(Date.now() - 60000).toISOString());

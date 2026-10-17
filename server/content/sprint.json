@@ -5,6 +5,7 @@
     "next: the next Sprint. Once the current Sprint has closed, the server switches to it ONCE (Sprint ID, title, window, duration),",
     "  as if a super admin had saved it in Admin → Sprint settings. A new Sprint ID gives fresh attempts and a new leaderboard.",
     "  Times are ISO with the IST offset. Later changes in Admin → Sprint settings win; the switch never runs again for the same id.",
+    "  To extend the current Sprint, change only its close here: a new close for the same id is applied once.",
     "Run `npm run build` after changing this."
   ],
   "questionTypes": ["mcq"],
@@ -12,7 +13,7 @@
     "id": "sprint-2026-10-17",
     "title": "Saturday Sprint",
     "open": "2026-10-17T11:00:00+05:30",
-    "close": "2026-10-17T23:00:00+05:30",
+    "close": "2026-10-18T23:00:00+05:30",
     "durationMin": 20
   }
 }

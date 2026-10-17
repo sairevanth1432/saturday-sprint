@@ -81,7 +81,17 @@ async function applySchedule() {
   }
   if (!schedule || Date.now() - scheduleCheckedAt < 15000) return;
   scheduleCheckedAt = Date.now();
-  if ((await getSetting('sprint_schedule_applied', null)) === schedule.id) return;
+  if ((await getSetting('sprint_schedule_applied', null)) === schedule.id) {
+    // A new close time for the same Sprint (e.g. the window extended) is applied once per value.
+    const closeIso = new Date(schedule.close).toISOString();
+    if ((await getSetting('sprint_schedule_close', null)) === closeIso || (await getSetting('sprint_id', null)) !== schedule.id) return;
+    await setSetting('sprint_close', closeIso);
+    await setSetting('sprint_schedule_close', closeIso);
+    await run('INSERT INTO audit_log (admin_id, admin_email, action, target, detail, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      null, 'content/sprint.json', 'settings.sprint_close_applied', schedule.id, JSON.stringify({ close: closeIso }), null, Date.now());
+    console.log('[sprint] close time from content/sprint.json applied', closeIso);
+    return;
+  }
   const s = config.sprint;
   const [id, close] = await Promise.all([getSetting('sprint_id', s.id), getSetting('sprint_close', s.close)]);
   if (id === schedule.id) { await setSetting('sprint_schedule_applied', schedule.id); return; }
@@ -91,6 +101,7 @@ async function applySchedule() {
   await setSetting('sprint_open', new Date(schedule.open).toISOString());
   await setSetting('sprint_close', new Date(schedule.close).toISOString());
   await setSetting('sprint_duration_min', Number(schedule.durationMin));
+  await setSetting('sprint_schedule_close', new Date(schedule.close).toISOString());
   await setSetting('sprint_schedule_applied', schedule.id);
   await run('INSERT INTO audit_log (admin_id, admin_email, action, target, detail, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     null, 'content/sprint.json', 'settings.next_sprint_applied', schedule.id, JSON.stringify({ from: id, ...schedule }), null, Date.now());
