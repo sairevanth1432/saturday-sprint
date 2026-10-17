@@ -255,13 +255,18 @@ export async function saveDraft(who, body) {
   await writeDraft(a, cleanAnswers(body, await getQuestions(a.sprint_id)));
 }
 
+// "Check" during the test: how many hidden tests pass (not which ones), at most CHECKS_PER_PROBLEM times per problem,
+// so the hidden tests cannot be probed one by one. Submitting always grades with every hidden test.
+export const CHECKS_PER_PROBLEM = 5;
 export async function checkCode(who, index, code) {
   const a = await runningAttempt(who);
   if (!a || a.status !== 'running') throw new SprintError('NOT_RUNNING', 'No Sprint in progress.', 409);
   const q = (await getQuestions(a.sprint_id))[index];
   if (!q || q.type !== 'code') throw new SprintError('BAD_QUESTION', 'Not a coding question.');
+  const used = await kv.incr('sprintcheck:' + a.id + ':' + index, 2 * 86400).catch(() => 0);
+  if (used > CHECKS_PER_PROBLEM) throw new SprintError('NO_CHECKS_LEFT', `You have used all ${CHECKS_PER_PROBLEM} checks for this problem. Your code is still graded with every hidden test when you submit.`, 429);
   const r = await runTests(String(code || '').slice(0, 20000), q.tests);
-  return r.map((x) => ({ pass: x.pass }));
+  return { passed: r.filter((x) => x.pass).length, total: r.length, left: Math.max(0, CHECKS_PER_PROBLEM - used), max: CHECKS_PER_PROBLEM };
 }
 
 async function grade(answers, prevDetail, qs) {

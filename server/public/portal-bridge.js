@@ -101,6 +101,48 @@
 
   // Class declared by the portal script (global lexical binding).
   /* global Component, bootPortal */
+  // Light, satirical lines for the proctoring pop-ups: about the habit, never about the person (a notification or a
+  // stray click can trigger a warning too). One is picked at random each time.
+  var SS_QUOTES = {
+    away: [
+      'Plot twist: the answer is not in the other tab. It is in your head. Come back.',
+      'Google cannot sit your interview for you. Come back, champ.',
+      'That tab will not be there in your placement interview. Neither will we. Just you.',
+      'Your future recruiter called. They want to meet you, not your browser tabs.',
+      'Exploring other tabs? Bold. Exploring your own brain? Bolder.',
+      'Quick question: in 3 years, do you want to be the one who knows this, or the one who Googled this? Your call. Timer is running.',
+      'Future you, 3 years from now, in a real interview: "Wish I had practised that loop." Do it for future you.',
+      'Shortcuts save 2 minutes today and cost 2 years later. Back to the question?'
+    ],
+    copy: [
+      'Ctrl+C, Ctrl+V: great shortcuts, terrible career plan.',
+      'Copy-paste got you here. Thinking gets you hired.',
+      'That paste was smooth. Now try writing it. Interviewers do not accept clipboards.',
+      'Copied code runs today. Understood code runs your career.'
+    ],
+    fast: [
+      'Speedrun detected. Either you are a genius, or your clipboard is. We are rooting for the genius.',
+      'Done already? Remember this energy when the interviewer says "explain your code".',
+      'Fast is great. Fast and yours is greater.'
+    ]
+  };
+  var ssQuote = function (kind) { var l = SS_QUOTES[kind] || SS_QUOTES.away; return l[Math.floor(Math.random() * l.length)]; };
+  // A small pop-up with one of the lines (own inline styles: it does not depend on the proctoring stylesheet).
+  var ssQuotePop = function (kicker, text, btn) {
+    var old = document.getElementById('ss-quote'); if (old) old.remove();
+    var el = document.createElement('div'); el.id = 'ss-quote'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+    el.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,5,5,.72)';
+    var box = document.createElement('div');
+    box.style.cssText = 'max-width:520px;width:100%;background:#111;border:2px dashed #FFE45C;border-radius:16px;padding:24px;color:#fff;font:500 16px/1.5 "JetBrains Mono",monospace';
+    var k = document.createElement('div'); k.textContent = kicker; k.style.cssText = 'color:#FFE45C;font-size:12px;margin-bottom:10px';
+    var p = document.createElement('p'); p.textContent = text; p.style.cssText = 'margin:0 0 18px;font-size:18px;font-weight:700';
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = btn || 'Back to my test \uD83D\uDCAA';
+    b.style.cssText = 'min-height:48px;padding:0 20px;border:0;border-radius:12px;background:#FFE45C;color:#050505;font:800 15px "JetBrains Mono",monospace;cursor:pointer';
+    b.onclick = function () { el.remove(); };
+    box.appendChild(k); box.appendChild(p); box.appendChild(b); el.appendChild(box); document.body.appendChild(el);
+    try { b.focus(); } catch (e) {}
+  };
+
   class SprintPortal extends Component {
     constructor() {
       super();
@@ -297,14 +339,19 @@
       var self = this, q = this.test[index];
       var code = this.state.code[key] !== undefined ? this.state.code[key] : q.starter;
       this.setState(function (s) { var c = Object.assign({}, s.ctests); c[key] = 'running'; return { ctests: c }; });
+      // The server answers with a count only ("3/5 hidden tests passed"), and allows a few checks per problem.
       api('POST', '/api/sprint/check', { index: origQ(index), code: code }).then(function (r) {
         self.setState(function (s) {
           var c = Object.assign({}, s.ctests);
-          c[key] = r.results.map(function (x) { return { pass: x.pass, hid: true, i: '', e: '', g: '' }; });
+          c[key] = { sum: true, passed: r.passed, total: r.total, left: r.left, max: r.max };
           return { ctests: c };
         });
       }, function (e) {
-        self.setState(function (s) { var c = Object.assign({}, s.ctests); c[key] = null; return { ctests: c }; });
+        self.setState(function (s) {
+          var c = Object.assign({}, s.ctests), prev = s.ctests[key];
+          c[key] = e.code === 'NO_CHECKS_LEFT' ? Object.assign({ sum: true, passed: null, total: null, max: 5 }, prev && prev.sum ? prev : {}, { left: 0 }) : (prev && prev.sum ? prev : null);
+          return { ctests: c };
+        });
         self.ssToast(e.message, true);
       });
     }
@@ -325,6 +372,7 @@
         var a = r.attempt;
         self._grading = false;
         self.setState({ tGraded: true, tDone: true, ssSubmitting: false, tDoneAt: toLocal(a.submittedAt), ssResult: a.result, tCodeRes: shownKeys(a.result.codeRes) });
+        if (a.result && !a.result.autoSubmitted && !a.result.endedByViolations && a.result.usedMs > 0 && a.result.usedMs < self.DUR / 4) ssQuotePop('sprint · speedrun', ssQuote('fast'), 'See my result');
         self.ssLoadBoard(true);
         self.ssLoadJourney();
       }, function (e) {
@@ -597,11 +645,12 @@
             cfg.blockCopy ? 'Copying, selecting text, right-click and printing are disabled.' : null,
             'Your activity is recorded with your NIAT ID. The timer starts when you press Start.'], 'Start the test', 'Not now'],
         fs: ['Back to full screen', 'The Sprint runs in full screen. Your timer is still running.', [], 'Return to full screen'],
-        warn: ['Warning ' + P.count + (max > 0 ? ' of ' + max : ''), (REASON[P.warn && P.warn.type] || 'Activity outside the test was detected.') + ' This is recorded.',
-          [left === null ? 'Stay on this screen until you submit.' : left > 0 ? left + ' more violation' + (left === 1 ? '' : 's') + ' and your test is submitted automatically.' : 'Your test is being submitted.'],
-          this.ssFsNeeded() && !document.fullscreenElement ? 'Return to full screen and continue' : 'Continue the test'],
+        warn: ['Warning ' + P.count + (max > 0 ? ' of ' + max : ''), (P.warnQuoteFor === P.count ? P.warnQuote : (P.warnQuoteFor = P.count, P.warnQuote = ssQuote('away'))),
+          [(REASON[P.warn && P.warn.type] || 'Activity outside the test was detected.') + ' This is recorded.',
+            left === null ? 'Stay on this screen until you submit.' : left > 0 ? left + ' more violation' + (left === 1 ? '' : 's') + ' and your test is submitted automatically.' : 'Your test is being submitted.'],
+          this.ssFsNeeded() && !document.fullscreenElement ? 'Back to full screen \uD83D\uDCAA' : 'Back to my test \uD83D\uDCAA'],
         multi: ['Test open in another tab', 'The Sprint is already open in another tab of this browser. Close this tab and continue there.', ['This was recorded as a violation.'], null],
-        ended: ['Test submitted', 'Your Sprint was submitted automatically after ' + P.count + ' violation' + (P.count === 1 ? '' : 's') + '.', ['Your answers up to that moment were graded. Your score is on the result screen.'], 'View my result']
+        ended: ['Test submitted', 'Your Sprint was submitted automatically after ' + P.count + ' violation' + (P.count === 1 ? '' : 's') + '.', ['Your answers up to that moment were graded. Your score is on the result screen.', ssQuote('away')], 'View my result']
       }[mode];
       var box = document.createElement('div'); box.className = 'ss-pbox' + (mode === 'warn' || mode === 'multi' || mode === 'ended' ? ' bad' : '');
       var k = document.createElement('div'); k.className = 'ss-pk'; k.textContent = mode === 'rules' ? 'proctored · ' + Math.round(this.DUR / 60000) + ' min' : 'sprint · proctoring'; box.appendChild(k);
@@ -655,7 +704,11 @@
       var inInput = function (t) { return t && t.closest && t.closest('input, textarea, [contenteditable="true"]'); };
       var protect = function () { return self.ssProtectActive(); };
       ['copy', 'cut', 'paste'].forEach(function (type) {
-        document.addEventListener(type, function (e) { if (!protect()) return; e.preventDefault(); self.ssLog(type, null); }, true);
+        document.addEventListener(type, function (e) {
+          if (!protect()) return;
+          e.preventDefault(); self.ssLog(type, null);
+          if (Date.now() - (self._ssCopyPopAt || 0) > 8000) { self._ssCopyPopAt = Date.now(); ssQuotePop('sprint · ' + type + ' blocked', ssQuote('copy')); }
+        }, true);
       });
       document.addEventListener('contextmenu', function (e) { if (!protect()) return; e.preventDefault(); self.ssLog('contextmenu', null); }, true);
       document.addEventListener('selectstart', function (e) { if (!protect() || inInput(e.target)) return; e.preventDefault(); }, true);
@@ -667,6 +720,7 @@
           k === 'f12' || (mod && e.shiftKey && ['i', 'j', 'c', 'k'].indexOf(k) >= 0) || k === 'printscreen';
         if (!bad) return;
         e.preventDefault(); e.stopPropagation();
+        if (mod && ['c', 'x', 'v'].indexOf(k) >= 0 && Date.now() - (self._ssCopyPopAt || 0) > 8000) { self._ssCopyPopAt = Date.now(); ssQuotePop('sprint · copy-paste blocked', ssQuote('copy')); }
         self.ssLog(k === 'p' && mod ? 'print' : 'key_blocked', (mod ? (e.metaKey ? 'Cmd+' : 'Ctrl+') : '') + (e.shiftKey && mod ? 'Shift+' : '') + e.key);
       }, true);
       document.addEventListener('keyup', function (e) { if (protect() && String(e.key).toLowerCase() === 'printscreen') { self.ssLog('key_blocked', 'PrintScreen'); try { navigator.clipboard.writeText(''); } catch (x) {} } }, true);
@@ -1372,8 +1426,24 @@
         self.ssStart();
       };
       if (v.tq.isCode && S.tStart !== null) {
-        var idx = S.tCur, key = 't' + idx;
-        v.te.runTests = function () { self.ssCheck(idx, key); };
+        var idx = S.tCur, key = 't' + idx, cs = S.ctests && S.ctests[key];
+        v.te.runTests = function () {
+          var c2 = self.state.ctests && self.state.ctests[key];
+          if (c2 && c2.sum && c2.left <= 0) { self.ssToast('No checks left for this problem. Your code is still graded with every hidden test when you submit.', true); return; }
+          self.ssCheck(idx, key);
+        };
+        var leftN = cs && cs.sum ? cs.left : 5;
+        v.te.testLabel = leftN > 0 ? 'Check hidden tests (' + leftN + ' left)' : 'No checks left';
+        if (cs && cs.sum) {
+          var allOk = cs.total != null && cs.passed === cs.total;
+          v.te.results = []; v.te.hasDiff = false;
+          v.te.verdict = (cs.total != null ? cs.passed + '/' + cs.total + ' hidden tests passed' + (allOk ? '. Nice!' : '') + ' · ' : '') +
+            (cs.left > 0 ? cs.left + ' check' + (cs.left === 1 ? '' : 's') + ' left' : 'no checks left');
+          v.te.verdictFg = allOk ? '#FFE45C' : '#FF7A7A';
+        } else if (cs !== 'running') {
+          v.te.verdict = 'Check shows how many hidden tests pass, not which ones · 5 checks per problem';
+          v.te.verdictFg = '#8A8A8A';
+        }
       }
       // Sprint date, time and duration from the server settings (shown in IST).
       var sp = this.ss.sprint, mins = Math.round(sp.durMs / 60000);
@@ -1738,7 +1808,7 @@
           if (!R || (mode === 'hidden' && !admin)) return { on: false, text: '', label: '', open: null };
           var waiting = !admin && mode === 'after_close' && Date.now() + clock.offset < self.ss.sprint.closeMs;
           return { on: true, label: waiting ? 'Open review page' : 'Review my answers',
-            text: waiting ? 'Your answers review opens when the Sprint closes at ' + when.close + ' IST: each question with the correct answer, and your score per unit.'
+            text: waiting ? 'Answers stay locked until the Sprint closes at ' + when.close + ' IST, so classmates still taking the test get a fair shot. Come back then to see each question with the correct answer, and your score per unit.'
               : 'See each question with your answer and the correct one, and your score per unit.',
             open: function () { window.open('/review', '_blank', 'noopener'); } };
         })(),

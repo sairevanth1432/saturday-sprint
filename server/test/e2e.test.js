@@ -207,7 +207,7 @@ test('Sprint: locked before the window, answers never sent to the browser, grade
   const good = 'n = int(input())\nprint(sum(i for i in range(2, n + 1, 2)))';
   if (ci >= 0) {
     const chk = await A('POST', '/api/sprint/check', { index: ci, code: good });
-    assert.deepEqual(chk.body.results.map((x) => x.pass), Q[ci].tests.map(() => true));
+    assert.deepEqual(chk.body, { passed: Q[ci].tests.length, total: Q[ci].tests.length, left: 4, max: 5 }, 'a count only, not which tests');
   }
   assert.ok(Q.every((q) => q.type === 'mcq'), 'content/sprint.json keeps only MCQs');
 

@@ -268,7 +268,7 @@ api.put('/sprint/draft', who, async (req, res) => { await saveDraft(req.who, req
 api.post('/sprint/check', who, async (req, res) => {
   const key = 'check:' + (req.who.kind === 'admin' ? 'A' + req.who.id : req.who.roll_no);
   if (!(await kv.rateLimit(key, 12, 60000)).ok) throw new SprintError('RATE_LIMITED', 'Too many checks. Wait a few seconds.', 429);
-  res.json({ results: await checkCode(req.who, Number(req.body.index), req.body.code) });
+  res.json(await checkCode(req.who, Number(req.body.index), req.body.code));
 });
 // Proctoring activity from the test page (batched). Over the violation limit the attempt is submitted here.
 api.post('/sprint/events', who, async (req, res) => {
