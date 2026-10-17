@@ -1808,7 +1808,7 @@
           if (!R || (mode === 'hidden' && !admin)) return { on: false, text: '', label: '', open: null };
           var waiting = !admin && mode === 'after_close' && Date.now() + clock.offset < self.ss.sprint.closeMs;
           return { on: true, label: waiting ? 'Open review page' : 'Review my answers',
-            text: waiting ? 'Answers stay locked until the Sprint closes at ' + when.close + ' IST, so classmates still taking the test get a fair shot. Come back then to see each question with the correct answer, and your score per unit.'
+            text: waiting ? 'Answers are locked until ' + when.close + ' IST.'
               : 'See each question with your answer and the correct one, and your score per unit.',
             open: function () { window.open('/review', '_blank', 'noopener'); } };
         })(),
