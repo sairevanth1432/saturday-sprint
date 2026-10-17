@@ -727,17 +727,18 @@ test('help page and landing info are public; info shows the Sprint, rules and un
   assert.ok(!/"c":|"tests":/.test(i.text), 'no answers in public info');
 });
 
-test('simple login: NIAT ID + name (any case, dots, word order); account created on first login; every login recorded', async () => {
+test('simple login: NIAT ID decides, any name is accepted; account created on first login; every login recorded', async () => {
   await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES ('SIMPLE01', 'Ravi Teja K.', '', 'B', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", Date.now());
   assert.equal((await client()('GET', '/api/info')).body.loginMode, 'simple', 'simple is the default for the initial roll-out');
   const c = client();
-  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi' })).body.error, 'BAD_LOGIN');
-  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE99', name: 'Ravi Teja K' })).body.error, 'BAD_LOGIN', 'unknown IDs get the same answer');
-  const ok = await c('POST', '/api/auth/name-login', { rollNo: 'simple01', name: '  k teja RAVI ' });
+  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: '  ' })).body.error, 'BAD_NAME', 'a name is still required');
+  assert.equal((await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE99', name: 'Ravi Teja K' })).body.error, 'BAD_LOGIN', 'unknown IDs fail');
+  const ok = await c('POST', '/api/auth/name-login', { rollNo: 'simple01', name: 'Somebody Else' });
   assert.equal(ok.status, 200, JSON.stringify(ok.body));
   assert.equal((await c('GET', '/api/me')).body.rollNo, 'SIMPLE01');
   assert.equal((await db.one("SELECT COUNT(*) AS n FROM users WHERE roll_no = 'SIMPLE01'")).n, 1);
   assert.equal((await db.one("SELECT method FROM student_logins WHERE roll_no = 'SIMPLE01'")).method, 'name');
+  assert.equal((await db.one("SELECT name FROM students_master WHERE roll_no = 'SIMPLE01'")).name, 'Ravi Teja K.', 'the listed name is kept');
   // a disabled account stays out
   await ADM('POST', '/api/admin/users/SIMPLE01/status', { status: 'disabled' });
   assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' })).body.error, 'ACCOUNT_DISABLED');
