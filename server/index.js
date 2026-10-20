@@ -18,7 +18,7 @@ import { rollFromPhotoToken, normRoll, validRoll, normPhone, maskPhone, hashPass
 import { readStudents, rowsFrom, importStudents, syncStudentsFile, watchStudentsFile, studentsFilePath, studentCounts, logImport } from './students.js';
 import {
   SprintError, getSprint, sprintFor, setPreviewSprint, restartPreview, getQuestions, builtinQuestions, questionTypes, maxTotal, getAttempt, attemptView, resultView, startAttempt, saveDraft, checkCode,
-  submitAttempt, finalizeExpired, setTextMarks, leaderboard, leaderboardRows, boardSprints, studentUniversity, clearBoardCache, readDraft, forgetAttempt, MARKS, RANK_RULE
+  submitAttempt, finalizeExpired, sweepNeeded, setTextMarks, leaderboard, leaderboardRows, boardSprints, studentUniversity, clearBoardCache, readDraft, forgetAttempt, MARKS, RANK_RULE
 } from './sprint.js';
 import { unitContentMap, packUnits, catalog, setContent, setHtmlContent, htmlContent, removeContent, blobEnabled, isBlobUrl, isS3Url, s3Enabled, storageKind, presignUpload, lessonIds, isSlot, isWatch, MAX_VIDEOS, typesFor, maxBytesFor, extFor, parseClientPayload, clearContentCache,
   syncContent, customCourses, courseNames, BUILTIN_COURSES, ContentError, addCourse, updateCourse, deleteCourse, addUnit, updateUnit, moveUnit, deleteUnit,
@@ -74,7 +74,8 @@ app.use((req, res, next) => {
 });
 
 // Connect to the database (and create tables) on first use in each instance.
-app.use(async (req, res, next) => { await ready(); next(); });
+// The cron is skipped: it runs every minute and must not wake the database when no Sprint attempt is running.
+app.use(async (req, res, next) => { if (req.path !== '/api/cron/finalize') await ready(); next(); });
 
 const noStore = (res) => res.set('Cache-Control', 'no-store');
 // The Sprint test cannot be taken on a phone (tablets are allowed). Same rule as ssIsPhone() in public/portal-bridge.js.
@@ -401,8 +402,11 @@ function withActivityPing(html) {
 // Vercel Cron (vercel.json) calls this every minute with "Authorization: Bearer $CRON_SECRET".
 api.get('/cron/finalize', async (req, res) => {
   if (!config.cronSecret || req.headers.authorization !== 'Bearer ' + config.cronSecret) return res.status(401).json({ error: 'AUTH' });
+  // Once a day (00:00 IST) the sweep and session cleanup run anyway, as a safety net.
+  const d = new Date(), daily = d.getUTCHours() === 18 && d.getUTCMinutes() === 30;
+  if (!daily && !(await sweepNeeded())) return res.json({ ok: true, autoSubmitted: 0, idle: true });
   const done = await finalizeExpired({ limit: 2000, budgetMs: 240000 });
-  if (new Date().getUTCMinutes() === 0) await cleanupExpired();
+  if (daily) await cleanupExpired();
   res.json({ ok: true, autoSubmitted: done });
 });
 

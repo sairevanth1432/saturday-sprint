@@ -237,6 +237,7 @@ export async function startAttempt(who) {
   const deadline = who.kind === 'admin' ? now + sprint.durMs : Math.min(now + sprint.durMs, sprint.closeMs);
   await run(`INSERT INTO attempts (sprint_id, roll_no, status, started_at, deadline_at, draft, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (sprint_id, roll_no) DO NOTHING`, sprint.id, attemptKey(who), 'running', now, deadline, '{}', now);
+  await extendSweep(deadline + sprint.graceMs);
   return getAttempt(who, sprint);
 }
 
@@ -348,6 +349,20 @@ export async function submitAttempt(who, body) {
   const answers = late ? cleanAnswers(await readDraft(a), qs) : cleanAnswers(body, qs);
   if (!late) writeDraft(a, answers).catch(() => {}); // keep the latest answers if grading is interrupted
   return finalize(a, answers, late);
+}
+
+// The latest deadline (plus grace) of any started attempt, kept in Redis. The per-minute cron skips the database once it
+// has passed, so the Neon database can suspend between Sprints instead of running (and billing) around the clock.
+const SWEEP_KEY = 'sweep:until';
+async function extendSweep(untilMs) {
+  if (!kv.kvShared) return;
+  const cur = Number(await kv.get(SWEEP_KEY).catch(() => 0)) || 0;
+  if (untilMs > cur) await kv.set(SWEEP_KEY, untilMs, Math.ceil((untilMs - Date.now()) / 1000) + 600).catch(() => {});
+}
+// True when an attempt may still be waiting for auto-submit. Without shared Redis, or when Redis fails, always true.
+export async function sweepNeeded() {
+  if (!kv.kvShared) return true;
+  try { return (await kv.get(SWEEP_KEY)) !== null; } catch { return true; }
 }
 
 // Auto-submit attempts whose time ran out without a submit. Run by Vercel Cron every minute (and by the local server).
