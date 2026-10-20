@@ -106,6 +106,18 @@ app.use(express.static(PUBLIC, { index: false, extensions: [], setHeaders: (res)
 // ===================================================================== student API
 const api = express.Router();
 app.use('/api', api);
+// Vercel Cron (vercel.json) calls this every minute with "Authorization: Bearer $CRON_SECRET".
+// Registered before syncContent so an idle run never touches the database.
+api.get('/cron/finalize', async (req, res) => {
+  if (!config.cronSecret || req.headers.authorization !== 'Bearer ' + config.cronSecret) return res.status(401).json({ error: 'AUTH' });
+  // Once a day (00:00 IST) the sweep and session cleanup run anyway, as a safety net.
+  const d = new Date(), daily = d.getUTCHours() === 18 && d.getUTCMinutes() === 30;
+  if (!daily && !(await sweepNeeded())) return res.json({ ok: true, autoSubmitted: 0, idle: true });
+  const done = await finalizeExpired({ limit: 2000, budgetMs: 240000 });
+  if (daily) await cleanupExpired();
+  res.json({ ok: true, autoSubmitted: done });
+});
+
 // Admin-added courses and topics (Admin → Courses & topics) are read once per few seconds per instance.
 api.use(async (req, res, next) => { await syncContent(); next(); });
 
@@ -398,17 +410,6 @@ function withActivityPing(html) {
   const s = String(html), i = s.toLowerCase().lastIndexOf('</body>');
   return i < 0 ? s + ACTIVITY_PING : s.slice(0, i) + ACTIVITY_PING + s.slice(i);
 }
-
-// Vercel Cron (vercel.json) calls this every minute with "Authorization: Bearer $CRON_SECRET".
-api.get('/cron/finalize', async (req, res) => {
-  if (!config.cronSecret || req.headers.authorization !== 'Bearer ' + config.cronSecret) return res.status(401).json({ error: 'AUTH' });
-  // Once a day (00:00 IST) the sweep and session cleanup run anyway, as a safety net.
-  const d = new Date(), daily = d.getUTCHours() === 18 && d.getUTCMinutes() === 30;
-  if (!daily && !(await sweepNeeded())) return res.json({ ok: true, autoSubmitted: 0, idle: true });
-  const done = await finalizeExpired({ limit: 2000, budgetMs: 240000 });
-  if (daily) await cleanupExpired();
-  res.json({ ok: true, autoSubmitted: done });
-});
 
 // ===================================================================== admin auth
 const adm = express.Router();
