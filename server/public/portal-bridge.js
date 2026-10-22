@@ -259,6 +259,11 @@
       // Web Audio may only start after a user gesture: the first click or key wakes the engine and plays any waiting cue.
       var wake = function () { self._ssGesture = true; try { self.au(); } catch (e) {} if (self._ssCueQ) { var k = self._ssCueQ; self._ssCueQ = null; self.ssCue(k); } };
       document.addEventListener('pointerdown', wake, { once: true, capture: true });
+      // The portal opens in full screen: browsers only allow it after a click or key, so the first one switches it on
+      // (same as the top bar's Full screen button). Not on phones, not during the test; after Esc it stays off until the next visit.
+      var fs0 = function () { document.removeEventListener('pointerdown', fs0, true); document.removeEventListener('keydown', fs0, true);
+        if (ssIsPhone() || self.ssProctorActive() || self.state.ssFocus || document.fullscreenElement) return; self.ssFocus(true); };
+      document.addEventListener('pointerdown', fs0, true); document.addEventListener('keydown', fs0, true);
       // Esc (or the browser) leaving full screen also leaves focus mode; a click outside a menu closes it.
       document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && self.state.ssFocus) self.setState({ ssFocus: false, ssPeek: false }); });
       // Full screen: moving the pointer onto the thin left rail opens the whole panel over the page; moving away closes it.
