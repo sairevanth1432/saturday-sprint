@@ -55,6 +55,7 @@
     });
   };
   var fmtScore = function (x) { return x == null ? '–' : String(Math.round(Number(x) * 100) / 100); };
+  var ssPick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
 
   function placeholders(types) {
     return (types || []).map(function (t) {
@@ -259,7 +260,13 @@
       var wake = function () { self._ssGesture = true; try { self.au(); } catch (e) {} if (self._ssCueQ) { var k = self._ssCueQ; self._ssCueQ = null; self.ssCue(k); } };
       document.addEventListener('pointerdown', wake, { once: true, capture: true });
       // Esc (or the browser) leaving full screen also leaves focus mode; a click outside a menu closes it.
-      document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && self.state.ssFocus) self.setState({ ssFocus: false }); });
+      document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && self.state.ssFocus) self.setState({ ssFocus: false, ssPeek: false }); });
+      // Full screen: moving the pointer onto the thin left rail opens the whole panel over the page; moving away closes it.
+      document.addEventListener('pointermove', function (e) {
+        var S = self.state; if (!S.ssFocus){ if (S.ssPeek) self.setState({ ssPeek: false }); return; }
+        if (!S.ssPeek && e.clientX < 84) self.setState({ ssPeek: true });
+        else if (S.ssPeek && e.clientX > 330) self.setState({ ssPeek: false });
+      }, { passive: true });
       document.addEventListener('pointerdown', function (e) { if (self.state.ssMenu && !(e.target.closest && e.target.closest('.ss-menu-wrap'))) self.setState({ ssMenu: '' }); }, true);
       // Background music: a lo-fi chiptune loop (public/music/lofi-loop.wav), off until the student turns it on; remembered per browser.
       // Music is on by default (it can only start after the first click); unticking it in the horn menu is remembered.
@@ -816,6 +823,102 @@
       if (!this._ssGesture) { this._ssCueQ = kind; return; }
       try { this.au(); this.sfx(kind); } catch (e) {}
     }
+    // ---------- Byte, the mascot (markup, poses and styles: BYTE_* in scripts/build-portal.js).
+    // Home shows the pose for the moment (test, result, streak, time of day, music…) with a speech bubble; on the other
+    // tabs a small Byte pops in for a few seconds when something happens (answer checked, water or stretch break, late
+    // night, a tab opened for the first time). Never during the test. `once` keys an event that shows once per session.
+    ssByteEvent(pose, line, once, ms) {
+      var B = this._ssByte || (this._ssByte = { seen: {} });
+      if (once) { if (B.seen[once]) return; B.seen[once] = true; }
+      B.ev = { pose: pose, line: line, at: Date.now(), closed: false, ms: ms || 8000 };
+    }
+    ssByteVals(v) {
+      var S = this.state, self = this, now = Date.now(), U = this.ss.user;
+      var B = this._ssByte || (this._ssByte = { seen: {} });
+      if (!B.init) {
+        B.init = true;
+        // back after 3+ days away (last visit remembered per student in this browser)
+        var k = 'ss-byte-seen-' + (U.rollNo || U.email || ''), prev = 0;
+        try { prev = Number(localStorage.getItem(k)) || 0; localStorage.setItem(k, String(now)); } catch (e) {}
+        B.missed = prev > 0 && now - prev > 3 * 86400000;
+      }
+      // active time: only while the page is visible (each render adds the time since the last one, at most 5 s)
+      if (B.last && document.visibilityState !== 'hidden') B.active = (B.active || 0) + Math.min(5000, now - B.last);
+      B.last = now;
+      var istH = new Date(now + 330 * 60000).getUTCHours(), night = istH >= 23 || istH < 4;
+      var running = this.ssRunning(), live = !!(v.status && v.status.live), done = !!S.ssResult;
+      var inTest = S.tab === 'test' || running;
+      // the day's quote: Byte says it (it is no longer printed on Home or Practice)
+      var quote = v.today && v.today.quote ? '“' + v.today.quote + '” — ' + v.today.by : '';
+      if (inTest) B.ev = null;
+      else {
+        if (B.tab !== S.tab) {
+          if (S.tab === 'practice' || S.tab === 'code') this.ssByteEvent('type', quote || 'Practice mode on. Small sets, big W.', 'tab-practice', 12000);
+          else if (S.tab === 'learn') this.ssByteEvent('read', 'Watch it, play it, read it. Then it sticks, no cap.', 'tab-learn');
+        }
+        if (S.ssMusicOn && !B.music) this.ssByteEvent('vibe', 'Lo-fi on. Focus unlocked. 🎧', 'music');
+        var act = B.active || 0, hy = Math.floor(act / 2700000), sx = Math.floor(act / 5400000);
+        if (hy > 0) this.ssByteEvent('drink', 'Hydration check 💧 Sip, then continue.', 'water-' + hy);
+        if (sx > 0) this.ssByteEvent('stretch', 'Stretch break. Your spine says thanks.', 'stretch-' + sx);
+        if (night) this.ssByteEvent('tired', 'It is late. Sleep is a free memory upgrade 😴', 'night');
+        // stuck on one practice question for 90 s without checking it
+        if ((S.tab === 'practice') && v.pq && v.pq.q && !v.pq.verdict) {
+          var qk = String(S.pc || '') + '|' + String(S.pi || 0);
+          if (B.qk !== qk) { B.qk = qk; B.qAt = now; }
+          else if (now - B.qAt > 90000) this.ssByteEvent('think', 'Big brain time 🧠 Say the logic out loud, then pick.', 'think-' + qk);
+        } else B.qk = null;
+      }
+      B.tab = S.tab; B.music = !!S.ssMusicOn;
+
+      var ev = B.ev && now - B.ev.at < (B.ev.ms || 8000) ? B.ev : null;
+      var J = S.ssJourney, st = (J && J.streak) || {}, me = S.ssBoard && S.ssBoard.me, pose, line;
+      if (live && running) { pose = 'run'; line = 'Locked in. I am on mute till you submit. 🔒'; }
+      else if (live && !done) { pose = 'run'; line = 'Test is LIVE. Lock in and go! 🏁'; }
+      else if (ev) { pose = ev.pose; line = ev.line; }
+      else if (done && me && me.rank <= 3) { pose = 'trophy'; line = '#' + me.rank + ' on the board?? You ate that. 🏆'; }
+      else if (done && S.tDoneAt && now - S.tDoneAt < 3600000) { pose = 'finish'; line = 'Submitted! Main character energy ✨'; }
+      else if (done) { pose = 'review'; line = 'GG. Check what tripped you up, then run it back.'; }
+      else if (now < this.OPEN && this.OPEN - now < 86400000) { pose = 'warm'; line = 'Sprint is tomorrow. Revise one topic, then rest.'; }
+      else if (B.missed) { pose = 'missed'; line = 'You are back!! Missed you fr. Pick up where you left off.'; }
+      else if (night) { pose = 'tired'; line = 'It is late. Sleep is a free memory upgrade 😴'; }
+      else if (st.days >= 3) { pose = 'streak'; line = st.days + '-day streak 🔥 Do not fumble it.'; }
+      else if (istH >= 5 && istH < 11) { pose = 'chai'; line = 'Chai + one topic = elite morning ☕'; }
+      else if (S.ssMusicOn) { pose = 'vibe'; line = 'Lo-fi on. Focus unlocked. 🎧'; }
+      else {
+        pose = 'idle';
+        line = v.today && v.today.title ? (v.today.hello === 'All lessons done' ? 'Every lesson done. Revise one a day and stay sharp.' : 'Next up: ' + v.today.title + '. 10 minutes now = big W later.') : 'Hey, I am Byte. Let us get Sprint-ready.';
+      }
+      // Nothing going on: Byte keeps busy (codes, sips water, reads, thinks, vibes, stretches), a new thing every 8 s.
+      var ACT = ['type', 'drink', 'read', 'think', 'vibe', 'stretch', 'idle'];
+      var busy = ACT[Math.floor(now / 8000) % ACT.length];
+      var homePose = pose === 'idle' && !(S.ssFocus) ? busy : pose === 'idle' ? 'zen' : pose;
+      var TIPS = ['Stuck on a bug? Print the variable. Then print it again.', 'Reading is the warm-up. Practice is the workout. 💪',
+        'Wrong answers are just data. Read the why, run it back.', 'Streaks grow one day at a time. Show up today.',
+        'Say the logic out loud before you type the code.', 'Water, stretch, then one more question. Easy W.'];
+      var lines = [line].concat(quote ? [quote] : [], TIPS), n = (S.ssByteN || 0) % lines.length;
+      var MOOD = { idle: 'chilling', run: 'locked in', warm: 'warming up', finish: 'finished!', trophy: 'on the podium', review: 'reviewing', type: 'coding',
+        read: 'reading', dance: 'celebrating', bonk: 'bonked', think: 'thinking', vibe: 'vibing', zen: 'in the zone', drink: 'hydrating', chai: 'chai time',
+        tired: 'sleepy', stretch: 'stretching', streak: 'on fire', missed: 'missed you' };
+      // Preview any pose with ?byte=<pose> (e.g. ?byte=dance): Home shows it, and the bubble beside the small Byte stays up.
+      if (B.force === undefined) { var fm = /[?&]byte=([a-z]+)/.exec(location.search); B.force = fm && MOOD[fm[1]] ? fm[1] : null; }
+      if (B.force) { pose = homePose = B.force; ev = { pose: pose, line: 'Preview of the "' + pose + '" pose.' }; }
+      var popOn = !!(ev && !ev.closed && !inTest && S.tab !== 'home'), sidePose = ev ? ev.pose : homePose;
+      return {
+        home: { pose: homePose, mood: '· ' + MOOD[homePose], line: lines[n], next: function () { self.setState(function (s) { return { ssByteN: (s.ssByteN || 0) + 1 }; }); } },
+        // the other tabs: Byte at the bottom of the left panel; tap = the quote or a tip (or hide the bubble that is showing)
+        side: { show: !inTest && S.tab !== 'home', pose: sidePose, mood: MOOD[sidePose], px: v.side && v.side.full ? '120' : '72',
+          tap: function () {
+            if (popOn && B.ev) { B.ev.closed = true; self.setState({ ssByteX: Date.now() }); return; }
+            var say = (quote ? [quote] : []).concat(TIPS);
+            B.tip = ((B.tip == null ? -1 : B.tip) + 1) % say.length;
+            self.ssByteEvent(sidePose, say[B.tip], null, say[B.tip] === quote ? 12000 : 8000);
+            self.setState({ ssByteX: Date.now() });
+          } },
+        // full left panel: the bubble sits above Byte inside the panel; collapsed panel: beside it (empty space there)
+        pop: { show: popOn, line: ev ? ev.line : '', dock: v.side && v.side.full ? 'up' : 'side',
+          style: v.side && v.side.full ? 'left: 14px; bottom: 156px; max-width: calc(' + v.side.w + ' - 28px)' : 'left: calc(' + (v.side ? v.side.w : '84px') + ' + 12px); bottom: 30px' }
+      };
+    }
     // Values for the Profile page (template: PROFILE_TAB in build-portal.js): photo, streak, medals with a short "how to earn".
     ssProfileVals(v) {
       var J = this.state.ssJourney, U = this.ss.user, self = this;
@@ -851,6 +954,29 @@
       this.setState({ ssMusicOn: !!on });
       try { localStorage.setItem('ss-music', on ? '1' : '0'); } catch (e) {}
     }
+    // Open Practice on a topic: its Quiz/Coding set when it has one, else its Hiring questions. Names match ignoring case,
+    // punctuation and "&"/"and"; a Part number must agree ("… Part 1" is not "… Part 2"). With stayIfMissing, a topic
+    // with nothing to practise does nothing and returns false (the sidebar then opens the lesson instead).
+    ssPracticeMatch(v, name, practiceTopic) {
+      var k = function (x) { return String(x || '').toLowerCase().replace(/&/g, ' and ').replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, ''); };
+      var part = function (x) { var m = /\bpart\s*-?\s*(\d+)\b/i.exec(String(x || '')); return m ? m[1] : ''; };
+      var same = function (a, b) { return !!a && k(a) === k(b) && (!part(a) || !part(b) || part(a) === part(b)); };
+      var hit = null;
+      ((v.pq && v.pq.groups) || []).forEach(function (gr) { (gr.topics || []).forEach(function (tp) { if (!hit && (same(name, tp.name) || same(practiceTopic, tp.name))) hit = tp; }); });
+      return {hit: hit};
+    }
+    ssPractiseTopic(v, name, practiceTopic, course, stayIfMissing) {
+      var hit = this.ssPracticeMatch(v, name, practiceTopic).hit;
+      var hname = hit ? '' : this.ssHqFind(name) ? name : this.ssHqFind(practiceTopic) ? practiceTopic : '';
+      if (!hit && !hname && stayIfMissing) return false;
+      if (hit) hit.go();
+      var leaving = this.state.tab !== 'practice';
+      var st = { ssMenu: '', ssPHire: !!hname, ssHqTopic: hname ? { name: hname, course: course } : null };
+      if (leaving) st.tab = 'practice';
+      this.setState(st);
+      if (leaving && !this.state.ssFocus) this.ssFocus(true); // like the sidebar's Practice button
+      return true;
+    }
     // Every topic in order (course by course): the sidebar list and the Home map share it.
     ssTopicItems(v) {
       var self = this, S = this.state, items = [];
@@ -861,19 +987,7 @@
             go: function () {
               if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; }
               // On Practice, a topic in the sidebar switches the practice topic (the page has no Topics button); elsewhere it opens the lesson.
-              if (self.state.tab === 'practice' && v.pq && Array.isArray(v.pq.groups)) {
-                var k = function (x) { return String(x || '').toLowerCase().replace(/&/g, ' and ').replace(/\bpart\s*-?\s*\d+\b/g, '').replace(/[^a-z0-9]+/g, '').replace(/s$/, ''); };
-                var part = function (x) { var m = /\bpart\s*-?\s*(\d+)\b/i.exec(String(x || '')); return m ? m[1] : ''; };
-                // same name, and the same Part number when both names have one ("… Part 1" is not "… Part 2")
-                var same = function (a, b) { return !!a && k(a) === k(b) && (!part(a) || !part(b) || part(a) === part(b)); };
-                var hit = null;
-                var pt = mod.practiceTopic || '';
-                v.pq.groups.forEach(function (gr) { (gr.topics || []).forEach(function (tp) { if (!hit && (same(t.name, tp.name) || same(pt, tp.name))) hit = tp; }); });
-                if (hit) { hit.go(); self.setState({ ssMenu: '', ssPHire: false, ssHqTopic: null }); return; }
-                // no Quiz questions for this topic, but Hiring questions: Practice shows its Hiring tab
-                var hname = self.ssHqFind(t.name) ? t.name : self.ssHqFind(pt) ? pt : '';
-                if (hname) { self.setState({ ssMenu: '', ssPHire: true, ssHqTopic: { name: hname, course: g.name } }); return; }
-              }
+              if (self.state.tab === 'practice' && v.pq && Array.isArray(v.pq.groups) && self.ssPractiseTopic(v, t.name, mod.practiceTopic || '', g.name, true)) return;
               t.go(); self.setState({ tab: 'learn', ssMenu: '' }); } });
         });
       });
@@ -1323,7 +1437,7 @@
         this._hpPending = null;
         Promise.resolve(res).then(function (r) {
           var ok = Array.isArray(r) && r.length > 0 && r.every(function (x) { return x.pass; });
-          if (ok) self.ssCue('right');
+          if (ok) { self.ssCue('right'); self.ssByteEvent('dance', 'Accepted! Every test passed. You ate. ✨'); }
           var did = (self._hpDecoy || {})[pend.qid], dq = did && (self.ccbpCoding || []).find(function (p) { return p.id === did; });
           if (ok || !dq || !(dq.tests || []).length) return { r: r, ok: ok, decoy: null };
           return Promise.resolve(Component.prototype.checkTests.call(self, code, dq.tests)).then(function (dr) {
@@ -1518,17 +1632,17 @@
           play: over.play || (les.tabs.play && les.tabs.play.src) || '',
           read: over.read || (les.tabs.read && les.tabs.read.src) || ''
         };
-        var STEPS = [['watch', 'Watch'], ['play', 'Play'], ['read', 'Read']];
+        var STEPS = [['watch', 'Watch'], ['play', 'Play'], ['read', 'Read'], ['practice', 'Practice']];
         var tabState = S.ssTab || {}, tab = tabState[les.id] || 'watch';
         var ti = Math.max(0, STEPS.findIndex(function (x) { return x[0] === tab; }));
         var sd = S.stepDone || {}, lkey = CO.id + '-' + S.mod + '-' + S.les;
+        var mod = CO.modules[S.mod] || {};
+        var M = self.ssPracticeMatch(v, mod.name || '', mod.practiceTopic || '');
         var setTab = function (t, markDone) {
           self.xpStop();
-          // Play (game) and Read open in full screen straight away: the click that opens them allows it. Esc leaves.
-          if ((t === 'play' || t === 'read') && !self.ssProctorActive()) setTimeout(function () {
-            var el = document.getElementById('ss-embed'), rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
-            if (rq && document.fullscreenElement !== el) { try { var p = rq.call(el); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
-          }, 120);
+          if (t === 'practice' && M.hit) M.hit.go();   // the Practice question engine now works on this topic
+          // Play and Read stay inside the portal (no full screen of their own): full screen is for the whole portal
+          // (the focus button in the top bar).
           self.setState(function (s) {
             var nt = Object.assign({}, s.ssTab); nt[les.id] = t;
             var o = { ssTab: nt };
@@ -1544,6 +1658,18 @@
             ring: on ? '#FFE45C' : dn ? '#5E5E5E' : '#333333', bg: on ? 'rgba(255,228,92,.12)' : 'transparent', fg: on ? '#FFE45C' : dn ? '#EDEDED' : '#8A8A8A',
             dotBg: on || dn ? '#FFE45C' : '#262626', dotFg: on || dn ? '#050505' : '#8A8A8A', go: function () { setTab(st[0]); } };
         });
+        // Practice step: the topic's questions (same engine, answers and scores as the Practice page), shown inside Learn
+        if (tab === 'practice'){
+          v.cur.showWatch = false;
+          if (M.hit && !M.hit.on && this._ssLpSel !== les.id){ this._ssLpSel = les.id; setTimeout(function () { M.hit.go(); }, 0); }
+          var pq = v.pq || {};
+          v.ss_lp = { on: true, title: mod.name || les.title, has: !!M.hit && !!pq.has, empty: !M.hit || !pq.has,
+            pos: pq.posLabel, score: pq.score, isQuiz: !!pq.isQuizItem, isCode: !!pq.isCodeItem, q: pq.q, hasCode: !!pq.hasCode, code: pq.code,
+            opts: pq.opts || [], shown: !!pq.shown, verdict: pq.verdict, verdictColor: pq.verdictColor, why: pq.why,
+            multiOpen: !!pq.multiOpen, check: pq.check, checkOff: !!pq.checkOff,
+            ckTitle: pq.ckTitle, ckText: pq.ckText, ckSolved: !!pq.ckSolved, openCode: pq.openCode,
+            prev: pq.prev, skip: pq.skip, canSkip: !!pq.canSkip, next: pq.next, nextLabel: pq.nextLabel, nextBg: pq.nextBg, nextFg: pq.nextFg, nextOff: !!pq.nextOff };
+        }
         // Content for the current step
         v.xpShow = false; v.recShow = true; v.recAvail = false;
         if (tab === 'watch') {
@@ -1569,29 +1695,20 @@
               upCancel: function () { self.ssVidStopUp(); self.setState({ ssVidUp: null }); },
               intro: !!intro, introBig: intro ? 'VIDEO ' + (intro.i + 1) : '', introSub: intro ? 'of ' + vids.length + ' · ' + les.title : '' };
           }
-        } else {
+        } else if (tab !== 'practice') {
           v.wt = Object.assign({}, v.wt, { isVideo: false, isSlides: !!src[tab], src: src[tab], title: les.title, groups: [], tall: true, ref: null });
         }
         // A step without a file shows the "Will be updated soon" card.
-        if (!src[tab]) {
+        if (tab !== 'practice' && !src[tab]) {
           var other = STEPS.filter(function (x) { return x[0] !== tab && src[x[0]]; }).map(function (x) { return x[1] === 'Watch' ? 'watch the video' : x[1] === 'Play' ? 'play the game' : 'read the notes'; });
           v.ss_soon = { on: true, kicker: '~/' + tab,
             text: (tab === 'watch' ? 'The video' : tab === 'play' ? 'The game' : 'The reading material') + ' for this topic is on its way.' +
               (other.length ? ' For now, ' + other.join(' and ') + '.' : ' Check back soon!') };
         }
-        // Toolbar above the media: a full-screen icon button (Watch: the reel with its like button; Play and Read: the
-        // game or notes frame; browsers without it get a new tab).
-        if (src[tab]) {
-          var fsUrl = src[tab], isPR = tab === 'play' || tab === 'read';
-          v.ss_tools = { on: true, hint: tab === 'play' ? 'Press Esc to leave full screen' : tab === 'read' ? 'Read in full screen · Esc to leave' : '',
-            fs: true, fsGo: function () {
-              if (tab === 'watch') return self.ssReelFull();
-              var el = document.getElementById('ss-embed');
-              var rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
-              var tab2 = function () { window.open(fsUrl, '_blank', 'noopener'); };
-              if (!rq) return tab2();
-              try { var p = rq.call(el); if (p && p.catch) p.catch(tab2); } catch (e) { tab2(); }
-            } };
+        // Toolbar above the video: a full-screen icon button for the reel with its like button. Play and Read have no
+        // full screen of their own; the top bar's focus button puts the whole portal in full screen.
+        if (src[tab] && tab === 'watch') {
+          v.ss_tools = { on: true, hint: '', fs: true, fsGo: function () { self.ssReelFull(); } };
         }
         // Watch: like button on the video (one like per student per topic)
         // Admins see the heart and the count too (read-only): their clicks are not counted.
@@ -1627,15 +1744,14 @@
         }
         // Bottom bar: "Next: Play →" / "Next: Read →", then the next unit
         var nextStep = STEPS[ti + 1], baseGo = v.cur.stepGo, baseHint = String(v.cur.stepHint || '').replace(/^Step \d+ of \d+ · /, '');
-        v.cur.stepHint = 'Step ' + (ti + 1) + ' of 3 · ' + baseHint;
+        v.cur.stepHint = 'Step ' + (ti + 1) + ' of ' + STEPS.length + ' · ' + baseHint;
         if (nextStep) {
           v.cur.stepLabel = 'Next: ' + nextStep[1] + ' →';
           v.cur.stepGo = function () { setTab(nextStep[0], true); };
         } else {
-          v.cur.stepGo = function (e) {
-            self.setState(function (s) { var d = Object.assign({}, s.stepDone || {}); d[lkey + ':read'] = true; return { stepDone: d }; });
-            if (baseGo) baseGo(e);
-          };
+          var markLast = function () { self.setState(function (s) { var d = Object.assign({}, s.stepDone || {}); d[lkey + ':practice'] = true; return { stepDone: d }; }); };
+          if (/^Practi[sc]e/.test(String(v.cur.stepLabel || ''))) v.cur.stepLabel = 'Practice topics →';
+          v.cur.stepGo = function (e) { markLast(); if (baseGo) baseGo(e); };
         }
         // "← Previous": previous step, or the previous unit (opening on its last step)
         if (ti > 0) unitsPrev = { on: true, label: '← ' + STEPS[ti - 1][1], go: function () { setTab(STEPS[ti - 1][0]); } };
@@ -1674,8 +1790,11 @@
 
       // ---------- layout: focus mode, top bar, sidebar topics, menus, music, Home map
       var focus = !!S.ssFocus;
-      if (focus) v.side = { full: false, mini: true, w: '84px', pad: '12px', jc: 'center', align: 'center', rot: 'rotate(180deg)', label: 'Expand menu', toggle: v.side.toggle };
-      else v.side.mini = !v.side.full;
+      var peek = focus && !!S.ssPeek;
+      if (focus && !peek) v.side = { full: false, mini: true, w: '84px', pad: '12px', jc: 'center', align: 'center', rot: 'rotate(180deg)', label: 'Expand menu', toggle: v.side.toggle };
+      else if (peek) v.side = { full: true, mini: false, w: '300px', pad: '20px', jc: 'flex-start', align: 'flex-end', rot: 'none', label: 'Collapse menu', toggle: v.side.toggle };
+      try { document.documentElement.classList.toggle('ss-peek', peek); } catch (e) {}
+      if (!focus) v.side.mini = !v.side.full;
       var topicItems = this.ssTopicItems(v);
       // Learn has no Topics panel any more (the sidebar lists the topics): keep it closed even if it was open before.
       v.listOpen = false; v.listClosed = true;
@@ -1683,7 +1802,7 @@
         toggle: function () { if (!v.side.full) { self.setState({ tab: 'learn', ssTopicsOpen: true, ssMenu: '' }); return; } self.setState(function (s) { return { ssTopicsOpen: s.ssTopicsOpen === false }; }); },
         list: (function () { var out = [], last = null; topicItems.forEach(function (t) {
           if (t.course !== last) { out.push({ isHead: true, isTopic: false, name: t.course }); last = t.course; }
-          out.push({ isHead: false, isTopic: true, name: t.name, title: t.course + ' · ' + t.name + (t.done ? ' · done' : ''), go: t.go, on: t.cur, bg: t.cur ? '#FFE45C' : 'transparent', fg: t.cur ? '#050505' : t.done ? '#DADADA' : '#8A8A8A', dot: t.done ? '#FFE45C' : t.cur ? '#050505' : '#333333' });
+          out.push({ isHead: false, isTopic: true, name: t.name, title: t.course + ' · ' + t.name + (t.done ? ' · done' : ''), go: function () { t.go(); if (self.state.ssPeek) self.setState({ ssPeek: false }); }, on: t.cur, bg: t.cur ? '#FFE45C' : 'transparent', fg: t.cur ? '#050505' : t.done ? '#DADADA' : '#8A8A8A', dot: t.done ? '#FFE45C' : t.cur ? '#050505' : '#333333' });
         }); return out; })() };
       v.map = v.show.home ? this.ssMapVals(v) : { on: false, items: [], avatar: {}, trophy: {} };
       v.nav.test.on = S.tab === 'test'; v.nav.board.on = S.tab === 'board'; v.nav.practice.on = S.tab === 'practice' || S.tab === 'code';
@@ -1713,9 +1832,14 @@
       if (v.pq && v.pq.q) {
         // keyed by the question's place in Practice, not its text: many questions share the same wording
         var qk = String(S.pc || '') + '|' + String(S.pi || 0) + '|' + String(v.pq.q).slice(0, 40), seen = this._ssVdSeen || (this._ssVdSeen = {}), has = !!v.pq.verdict;
-        if (has && seen[qk] === false) this.ssCue(v.pq.verdict === 'Correct' ? 'right' : 'wrong');
+        if (has && seen[qk] === false) {
+          var right = v.pq.verdict === 'Correct';
+          this.ssCue(right ? 'right' : 'wrong');
+          this.ssByteEvent(right ? 'dance' : 'bonk', right ? ssPick(['W answer 🔥', 'Correct! You are cooking. 🍳', 'Nailed it. No notes.', 'Big brain move. Respect.']) : ssPick(['L this time. Read the why, run it back.', 'Plot twist: not that one. Read why, then retry.', 'Mistakes are data. Next one, let us go.']));
+        }
         seen[qk] = has;
       }
+      v.byte = this.ssByteVals(v);
 
       // Practice "Hiring" tab: load once when Practice opens; Quiz / Coding / another topic leave it
       if (S.tab === 'practice' && !S.ssHiring) this.ssLoadHiring();
@@ -1748,6 +1872,8 @@
             groups: N.groups.map(function (g) { return { name: g.name, topics: g.topics.map(function (t) { return { t: t }; }) }; }) };
         })(),
         tools: v.ss_tools || { on: false, hint: '', fs: false, fsGo: null },
+        prx: v.ss_prx || { on: false, label: '', go: null },
+        lp: v.ss_lp || { on: false, opts: [] },
         like: v.ss_like || { on: false },
         pl: v.ss_pl || { on: false, items: [], up: false, intro: false },
         pt: v.ss_pt || { open: false, groups: [], has: false, toggle: null },
@@ -1783,8 +1909,8 @@
         },
         toAdmin: function () { location.href = '/admin'; },
         topics: v.ss_topics,
-        top: { show: true, full: !focus, quoteOn: (S.tab === 'practice' || S.tab === 'code') && !!(v.today && v.today.quote), quote: v.today ? v.today.quote : '', by: v.today ? v.today.by : '' },
-        focus: { on: focus, off: !focus, label: focus ? 'Leave focus mode' : 'Focus mode', fg: focus ? '#FFE45C' : '#8A8A8A',
+        top: { show: true, full: !focus, quoteOn: false, quote: v.today ? v.today.quote : '', by: v.today ? v.today.by : '' },
+        focus: { on: focus, off: !focus, label: focus ? 'Exit full screen' : 'Full screen', fg: focus ? '#FFE45C' : '#8A8A8A',
           toggle: function () { self.ssFocus(!self.state.ssFocus); } },
         music: { on: !!S.ssMusicOn, label: S.ssMusicOn ? 'Music on' : 'Music off', toggle: function () { self.ssMusic(!self.state.ssMusicOn); } },
         // One button for everything you hear: the cues (practice right/wrong, the gun, the ticks) and the background music.

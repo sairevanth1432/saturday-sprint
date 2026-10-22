@@ -469,6 +469,261 @@ const HOME_MAP = `<sc-if value="{{ map.on }}" hint-placeholder-val="{{ true }}">
 `;
 replaceOnce('<!-- home road (build-portal.js HOME_MAP) -->\n', HOME_MAP, 'home topic map');
 
+// ---------- 3f. Byte, the mascot: a pixel robot with one pose per Sprint moment (running, practising, hydrating, tired…).
+// One SVG holds every pose; parts carry data-on (shown only in those poses) or data-off (hidden in those poses), and
+// the CSS below is generated from that, so a pose is just data-pose="…" on the <svg>. Which pose and line show when:
+// ssByteVals in public/portal-bridge.js. Big Byte with a speech bubble sits on Home; on the other tabs a small Byte
+// pops in above the feedback button for a few seconds when something happens (never during the test).
+const BYTE_POSES = ['idle', 'run', 'warm', 'finish', 'trophy', 'review', 'type', 'read', 'dance', 'bonk', 'think', 'vibe', 'zen', 'drink', 'chai', 'tired', 'stretch', 'streak', 'missed'];
+// Outfits: the shirt and sleeves take their colour from the pose (BYTE_OUTFITS → CSS below); hats, shoes and the rest are
+// parts that show only in some poses.
+// Short sleeves everywhere, so the look works in any weather.
+const BYTE_OUTFITS = {
+  codeTee: { poses: 'idle type think review bonk zen missed', color: '#4A5675' },
+  sportTee: { poses: 'run warm stretch drink', color: '#E5484D' },
+  polo: { poses: 'read chai', color: '#3E7C59' },
+  pjs: { poses: 'tired', color: '#9DB4E0' },
+  winTee: { poses: 'trophy finish dance streak vibe', color: '#6E56CF' }
+};
+const BYTE_SNEAKERS = 'idle type run warm stretch drink dance streak finish trophy';
+const BYTE_PARTS = (() => {
+  // drawn on the same 64-unit grid as ICON_SOON (the "on its way" robot), so both are the same character
+  const c = (cx, cy, r, fill, cls, ex) => `<circle${cls ? ` class="${cls}"` : ''} cx="${cx}" cy="${cy}" r="${r}" fill="${fill}"${ex || ''}></circle>`;
+  const rr = (x, y, w, h, rx, fill, cls, ex) => `<rect${cls ? ` class="${cls}"` : ''} x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}"${ex || ''}></rect>`;
+  const ln = (d, stroke, w, cls) => `<path${cls ? ` class="${cls}"` : ''} d="${d}" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>`;
+  const fp = (d, fill, cls) => `<path${cls ? ` class="${cls}"` : ''} d="${d}" fill="${fill}"></path>`;
+  const g = (attr, inner, cls) => `<g${cls ? ` class="${cls}"` : ''}${attr}>${inner}</g>`;
+  const on = (poses, inner, cls) => g(` data-on="${poses}"`, inner, cls);
+  const off = (poses, inner, cls) => g(` data-off="${poses}"`, inner, cls);
+  const Y = '#FFE45C', K = '#050505', W = '#FFFFFF', DK = '#9E8618', GR = '#8A8A8A', OR = '#FF7A1A', PK = '#FF9E9E', SL = '#4A5675';
+  const star = (x, y, s, fill, cls) => fp(`M${x} ${y - s}l${s * 0.32} ${s * 0.68} ${s * 0.68} ${s * 0.32}-${s * 0.68} ${s * 0.32}-${s * 0.32} ${s * 0.68}-${s * 0.32}-${s * 0.68}-${s * 0.68}-${s * 0.32} ${s * 0.68}-${s * 0.32}z`, fill, cls);
+  const eyes = (x1, x2, y, r) => c(x1, y, r, K) + c(x2, y, r, K) + c(x1 + r * 0.35, y - r * 0.35, r * 0.33, W) + c(x2 + r * 0.35, y - r * 0.35, r * 0.33, W);
+  // an arm (yellow) with a short sleeve in the outfit colour at the shoulder and a hand at the end; d is "M x y l dx dy"
+  const arm = (d, hx, hy, cls) => {
+    const m = /^M(\S+) (\S+)l(-?[\d.]+)(-?[\d.]+|\s-?[\d.]+)$/.exec(d), x = +m[1], y = +m[2], dx = +m[3], dy = +m[4];
+    const sl = 'M' + x + ' ' + y + 'l' + (dx * 0.42).toFixed(2) + ' ' + (dy * 0.42).toFixed(2);
+    return g('', ln(d, '#EBC93A', 4.6) + ln(sl, SL, 7.4, 'ss-b-sleeve') + c(hx, hy, 3, Y), cls);
+  };
+  // a foot: plain, or a sneaker (white sole, coloured upper) in the sporty poses; slippers when sleepy
+  const foot = (x, y, cls) => g('', off(BYTE_SNEAKERS + ' tired', rr(x, y, 7, 5, 2.5, DK)) +
+    on(BYTE_SNEAKERS, rr(x - 1, y - 1, 9, 5, 2.5, '#EDEDED', 'ss-b-shoe') + rr(x - 1, y + 3, 9, 2.2, 1.1, W) + ln(`M${x + 1.5} ${y + 1}h4`, '#E5484D', 1.2)) +
+    on('tired', rr(x - 1, y, 9, 5, 2.5, '#FFB3C7') + c(x + 3.5, y + 1, 1.6, W)), cls);
+  return [
+    // behind: speed lines (run), zen glow
+    on('run', ln('M-2 24h7M-6 32h10M-2 40h6', GR, 2.4), 'ss-b-speed'),
+    on('zen', `<ellipse cx="32" cy="67" rx="24" ry="2.2" fill="${Y}" opacity=".35"></ellipse>`),
+    // antenna: a light that blinks, a flame on a streak
+    ln('M32 6v7', Y, 3),
+    off('streak', c(32, 5, 3.5, Y, 'ss-b-ant')),
+    on('streak', fp('M32-6c4.5 4.2 6.6 7.6 4.6 11.6-1.4 2.6-7.8 2.6-9.2 0-2-4 .2-7.4 4.6-11.6z', OR) + fp('M32 0c2 1.8 3 3.4 2 5.2-.7 1.2-3.3 1.2-4 0-1-1.8 0-3.4 2-5.2z', Y), 'ss-b-flame'),
+    on('vibe', ln('M9 27C9 3 55 3 55 27', '#5E5E5E', 4)),
+    '<g class="ss-b-body">',
+    // clothes: a tee (or a polo, or a pyjama top) in the outfit colour, then each outfit's details
+    rr(19, 45, 26, 16, 8, SL, 'ss-b-shirt'),
+    ln('M27.5 45.6q4.5 2.6 9 0', 'rgba(0,0,0,.28)', 1.6),
+    on('idle type think review bonk zen missed', ln('M28 51.5l-2.6 2.6 2.6 2.6M36 51.5l2.6 2.6-2.6 2.6M33.2 50.6l-2.4 7.2', Y, 1.3)),
+    on('run warm stretch drink', ln('M22.5 48.5v9M41.5 48.5v9', W, 1.5) + `<text x="32" y="57" text-anchor="middle" font-family="Silkscreen, monospace" font-size="7" font-weight="700" fill="${W}">01</text>`),
+    on('read chai', fp('M25.5 45.2l6.5 4-3.2 3.4z', '#57A178') + fp('M38.5 45.2l-6.5 4 3.2 3.4z', '#57A178') + c(32, 53, 0.9, W) + c(32, 56.4, 0.9, W)),
+    on('tired', c(25, 50, 1.2, W) + c(38, 49, 1.2, W) + c(31, 55, 1.2, W) + c(40, 57, 1.2, W) + c(24, 57, 1.2, W)),
+    on('trophy finish dance streak vibe', ln('M24 46.5q8 4 16 0', Y, 1.6) + `<text x="32" y="58" text-anchor="middle" font-family="Silkscreen, monospace" font-size="8" font-weight="700" fill="${Y}">B</text>`),
+    // head, ears or headphone cups
+    rr(12, 13, 40, 32, 11, Y),
+    off('vibe', rr(7, 24, 5, 11, 2.5, DK) + rr(52, 24, 5, 11, 2.5, DK)),
+    on('vibe', rr(4, 21, 9, 15, 4, OR) + rr(51, 21, 9, 15, 4, OR)),
+    on('bonk', g(' transform="rotate(18 44 15)"', rr(37, 12, 14, 5, 2.5, '#EDEDED') + ln('M44 12.8v3.4M42.3 14.5h3.4', '#FF7A7A', 1.4))),
+    // eyes
+    off('finish trophy dance vibe drink streak missed tired zen warm stretch bonk think read', g('', eyes(24, 40, 28, 4), 'ss-b-eye')),
+    on('finish trophy dance vibe drink streak missed', ln('M20 29.5q4-5.5 8 0M36 29.5q4-5.5 8 0', K, 3)),
+    on('tired zen warm stretch', ln('M20 27.5q4 3.5 8 0M36 27.5q4 3.5 8 0', K, 3)),
+    on('bonk', ln('M21 25l6 6M27 25l-6 6', K, 2.6) + c(40, 28, 4, K) + c(41.4, 26.6, 1.3, W)),
+    on('think', eyes(25, 41, 25, 3.6)),
+    on('read', eyes(24, 40, 30, 3.4)),
+    // glasses (studious) on most poses; shades (cool) when Byte is hyped
+    off('run trophy vibe streak', `<rect x="16.5" y="21.5" width="15" height="13" rx="4.5" stroke="${K}" stroke-width="2.2" fill="rgba(255,255,255,.12)"></rect><rect x="32.5" y="21.5" width="15" height="13" rx="4.5" stroke="${K}" stroke-width="2.2" fill="rgba(255,255,255,.12)"></rect>` + ln('M31.5 26.5h1M12.5 25l4 .5M51.5 25l-4 .5', K, 2.2)),
+    on('run trophy vibe streak', `<rect x="15.5" y="21.5" width="16" height="11.5" rx="4" fill="${K}"></rect><rect x="32.5" y="21.5" width="16" height="11.5" rx="4" fill="${K}"></rect>` + ln('M31 25h2M12 24.5l4 .5M52 24.5l-4 .5', K, 2.4) + ln('M19 24.5l3-1M36 24.5l3-1', W, 1.6)),
+    // cheeks
+    off('bonk', c(18.5, 35, 2.6, PK, '', ' opacity=".75"') + c(45.5, 35, 2.6, PK, '', ' opacity=".75"')),
+    // mouth: smile, open, flat
+    off('run finish trophy dance tired bonk think review', ln('M26 36c1.7 2.2 3.7 3.3 6 3.3s4.3-1.1 6-3.3', K, 3)),
+    on('run finish trophy dance', fp('M26.5 35h11a5.5 5.5 0 0 1-11 0z', K) + fp('M29.5 38.6a2.6 2.6 0 0 1 5 0 4.4 4.4 0 0 1-5 0z', '#FF7A7A')),
+    on('tired bonk think review', ln('M28 37.5h8', K, 3)),
+    // hats: backwards cap, headband, cap, beanie, graduation cap, party hat, bucket hat, detective cap, night cap
+    // a baseball cap, brim turned to the side
+    on('idle type', fp('M13 21C13 7 51 7 51 21z', '#E5484D') + fp('M45 18.5c6-1.4 12-.6 16 2.2-4 1.6-10 2-16 .6z', '#C23A3F') + ln('M32 8.5v12', '#C23A3F', 1.2) + c(32, 8, 1.8, '#C23A3F')),
+    on('run warm stretch', rr(12.5, 15.5, 39, 5, 2.5, W) + ln('M14 18h36', '#E5484D', 1.4)),
+    on('drink streak', fp('M12.5 21C12.5 7 51.5 7 51.5 21z', '#2E86DE') + `<ellipse cx="38" cy="21" rx="20" ry="3.4" fill="#1F6FBF"></ellipse>` + c(32, 8, 1.8, '#1F6FBF')),
+    // a fedora: chai time, and the detective look when reviewing
+    on('chai review', fp('M18 17c0-7 3-11 7-11 2.4 0 4.6 1.6 7 1.6S36.6 6 39 6c4 0 7 4 7 11z', '#3A3A3A') + rr(17.5, 13.5, 29, 4, 1, Y) + `<ellipse cx="32" cy="18" rx="24" ry="3.6" fill="#2B2B2B"></ellipse>`),
+    on('trophy', rr(19, 10, 26, 7, 2, '#1A1A1A') + fp('M32 1l23 7-23 7-23-7z', '#262626') + ln('M32 8l15 3v7', Y, 1.6) + c(47, 19, 1.8, Y)),
+    on('finish', fp('M32-7l8 21H24z', '#FF7AB6') + ln('M28.6 6.5l6.6-1.6M26.8 11.2l10.4-2.4', W, 1.4) + c(32, -7, 2.6, Y)),
+    on('vibe dance', fp('M17 16l3-11h24l3 11z', '#9BE58B') + rr(10, 14, 44, 5, 2.5, '#7FCB70')),
+    on('tired', fp('M13 20C14 8 30 3 44 6c8 2 14 8 17 15l-5 1c-2-5-6-8-10-9l2 7z', '#5B6890') + rr(12, 16.5, 40, 5, 2.5, '#EDEDED') + c(59, 23, 3, W)),
+    on('think', ln('M51 15l7-9', '#F5A623', 3) + ln('M58 6l1.4-1.8', '#3A3A3A', 3) + ln('M51 15l-1 1.3', '#FFB3C7', 3)),
+    '</g>',
+    // feet: standing, running (one forward, one back), sitting cross-legged
+    off('run zen', foot(23, 59) + foot(34, 59)),
+    on('run', foot(19, 58, 'ss-b-leg a') + foot(37, 58, 'ss-b-leg b')),
+    on('zen', `<ellipse cx="32" cy="61.5" rx="15" ry="3.6" fill="${DK}"></ellipse>`),
+    // arms: down (the right one waves on hover), up, one holding something, running
+    off('run finish dance warm stretch missed drink chai review think trophy', arm('M21 50l-6 6', 15, 56) + arm('M43 50l6 6', 49, 56, 'ss-b-arm')),
+    on('finish dance warm stretch missed', arm('M21 49l-7-11', 14, 38, 'ss-b-up l') + arm('M43 49l7-11', 50, 38, 'ss-b-up r')),
+    on('drink chai review think trophy', arm('M21 50l-6 6', 15, 56) + arm('M43 50l9-6', 52, 44)),
+    on('run', arm('M21 50l-8-3', 13, 47, 'ss-b-swing a') + arm('M43 50l7 6', 50, 56, 'ss-b-swing b')),
+    // props
+    on('finish', rr(4, 2, 4, 4, 1, Y, 'ss-b-conf', ' transform="rotate(20 6 4)"') + rr(56, 0, 4, 4, 1, '#9BE58B', 'ss-b-conf', ' transform="rotate(-15 58 2)"') + rr(0, 14, 4, 4, 1, OR, 'ss-b-conf') + rr(62, 12, 4, 4, 1, '#4FC3F7', 'ss-b-conf', ' transform="rotate(30 64 14)"') + rr(48, -6, 4, 4, 1, '#FF7A7A', 'ss-b-conf') + rr(12, -6, 4, 4, 1, W, 'ss-b-conf')),
+    on('dance warm stretch', star(4, 10, 5, Y, 'ss-b-tw') + star(61, 8, 4, Y, 'ss-b-tw')),
+    on('trophy', rr(52, 30, 11, 9, 3, Y) + ln('M52.5 32.5h-2.5v2.5a2.5 2.5 0 0 0 2.5 2.5M62.5 32.5h2.5v2.5a2.5 2.5 0 0 1-2.5 2.5', Y, 1.8) + rr(56.5, 39, 2, 4, 1, '#F5A623') + rr(53.5, 42.5, 8, 3, 1.5, '#F5A623')),
+    on('review', `<circle cx="58" cy="34" r="6" stroke="#EDEDED" stroke-width="2.6" fill="rgba(155,229,139,.25)"></circle>` + ln('M62.5 38.5l4 4', GR, 3.2)),
+    on('type', rr(17, 44, 30, 16, 2.5, '#3A3A3A') + c(32, 52, 2, Y) + rr(12, 59.5, 40, 3.5, 1.75, GR)),
+    on('read', rr(15, 45, 16.5, 15, 1.5, '#EDEDED') + rr(32.5, 45, 16.5, 15, 1.5, '#DADADA') + rr(30.5, 45, 3, 15, 1, '#F5A623') + ln('M18 50h10M18 54h8M36 50h10M36 54h8', GR, 1.4)),
+    on('bonk', star(6, 6, 3.5, Y, 'ss-b-tw') + star(58, 4, 3, Y, 'ss-b-tw') + star(62, 14, 2.5, Y, 'ss-b-tw')),
+    on('think', ln('M57 22a4.5 4.5 0 1 1 6 4.2c-1.3.6-1.5 1.5-1.5 3', Y, 2.6) + c(61.5, 34, 1.5, Y), 'ss-b-q'),
+    on('vibe', ln('M61 1v10M61 1l5-1.5', '#9BE58B', 2.2) + c(59, 11, 2.3, '#9BE58B'), 'ss-b-note'),
+    on('drink', rr(53, 24, 9, 19, 3.5, '#4FC3F7') + rr(53, 31, 9, 12, 3.5, '#29B6F6') + rr(54.5, 20, 6, 4.5, 1.5, '#EDEDED') + fp('M66 14c1.4 2 2 3 2 4a2 2 0 0 1-4 0c0-1 .6-2 2-4z', '#4FC3F7', 'ss-b-drop')),
+    on('chai', rr(52, 36, 11, 9, 2.5, '#EDEDED') + rr(52, 38.5, 11, 2.5, 0, '#C97A4A') + `<circle cx="64.5" cy="40.5" r="2.6" stroke="#EDEDED" stroke-width="1.8" fill="none"></circle>` + ln('M55 32q-1.6-2.2 0-4.4M58 31q-1.6-2.4 0-4.8M61 32q-1.6-2.2 0-4.4', GR, 1.4, 'ss-b-steam')),
+    on('tired', ln('M50 -4h7l-7 8h7', '#EDEDED', 2.2) + ln('M60 6h4.5l-4.5 5h4.5', GR, 1.8), 'ss-b-z'),
+    on('missed', fp('M58 16c-5-3.4-7.5-6-7.5-8.6a3.6 3.6 0 0 1 7.5-1.4 3.6 3.6 0 0 1 7.5 1.4c0 2.6-2.5 5.2-7.5 8.6z', PK), 'ss-b-heart')
+  ].join('');
+})();
+const byteSvg = (cls, size) => `<svg class="ss-byte ${cls}" data-pose="{{ byte.${size}.pose }}" viewBox="-8 -10 80 80" width="${size === 'home' ? 170 : '{{ byte.side.px }}'}" height="${size === 'home' ? 170 : '{{ byte.side.px }}'}" aria-hidden="true">${BYTE_PARTS}</svg>`;
+const BYTE_HOME = `<!-- Byte, the mascot (build-portal.js BYTE_HOME; poses and lines: ssByteVals in portal-bridge.js) -->
+<button id="ss-byte" type="button" onClick="{{ byte.home.next }}" aria-label="Byte, your Sprint buddy. Show another tip" title="Tap for another tip">
+${byteSvg('ss-byte-home', 'home')}
+<span class="ss-byte-say">
+<span class="ss-byte-name">Byte <span class="ss-byte-mood">{{ byte.home.mood }}</span></span>
+<span class="ss-byte-line" aria-live="polite">{{ byte.home.line }}</span>
+</span>
+</button>
+`;
+replaceOnce('<aside class="ss-home-side">\n', (a) => a + BYTE_HOME, 'Byte on Home');
+const BYTE_SIDE = `<div class="ss-byte-dock" style="justify-content: {{ side.jc }}">
+<sc-if value="{{ byte.side.show }}" hint-placeholder-val="{{ true }}">
+<button id="ss-byte-side" type="button" onClick="{{ byte.side.tap }}" aria-label="Byte, your Sprint buddy: tap for a tip" title="Byte · {{ byte.side.mood }}">
+${byteSvg('ss-byte-mini', 'side')}
+</button>
+</sc-if>
+</div>
+`;
+replaceOnce('\n</div>\n\n</nav>', (a) => a.replace('\n\n</nav>', '\n' + BYTE_SIDE + '\n</nav>'), 'Byte in the sidebar');
+// the bubble sits outside the sidebar (fixed, next to it) so the main content cannot cover it; pointer-events: none
+const BYTE_BUBBLE = `<sc-if value="{{ byte.pop.show }}" hint-placeholder-val="{{ false }}">
+<div class="ss-byte-bubble" role="status" data-dock="{{ byte.pop.dock }}" style="{{ byte.pop.style }}">{{ byte.pop.line }}</div>
+</sc-if>
+`;
+replaceOnce('<!-- ============ MAIN ============ -->\n', (a) => BYTE_BUBBLE + a, 'Byte bubble');
+const BYTE_CSS = [
+  '.ss-byte [data-on]{display:none}',
+  ...Object.values(BYTE_OUTFITS).map((o) => o.poses.split(' ').map((p) => `.ss-byte[data-pose="${p}"] .ss-b-shirt{fill:${o.color}}.ss-byte[data-pose="${p}"] .ss-b-sleeve{stroke:${o.color}}`).join('')),
+  '.ss-byte[data-pose="run"] .ss-b-shoe,.ss-byte[data-pose="warm"] .ss-b-shoe,.ss-byte[data-pose="stretch"] .ss-b-shoe,.ss-byte[data-pose="drink"] .ss-b-shoe{fill:#E5484D}',
+  '.ss-byte[data-pose="trophy"] .ss-b-shoe,.ss-byte[data-pose="finish"] .ss-b-shoe,.ss-byte[data-pose="dance"] .ss-b-shoe,.ss-byte[data-pose="streak"] .ss-b-shoe{fill:#6E56CF}',
+  ...BYTE_POSES.map((p) => `.ss-byte[data-pose="${p}"] [data-on~="${p}"]{display:inline}.ss-byte[data-pose="${p}"] [data-off~="${p}"]{display:none}`),
+  '.ss-byte{overflow:visible;flex-shrink:0}',
+  '.ss-byte .ss-b-body,.ss-byte .ss-b-up,.ss-byte .ss-b-flame,.ss-byte .ss-b-steam,.ss-byte .ss-b-drop,.ss-byte .ss-b-arm,.ss-byte .ss-b-swing,.ss-byte .ss-b-leg,.ss-byte .ss-b-eye,.ss-byte .ss-b-tw,.ss-byte .ss-b-conf{transform-box:fill-box}',
+  '.ss-byte{animation:ss-b-bob 2.6s ease-in-out infinite alternate}',
+  '.ss-byte .ss-b-eye{transform-origin:center;animation:ss-b-blink 4.2s steps(1) infinite}',
+  '.ss-byte .ss-b-ant{animation:ss-b-ant 1.4s steps(1) infinite}',
+  '.ss-byte .ss-b-arm{transform-origin:0 0}',
+  '#ss-byte:hover .ss-b-arm,#ss-byte:focus-visible .ss-b-arm{animation:ss-b-wave 600ms ease-in-out infinite alternate}',
+  '.ss-byte[data-pose="missed"] .ss-b-up.r{animation:ss-b-wiggle 500ms ease-in-out infinite alternate}',
+  '.ss-byte .ss-b-up.l{transform-origin:100% 100%}.ss-byte .ss-b-up.r{transform-origin:0 100%}',
+  '.ss-byte[data-pose="dance"],.ss-byte[data-pose="finish"]{animation:ss-b-hop 420ms ease-in-out infinite alternate}',
+  '.ss-byte[data-pose="dance"] .ss-b-up.l{animation:ss-b-wiggle 420ms ease-in-out infinite alternate}',
+  '.ss-byte[data-pose="dance"] .ss-b-up.r{animation:ss-b-wiggle 420ms ease-in-out infinite alternate-reverse}',
+  '.ss-byte[data-pose="run"]{animation:ss-b-hop 260ms ease-in-out infinite alternate}',
+  '.ss-byte .ss-b-leg.a,.ss-byte .ss-b-swing.a{animation:ss-b-step 260ms steps(1) infinite}',
+  '.ss-byte .ss-b-leg.b,.ss-byte .ss-b-swing.b{animation:ss-b-step 260ms steps(1) infinite reverse}',
+  '.ss-byte .ss-b-speed{animation:ss-b-speed 260ms linear infinite}',
+  '.ss-byte[data-pose="bonk"] .ss-b-body{animation:ss-b-shake 500ms ease-in-out 2}',
+  '.ss-byte .ss-b-tw{transform-origin:center;animation:ss-b-tw 900ms ease-in-out infinite alternate}',
+  '.ss-byte .ss-b-conf{animation:ss-b-conf 1.2s ease-in infinite}',
+  '.ss-byte .ss-b-q,.ss-byte .ss-b-note,.ss-byte .ss-b-heart,.ss-byte .ss-b-z{animation:ss-b-float 1.6s ease-in-out infinite alternate}',
+  '.ss-byte .ss-b-steam,.ss-byte .ss-b-drop{animation:ss-b-rise 1.4s ease-out infinite}',
+  '.ss-byte .ss-b-flame{transform-origin:50% 100%;animation:ss-b-flick 300ms ease-in-out infinite alternate}',
+  '.ss-byte[data-pose="tired"] .ss-b-body{transform-origin:50% 100%;transform:rotate(-6deg)}',
+  '.ss-byte[data-pose="tired"]{animation-duration:4s}',
+  '.ss-byte[data-pose="zen"]{animation:ss-b-bob 3.6s ease-in-out infinite alternate}',
+  '@keyframes ss-b-bob{from{transform:translateY(0)}to{transform:translateY(-4px)}}',
+  '@keyframes ss-b-hop{from{transform:translateY(0)}to{transform:translateY(-6px)}}',
+  '@keyframes ss-b-blink{0%,92%{transform:scaleY(1)}93%,97%{transform:scaleY(.15)}98%{transform:scaleY(1)}}',
+  '@keyframes ss-b-ant{0%{fill:#FFE45C}50%{fill:#FFB347}}',
+  '@keyframes ss-b-wave{from{transform:rotate(-10deg)}to{transform:rotate(-120deg)}}',
+  '@keyframes ss-b-wiggle{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}',
+  '@keyframes ss-b-step{0%{transform:translateY(0)}50%{transform:translateY(-2px)}}',
+  '@keyframes ss-b-speed{from{transform:translateX(0);opacity:1}to{transform:translateX(-4px);opacity:.4}}',
+  '@keyframes ss-b-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}',
+  '@keyframes ss-b-tw{from{transform:scale(.5);opacity:.4}to{transform:scale(1.2);opacity:1}}',
+  '@keyframes ss-b-conf{from{transform:translateY(-4px);opacity:1}to{transform:translateY(8px);opacity:0}}',
+  '@keyframes ss-b-float{from{transform:translateY(0)}to{transform:translateY(-3px)}}',
+  '@keyframes ss-b-rise{from{transform:translateY(0);opacity:.9}to{transform:translateY(-5px);opacity:0}}',
+  '@keyframes ss-b-flick{from{transform:scaleY(1)}to{transform:scaleY(.85)}}',
+  // Home: Byte + speech bubble in the right column
+  '#ss-byte{all:unset;box-sizing:border-box;display:flex;align-items:flex-end;gap:12px;cursor:pointer;width:100%;max-width:480px}',
+  '#ss-byte:focus-visible,#ss-byte-side:focus-visible{outline:2px solid #FFE45C;outline-offset:4px;border-radius:12px}',
+  '.ss-byte-say{position:relative;flex-grow:1;min-width:0;margin-bottom:34px;padding:12px 14px;border-radius:14px;background:#141414;border:1px solid #2A2A2A;display:flex;flex-direction:column;gap:4px;transition:border-color 160ms ease}',
+  '.ss-byte-say:before{content:"";position:absolute;left:-6px;bottom:16px;width:10px;height:10px;background:#141414;border-left:1px solid #2A2A2A;border-bottom:1px solid #2A2A2A;transform:rotate(45deg);transition:border-color 160ms ease}',
+  '#ss-byte:hover .ss-byte-say,#ss-byte:hover .ss-byte-say:before{border-color:#FFE45C}',
+  ".ss-byte-name{font-family:'Silkscreen',monospace;font-size:12px;font-weight:700;line-height:1.2;color:#FFC93C}",
+  ".ss-byte-mood{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#6E6E6E;margin-left:4px}",
+  ".ss-byte-line{font-family:'VT323',monospace;font-size:20px;line-height:1.15;color:#DADADA}",
+  // every other tab: Byte at the bottom of the left panel, a short bubble beside it
+  'nav[aria-label="Portal"]{overflow-y:auto;scrollbar-width:none}',
+  '.ss-byte-dock{margin-top:auto;display:flex;padding-top:8px}',
+  '#ss-byte-side{all:unset;cursor:pointer;display:block;line-height:0;opacity:.92;transition:opacity 160ms ease,transform 160ms ease}',
+  '#ss-byte-side:hover{opacity:1;transform:translateY(-2px)}',
+  "#ss-byte-side:hover .ss-b-arm{animation:ss-b-wave 600ms ease-in-out infinite alternate}",
+  ".ss-byte-bubble{position:fixed;z-index:45;max-width:300px;padding:9px 13px;border-radius:12px;background:#141414;border:1px solid #FFE45C;color:#EDEDED;font-family:'VT323',monospace;font-size:19px;line-height:1.15;pointer-events:none;box-shadow:0 14px 30px -14px rgba(0,0,0,.9);animation:ss-b-in 260ms cubic-bezier(0.23,1,0.32,1) both}",
+  '.ss-byte-bubble:before{content:"";position:absolute;left:-6px;bottom:12px;width:10px;height:10px;background:#141414;border-left:1px solid #FFE45C;border-bottom:1px solid #FFE45C;transform:rotate(45deg)}',
+  '.ss-byte-bubble[data-dock="up"]{box-sizing:border-box;font-size:18px}.ss-byte-bubble[data-dock="up"]:before{left:34px;bottom:-6px;border-left:0;border-right:1px solid #FFE45C}',
+  '@keyframes ss-b-in{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}',
+  '@media (prefers-reduced-motion: reduce){.ss-byte,.ss-byte *{animation:none !important}}',
+  '@media print{.ss-byte-bubble,.ss-byte-dock{display:none}}'
+].join('\n');
+replaceOnce('</head>', (a) => `<style>\n/* Byte, the mascot (build-portal.js BYTE_*) */\n${BYTE_CSS}\n</style>\n` + a, 'Byte styles');
+
+// ---------- 3i. Learn, Practice step: the topic's questions inside Learn (portal-bridge.js → ss.lp, same engine as Practice)
+const LEARN_PRACTICE = `<sc-if value="{{ ss.lp.on }}" hint-placeholder-val="{{ false }}">
+<div class="d3 pop ss-lp" style="background: #151515; border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 14px; max-width: 1040px">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap"><span style="font-size: 13px; font-weight: 800; letter-spacing: .12em; color: #FFE45C">PRACTICE · {{ ss.lp.title }}</span><span style="flex-grow: 1"></span><span style="font-size: 14px; color: #8A8A8A">{{ ss.lp.pos }}</span><span style="font-size: 14px; font-weight: 800; color: #FFE45C">score {{ ss.lp.score }}</span></div>
+<sc-if value="{{ ss.lp.empty }}" hint-placeholder-val="{{ false }}"><div style="padding: 40px 10px; text-align: center; color: #BDBDBD; font-size: 17px">Practice questions for this topic are on their way. Check back soon!</div></sc-if>
+<sc-if value="{{ ss.lp.has }}" hint-placeholder-val="{{ true }}">
+<sc-if value="{{ ss.lp.isQuiz }}" hint-placeholder-val="{{ true }}">
+<div style="font-size: 19px; font-weight: 700; line-height: 1.5; color: #FFFFFF; white-space: pre-wrap">{{ ss.lp.q }}</div>
+<sc-if value="{{ ss.lp.hasCode }}" hint-placeholder-val="{{ false }}"><pre style="margin: 0; padding: 14px 16px; border-radius: 12px; background: #0A0A0A; border: 1px solid #262626; color: #EDEDED; font: 15px/1.6 'JetBrains Mono', monospace; overflow-x: auto">{{ ss.lp.code }}</pre></sc-if>
+<div class="ss-lp-opts" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+<sc-for list="{{ ss.lp.opts }}" as="op" hint-placeholder-count="4"><button class="k3" onClick="{{ op.pick }}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px; border-radius: 14px; border: 2px solid {{ op.b }}; background: {{ op.g }}; color: #FFFFFF; text-align: left; font-size: 16px; cursor: pointer"><span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; border: 2px solid {{ op.kb }}; color: {{ op.kb }}; display: flex; align-items: center; justify-content: center; font-weight: 800">{{ op.k }}</span><span style="flex-grow: 1; white-space: pre-wrap">{{ op.t }}</span><span style="font-size: 12px; font-weight: 800; color: {{ op.kb }}">{{ op.tag }}</span></button></sc-for>
+</div>
+<sc-if value="{{ ss.lp.multiOpen }}" hint-placeholder-val="{{ false }}"><button class="b3" onClick="{{ ss.lp.check }}" style="align-self: flex-start; min-height: 46px; padding: 0 20px; border: 0; border-radius: 12px; background: #FFE45C; color: #050505; font-weight: 800">Check answer</button></sc-if>
+<sc-if value="{{ ss.lp.shown }}" hint-placeholder-val="{{ false }}"><div style="padding: 14px 16px; border-radius: 12px; background: #0D0D0D; border: 1px solid #262626"><div style="font-weight: 800; color: {{ ss.lp.verdictColor }}">{{ ss.lp.verdict }}</div><div style="margin-top: 6px; font-size: 15px; line-height: 1.6; color: #BDBDBD; white-space: pre-wrap">{{ ss.lp.why }}</div></div></sc-if>
+</sc-if>
+<sc-if value="{{ ss.lp.isCode }}" hint-placeholder-val="{{ false }}">
+<div style="font-size: 13px; font-weight: 800; letter-spacing: .12em; color: #8A8A8A">CODING PROBLEM</div>
+<div style="font-size: 20px; font-weight: 800; color: #FFFFFF">{{ ss.lp.ckTitle }}</div>
+<div style="font-size: 15px; line-height: 1.6; color: #BDBDBD; white-space: pre-wrap; max-height: 220px; overflow-y: auto">{{ ss.lp.ckText }}</div>
+<button class="b3" onClick="{{ ss.lp.openCode }}" style="align-self: flex-start; min-height: 46px; padding: 0 20px; border: 0; border-radius: 12px; background: #FFE45C; color: #050505; font-weight: 800">Solve in the editor →</button>
+</sc-if>
+<div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 6px; border-top: 1px solid #1F1F1F">
+<button class="k3" onClick="{{ ss.lp.prev }}" style="min-height: 44px; padding: 0 16px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #FFFFFF; font-weight: 800">← Previous</button>
+<sc-if value="{{ ss.lp.canSkip }}" hint-placeholder-val="{{ true }}"><button class="k3" onClick="{{ ss.lp.skip }}" style="min-height: 44px; padding: 0 16px; border: 2px solid #333333; border-radius: 12px; background: transparent; color: #BDBDBD; font-weight: 800">Skip</button></sc-if>
+<button onClick="{{ ss.lp.next }}" style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: {{ ss.lp.nextBg }}; color: {{ ss.lp.nextFg }}; font-weight: 800">{{ ss.lp.nextLabel }}</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+`;
+replaceOnce('<sc-if value="{{ cur.showWatch }}" hint-placeholder-val="{{ false }}">', (a) => LEARN_PRACTICE + a, 'learn practice step');
+// full screen: the rail opens over the page on hover (portal-bridge.js adds html.ss-peek)
+replaceOnce('</head>', (a) => `<style>
+html.ss-peek nav[aria-label="Portal"]{position:fixed !important;left:0;top:0;bottom:0;height:100vh !important;z-index:60;box-shadow:24px 0 60px rgba(0,0,0,.65);animation:ss-peek-in 180ms ease-out}
+html.ss-peek #app>div{padding-left:84px !important;box-sizing:border-box}
+@keyframes ss-peek-in{from{transform:translateX(-24px);opacity:.6}to{transform:none;opacity:1}}
+@media (max-width: 760px){.ss-lp-opts{grid-template-columns:1fr !important}}
+</style>
+` + a, 'peek styles');
+
+// ---------- 3h. Learn, after Read: "Practise this topic" next to "Next lesson →" (portal-bridge.js → ss.prx)
+replaceOnce('<button class="b3" onClick="{{ cur.stepGo }}"', (a) => `<sc-if value="{{ ss.prx.on }}" hint-placeholder-val="{{ false }}"><button class="b3" onClick="{{ ss.prx.go }}" style="min-height: 50px; padding: 0 22px; border: 2px solid #FFE45C; border-radius: 14px; background: transparent; color: #FFE45C; font-size: 17px; font-weight: 800">{{ ss.prx.label }}</button></sc-if>
+` + a, 'practise after read');
+
 // ---------- 3c. Profile: photo (change it here), streak, medals earned and how to earn the rest. Opened from the sidebar user block.
 const PROFILE_TAB = `<!-- ============ PROFILE ============ -->
 <sc-if value="{{ show.profile }}" hint-placeholder-val="{{ false }}">
