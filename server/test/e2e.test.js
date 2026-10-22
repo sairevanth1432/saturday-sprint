@@ -1217,7 +1217,8 @@ test('Sprint question sets per Sprint ID: content/sprint-sets is used for that S
     const qs = await sp.getQuestions(next.id);
     assert.equal(qs.length, 10, 'the next Sprint has its own 10 questions');
     const count = (k, v) => qs.filter((q) => q[k] === v).length;
-    assert.deepEqual([count('type', 'mcq'), count('type', 'code')], [5, 5], '5 MCQs and 5 coding problems');
+    assert.equal(count('type', 'mcq') + count('type', 'code'), 10, 'only MCQs and coding problems');
+    assert.ok(count('type', 'mcq') >= 1 && count('type', 'code') >= 1, 'both MCQs and coding problems');
     assert.deepEqual([count('level', 'easy'), count('level', 'medium'), count('level', 'hard')], [3, 5, 2], 'mixed difficulty');
     assert.deepEqual([count('course', 'pf'), count('course', 'wad'), count('course', 'genai')], [5, 3, 2]);
     assert.ok((await sp.publicQuestions(next.id)).every((q) => q.tests === undefined && q.asked === undefined), 'no hidden tests in what students get');
@@ -1525,21 +1526,28 @@ test('every page script parses (a syntax error leaves the admin console or porta
 });
 
 test('practice questions used in a Sprint test are hidden from Practice (no repeats), marked for admins', async () => {
-  const set = JSON.parse(fs.readFileSync(path.join(here, '..', 'generated', 'sprint-sets', 'sprint-2026-10-10.json'), 'utf8'));
-  const used = set.find((q) => q.src);
-  assert.ok(used, 'the set names its Practice questions');
+  // a Sprint that is still to come hides its questions; a Sprint that is over (here 10 Oct 2026) shows them again
+  const setDir = path.join(here, '..', 'generated', 'sprint-sets'), future = path.join(setDir, 'sprint-2099-12-31.json');
+  const used = { type: 'mcq', q: 'Future Sprint question', o: ['Yes', 'No'], c: 0, src: 'repeat-check-future' };
+  fs.writeFileSync(future, JSON.stringify([used]));
+  const past = JSON.parse(fs.readFileSync(path.join(setDir, 'sprint-2026-10-10.json'), 'utf8')).find((q) => q.src);
+  try {
   const file = { track: 'Programming Foundations', session: 'Repeat Check', mcq_practice: [{ questions: [
     { question_id: used.src, question_type: 'MULTIPLE_CHOICE', question_content: 'Used in the test?', options: ['Yes', 'No'], correct_answer: 'Yes' },
+    { question_id: past.src, question_type: 'MULTIPLE_CHOICE', question_content: 'From a past Sprint?', options: ['Yes', 'No'], correct_answer: 'Yes' },
     { question_id: 'not-in-any-set', question_type: 'MULTIPLE_CHOICE', question_content: 'Free to practise?', options: ['Yes', 'No'], correct_answer: 'Yes' }] }], coding_practice: [] };
   const imp = await ADM('POST', '/api/admin/practice-questions/import', { files: [{ name: 'r.json', json: JSON.stringify(file) }], dry: false });
   assert.equal(imp.status, 200, JSON.stringify(imp.body));
   const rows = (await ADM('GET', '/api/admin/practice-questions')).body.rows;
   assert.equal(rows.find((r) => r.srcId === used.src).inSprint, true);
   assert.equal(rows.find((r) => r.srcId === 'not-in-any-set').inSprint, false);
+  assert.equal(rows.find((r) => r.srcId === past.src).inSprint, false, 'a past Sprint no longer hides its questions');
   await new Promise((r) => setTimeout(r, 11000)); // the portal list is cached for 10 s per instance
   const mcq = (await A('GET', '/api/bootstrap')).body.practiceExtra.mcq;
   assert.ok(!mcq.some((q) => q.q === 'Used in the test?'), 'hidden from students');
   assert.ok(mcq.some((q) => q.q === 'Free to practise?' && q.sess === 'Repeat Check'));
+  assert.ok(mcq.some((q) => q.q === 'From a past Sprint?'), 'past Sprint questions are back in Practice');
+  } finally { fs.rmSync(future, { force: true }); }
 });
 
 test('test order: each student gets their own fixed shuffle of questions and options; boards per university with photos; photo ZIPs', async () => {

@@ -189,7 +189,7 @@
   "coding_practice": [
     {
       "set_name": "Coding For Loop",
-      "question_count": 3,
+      "question_count": 5,
       "questions": [
         {
           "question_id": "6449c975407641cb9903d2f8b6c74955",
@@ -298,6 +298,80 @@
             {
               "input": "6\n7\n7\n0\n15\n-20\n9",
               "output": "Even Sum: -20\nOdd Count: 4\nMaximum: 15",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "sp3-test-for-loop-1",
+          "question_order": 4,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Fibonacci series up to n terms",
+          "question_difficulty": "EASY",
+          "question_content": "Read n. Print the first n terms of the Fibonacci series on one line, separated by spaces. The series starts 0 1, and each next term is the sum of the two before it.\n\n#### Sample Input\n```\n7\n```\n\n#### Sample Output\n```\n0 1 1 2 3 5 8\n```",
+          "starter_code": "n = int(input())\n",
+          "test_cases": [
+            {
+              "input": "7",
+              "output": "0 1 1 2 3 5 8",
+              "is_hidden": false
+            },
+            {
+              "input": "1",
+              "output": "0",
+              "is_hidden": true
+            },
+            {
+              "input": "2",
+              "output": "0 1",
+              "is_hidden": true
+            },
+            {
+              "input": "10",
+              "output": "0 1 1 2 3 5 8 13 21 34",
+              "is_hidden": true
+            },
+            {
+              "input": "15",
+              "output": "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "sp3-test-for-loop-2",
+          "question_order": 5,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Second largest element without sorting",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Read a line of integers separated by spaces. Print the second largest distinct value, without sorting. At least two different values are given.\n\n#### Sample Input\n```\n4 9 2 9 7\n```\n\n#### Sample Output\n```\n7\n```",
+          "starter_code": "nums = list(map(int, input().split()))\n",
+          "test_cases": [
+            {
+              "input": "4 9 2 9 7",
+              "output": "7",
+              "is_hidden": false
+            },
+            {
+              "input": "1 2",
+              "output": "1",
+              "is_hidden": true
+            },
+            {
+              "input": "5 5 3 5",
+              "output": "3",
+              "is_hidden": true
+            },
+            {
+              "input": "-4 -1 -7 -1",
+              "output": "-4",
+              "is_hidden": true
+            },
+            {
+              "input": "10 20 30 40 50 40",
+              "output": "40",
               "is_hidden": true
             }
           ]

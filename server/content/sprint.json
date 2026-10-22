@@ -10,10 +10,10 @@
   ],
   "questionTypes": ["mcq"],
   "next": {
-    "id": "sprint-2026-10-17",
+    "id": "sprint-2026-10-24",
     "title": "Saturday Sprint",
-    "open": "2026-10-17T11:00:00+05:30",
-    "close": "2026-10-18T23:00:00+05:30",
+    "open": "2026-10-24T11:00:00+05:30",
+    "close": "2026-10-24T23:00:00+05:30",
     "durationMin": 20
   }
 }

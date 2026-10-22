@@ -12,18 +12,24 @@ import { config } from './config.js';
 
 // Questions used in a Sprint test are hidden from Practice, so students do not see them before the test.
 // A Sprint set question names its Practice question ("src", content/sprint-sets/*.json); questions with the same
-// text, code and options also count (a set copied by hand).
+// text, code and options also count (a set copied by hand). Once a Sprint is over (two days after the date in its
+// id, sprint-YYYY-MM-DD, IST), its questions show in Practice again.
 const fp = (q, code, o) => [q, code, (o || []).slice().sort().join('|')].map((s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()).join('#');
-let sprintUse = null;
+let sprintUse = null, sprintUseDay = '';
+const istDay = (ms) => new Date(ms + 330 * 60000).toISOString().slice(0, 10);
 function inSprintSets() {
-  if (sprintUse) return sprintUse;
-  const src = new Set(), prints = new Set(), dir = path.join(path.dirname(config.sprintTestFile), 'sprint-sets');
-  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => x.endsWith('.json')) : []) {
+  const dir = path.join(path.dirname(config.sprintTestFile), 'sprint-sets'), files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => x.endsWith('.json')) : [];
+  const today = istDay(Date.now()), key = today + '|' + files.join(',');
+  if (sprintUse && sprintUseDay === key) return sprintUse;
+  const src = new Set(), prints = new Set();
+  for (const f of files) {
+    const m = /(\d{4}-\d{2}-\d{2})/.exec(f);
+    if (m && istDay(Date.parse(m[1] + 'T00:00:00+05:30') + 2 * 86400000) <= today) continue;   // that Sprint is over
     let set = [];
     try { set = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch { /* checked at build */ }
     for (const q of Array.isArray(set) ? set : []) { if (q.src) src.add(String(q.src)); if (q.type === 'mcq') prints.add(fp(q.q, q.code, q.o)); }
   }
-  return (sprintUse = { src, prints });
+  sprintUseDay = key; return (sprintUse = { src, prints });
 }
 export const usedInSprint = (r, d) => { const u = inSprintSets(); return (!!r.src_id && u.src.has(r.src_id)) || (r.kind === 'mcq' && u.prints.has(fp(d.q, d.code, d.o))); };
 

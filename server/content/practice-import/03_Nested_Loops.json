@@ -189,7 +189,7 @@
   "coding_practice": [
     {
       "set_name": "Coding Nested Loops",
-      "question_count": 3,
+      "question_count": 4,
       "questions": [
         {
           "question_id": "ss3-nested-star-rectangle",
@@ -298,6 +298,38 @@
             {
               "input": "10\n5",
               "output": "1 4\n1 9\n2 3\n2 8\n3 7\n4 6\n5 10\n6 9\n7 8\nTotal: 9",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "sp3-test-nested-loops-5",
+          "question_order": 4,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Print the pattern 1234321 / 12321 / 121 / 1",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Read n. Print n rows. Row 1 counts up from 1 to n and back down to 1, with no spaces (for n = 4: 1234321). Each next row does the same up to one less, so the last row is 1.\n\n#### Sample Input\n```\n4\n```\n\n#### Sample Output\n```\n1234321\n12321\n121\n1\n```",
+          "starter_code": "n = int(input())\n",
+          "test_cases": [
+            {
+              "input": "4",
+              "output": "1234321\n12321\n121\n1",
+              "is_hidden": false
+            },
+            {
+              "input": "1",
+              "output": "1",
+              "is_hidden": true
+            },
+            {
+              "input": "2",
+              "output": "121\n1",
+              "is_hidden": true
+            },
+            {
+              "input": "6",
+              "output": "12345654321\n123454321\n1234321\n12321\n121\n1",
               "is_hidden": true
             }
           ]

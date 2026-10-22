@@ -189,7 +189,7 @@
   "coding_practice": [
     {
       "set_name": "Coding String Methods",
-      "question_count": 3,
+      "question_count": 5,
       "questions": [
         {
           "question_id": "4927c98b932643a78a71e23e7306aa9a",
@@ -313,6 +313,80 @@
             {
               "input": "RAVI",
               "output": "Ravi",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "sp3-test-string-methods-3",
+          "question_order": 4,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "Check if a string is a palindrome",
+          "question_difficulty": "EASY",
+          "question_content": "Read a word. Print Yes if it reads the same forwards and backwards, ignoring upper and lower case. Otherwise print No.\n\n#### Sample Input\n```\nMadam\n```\n\n#### Sample Output\n```\nYes\n```",
+          "starter_code": "word = input()\n",
+          "test_cases": [
+            {
+              "input": "Madam",
+              "output": "Yes",
+              "is_hidden": false
+            },
+            {
+              "input": "python",
+              "output": "No",
+              "is_hidden": true
+            },
+            {
+              "input": "a",
+              "output": "Yes",
+              "is_hidden": true
+            },
+            {
+              "input": "RaceCar",
+              "output": "Yes",
+              "is_hidden": true
+            },
+            {
+              "input": "abca",
+              "output": "No",
+              "is_hidden": true
+            }
+          ]
+        },
+        {
+          "question_id": "sp3-test-string-methods-4",
+          "question_order": 5,
+          "question_type": "CODING",
+          "question_score": 1,
+          "question_short_text": "First non-repeating character in a string",
+          "question_difficulty": "MEDIUM",
+          "question_content": "Read a word in lower case. Print the first character that appears only once in it. If every character repeats, print -1.\n\n#### Sample Input\n```\nswiss\n```\n\n#### Sample Output\n```\nw\n```",
+          "starter_code": "word = input()\n",
+          "test_cases": [
+            {
+              "input": "swiss",
+              "output": "w",
+              "is_hidden": false
+            },
+            {
+              "input": "aabbcc",
+              "output": "-1",
+              "is_hidden": true
+            },
+            {
+              "input": "leetcode",
+              "output": "l",
+              "is_hidden": true
+            },
+            {
+              "input": "z",
+              "output": "z",
+              "is_hidden": true
+            },
+            {
+              "input": "aabbcdc",
+              "output": "d",
               "is_hidden": true
             }
           ]
