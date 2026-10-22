@@ -55,6 +55,17 @@
     });
   };
   var fmtScore = function (x) { return x == null ? '–' : String(Math.round(Number(x) * 100) / 100); };
+  /* "10 questions: 6 MCQs and 4 Python coding problems." from the Sprint's question types */
+  var ssTestMakeup = function (types) {
+    var T = types || [], n = function (k) { return T.filter(function (q) { return q.type === k; }).length; };
+    var parts = [], m = n('mcq'), c = n('code'), w = n('text'), pl = function (x, one, many) { return x + ' ' + (x === 1 ? one : many); };
+    if (m) parts.push(pl(m, 'MCQ', 'MCQs')); if (c) parts.push(pl(c, 'Python coding problem', 'Python coding problems')); if (w) parts.push(pl(w, 'written answer', 'written answers'));
+    if (!T.length) return '';
+    return pl(T.length, 'question', 'questions') + ': ' + (parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]) + '.';
+  };
+  var ssCodeTip = function (types) {
+    return (types || []).some(function (q) { return q.type === 'code'; }) ? 'Coding: write Python in the editor, press Run to try the sample, and use Check to see how many hidden tests pass (5 checks per problem). Each problem scores by the hidden tests it passes.' : '';
+  };
   var ssPick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
 
   function placeholders(types) {
@@ -665,7 +676,7 @@
       var REASON = { tab_hidden: 'You left the test tab.', window_blur: 'You switched to another window or app.', fs_exit: 'You left full screen.', multi_instance: 'The test is open somewhere else.' };
       var T = {
         rules: ['Before you start', 'This is a proctored test, like a hiring assessment.',
-          [this.ssFsNeeded() ? 'It runs in full screen. Leaving full screen is a violation.' : null,
+          [ssTestMakeup(this.ss.sprint.types) || null, ssCodeTip(this.ss.sprint.types) || null, this.ssFsNeeded() ? 'It runs in full screen. Leaving full screen is a violation.' : null,
             'Leaving this tab, switching to another app or window, or opening the test in another tab is a violation.',
             max > 0 ? 'After ' + max + ' violation' + (max === 1 ? '' : 's') + ' the test is submitted automatically with the answers you have.' : 'Every violation is recorded and seen by the admins.',
             cfg.blockCopy ? 'Copying, selecting text, right-click and printing are disabled.' : null,
@@ -1589,9 +1600,12 @@
           : day(sp.openMs) + ', ' + tm(sp.openMs) + ' – ' + day(sp.closeMs) + ', ' + tm(sp.closeMs) + ' IST',
         dur: mins + ' minutes', durCap: mins + ' minutes', close: sameDay ? tm(sp.closeMs) : day(sp.closeMs) + ', ' + tm(sp.closeMs)
       };
+      when.makeup = ssTestMakeup(sp.types); when.codeTip = ssCodeTip(sp.types);
       if (v.status && /closes 11:30 AM/.test(v.status.top || '')) v.status.top = 'The test is open · closes ' + when.close;
       if (this.ss.sprint.preview) v.t.readyNote = '(Admin preview' + (sp.previewOf ? ' of Sprint "' + sp.previewOf + '"' : '') + ': opens any time, ' + mins + '-minute timer, not ranked.)';
 
+      if (v.tq){ var ql = String(v.tq.q || '').split('\n'); var body = v.tq.isCode && ql.length > 1 ? ql.slice(1).join('\n').trim() : '';
+        v.tq.qTitle = body ? ql[0] : v.tq.q; v.tq.qBody = body; v.tq.hasBody = !!body; }
       // Lessons: units are one lesson with three steps (Watch → Play → Read); older lessons keep their own media.
       var CO = this.courseList()[S.course], mod = CO && CO.modules[S.mod], les = mod && mod.lessons[S.les];
       var w = les && les.watch && typeof les.watch === 'object' ? les.watch : {};

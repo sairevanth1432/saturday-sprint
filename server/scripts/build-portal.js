@@ -1200,6 +1200,14 @@ replaceOnce('<div style="font-size: 15px; color: #8A8A8A">Sat, 3 Oct · 11:00 �
   '<div style="font-size: 15px; color: #8A8A8A">{{ ss.when.line }}</div>', 'home date line');
 replaceOnce('Sat, 3 Oct · 11:00 – 11:30 AM IST · 30 minutes · one attempt', '{{ ss.when.line }} · {{ ss.when.dur }} · one attempt', 'locked date line');
 replaceOnce('30 minutes. Closes at 11:30 AM. {{ t.readyNote }}', '{{ ss.when.durCap }}. Closes at {{ ss.when.close }}. {{ t.readyNote }}', 'ready line');
+// what is in this Sprint's test (6 MCQs and 4 coding problems …), on Home, the locked and the open test screens
+const MAKEUP = (size) => `<div class="ss-makeup" style="font-size: ${size}px; line-height: 1.5; color: #FFE45C; font-weight: 700">{{ ss.when.makeup }}</div>`;
+replaceOnce('<div style="font-size: 15px; color: #8A8A8A">{{ ss.when.line }}</div>', (a) => a + MAKEUP(15), 'home makeup');
+replaceOnce('The Sprint opens in</h2>', (a) => a + MAKEUP(20) + `<div style="font-size: 16px; line-height: 1.5; color: #BDBDBD; max-width: 820px">{{ ss.when.codeTip }}</div>`, 'locked makeup');
+replaceOnce('{{ ss.when.durCap }}. Closes at {{ ss.when.close }}. {{ t.readyNote }}</p>', (a) => a + MAKEUP(20) + `<p style="margin: 0; font-size: 16px; line-height: 1.5; color: #BDBDBD; max-width: 820px">{{ ss.when.codeTip }}</p>`, 'ready makeup');
+// coding problem text in the test: title big, the rest readable with its line breaks
+replaceOnce('<div style="font-size: 25px; font-weight: 700; line-height: 1.3">{{ tq.q }}</div>', `<div style="font-size: 25px; font-weight: 700; line-height: 1.3">{{ tq.qTitle }}</div>
+<sc-if value="{{ tq.hasBody }}" hint-placeholder-val="{{ false }}"><div style="font-size: 16px; line-height: 1.65; color: #DADADA; white-space: pre-wrap; max-height: 420px; overflow-y: auto; padding-right: 6px">{{ tq.qBody }}</div></sc-if>`, 'code question body');
 
 fs.mkdirSync(path.join(ROOT, 'public'), { recursive: true });
 const out = path.join(ROOT, 'public', 'portal.html');

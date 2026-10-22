@@ -131,7 +131,7 @@
     "level": "medium",
     "topic": "For Loop",
     "type": "code",
-    "q": "Product of N Inputs\n\nGiven an integer N, write a program that reads N inputs and prints the product of the given inputs.\n\nUse the For loop to iterate over the range of numbers.\n\nInput\n\nThe first line of input contains an integer representing N.\nThe next N lines of input contain integers.\n\nOutput\n\nThe output should be a single line containing an integer that is the product of the given inputs.\n\nExplanation\n\nFor example, if the given number is N = 3,\n• The 3 inputs are 2, 3, and 7.\n• The product of the given inputs is 42. (2 * 3 * 7 = 42)\n\n|Number | Previous Product | Previous Product * Number = Current Product |\n|---|---|---|\n|2 | 1 | 1 * 2 = 2 |\n|3 | 2 | 2 * 3 = 6 |\n|7 | 6 | 6 * 7 = 42 |\n\nSample Input\n3\n2\n3\n7\n\nSample Output\n42",
+    "q": "Product of N Inputs\n\nGiven an integer N, write a program that reads N inputs and prints the product of the given inputs.\n\nUse the For loop to iterate over the range of numbers.\n\nInput\n\nThe first line of input contains an integer representing N.\nThe next N lines of input contain integers.\n\nOutput\n\nThe output should be a single line containing an integer that is the product of the given inputs.\n\nExplanation\n\nFor example, if the given number is N = 3,\n• The 3 inputs are 2, 3, and 7.\n• The product of the given inputs is 42. (2 * 3 * 7 = 42)\n\nNumber   ·   Previous Product   ·   Previous Product * Number = Current Product\n2   ·   1   ·   1 * 2 = 2\n3   ·   2   ·   2 * 3 = 6\n7   ·   6   ·   6 * 7 = 42\n\nSample Input\n3\n2\n3\n7\n\nSample Output\n42",
     "starter": "",
     "sample": [
       "3\n2\n3\n7",
