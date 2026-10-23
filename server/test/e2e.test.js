@@ -1623,7 +1623,7 @@ test('test order: each student gets their own fixed shuffle of questions and opt
   assert.ok(buf.includes(Buffer.from('N26HY03A991.jpg')));
 });
 
-test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-14 Oct, Sprint 3 = from 15 Oct; every page takes the filter', async () => {
+test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-14 Oct, Sprint 3 = 15-21 Oct, Sprint 4 = 22-29 Oct; every page takes the filter', async () => {
   const { SPRINT2_START } = await import('../periods.js');
   const now = Date.now();
   // an old student (listed before Sprint 2) active on 5 Oct and on 9 Oct; a new student added for Sprint 2
@@ -1640,7 +1640,7 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-1
   assert.equal(s2.rows.find((r) => r.roll_no === 'PERIOD01').practice_ms, 300000, 'Sprint 2: activity from 9 Oct');
   assert.ok(s2.rows.some((r) => r.roll_no === 'PERIOD02'));
   for (const url of ['/api/admin/analytics/overview?days=30', '/api/admin/analytics/business?fresh=1', '/api/admin/practice?fresh=1', '/api/admin/likes?v=1', '/api/admin/integrity?type=', '/api/admin/feedback?v=1']) {
-    for (const p of ['s1', 's2', 's3']) {
+    for (const p of ['s1', 's2', 's3', 's4']) {
       const r = await ADM('GET', url + '&period=' + p);
       assert.equal(r.status, 200, url + ' ' + p + ' ' + JSON.stringify(r.body).slice(0, 200));
     }
@@ -1650,11 +1650,18 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-1
   assert.equal((await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s1')).body.period.id, 's1');
   // Sprint 3 (from Thu 15 Oct IST): the current list; Sprint 2 keeps students listed before 15 Oct
   const { SPRINT3_START, PERIOD_LIST } = await import('../periods.js');
-  assert.deepEqual(PERIOD_LIST.map((p) => p.id), ['s1', 's2', 's3']);
+  assert.deepEqual(PERIOD_LIST.map((p) => p.id), ['s1', 's2', 's3', 's4']);
   assert.equal(SPRINT3_START, Date.parse('2026-10-15T00:00:00+05:30'));
   const s3 = await rows('s3');
   assert.equal(s3.period.id, 's3');
   assert.ok(s3.rows.some((r) => r.roll_no === 'PERIOD02'), 'Sprint 3: active students');
+  // Sprint 4 (22-29 Oct IST): the current list, and the Sprint 3 topics, which the 24 Oct test reuses
+  const { SPRINT4_START, SPRINT4_END, unitInPeriod, periodOf } = await import('../periods.js');
+  assert.equal(SPRINT4_START, Date.parse('2026-10-22T00:00:00+05:30'));
+  assert.equal(SPRINT4_END, Date.parse('2026-10-30T00:00:00+05:30'));
+  assert.equal(periodOf('s3').to, SPRINT4_START);
+  assert.ok((await rows('s4')).rows.some((r) => r.roll_no === 'PERIOD02'), 'Sprint 4: active students');
+  assert.ok(unitInPeriod(periodOf('s4'), { id: 'builtin' }) === false && unitInPeriod(periodOf('s1'), { id: 'builtin' }), 'built-in topics stay Sprint 1');
 });
 
 test('Student analytics: new registrations per Sprint exclude students registered before; returning users counted apart', async () => {
