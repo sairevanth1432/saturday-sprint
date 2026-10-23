@@ -981,18 +981,6 @@
       ((v.pq && v.pq.groups) || []).forEach(function (gr) { (gr.topics || []).forEach(function (tp) { if (!hit && (same(name, tp.name) || same(practiceTopic, tp.name))) hit = tp; }); });
       return {hit: hit};
     }
-    ssPractiseTopic(v, name, practiceTopic, course, stayIfMissing) {
-      var hit = this.ssPracticeMatch(v, name, practiceTopic).hit;
-      var hname = hit ? '' : this.ssHqFind(name) ? name : this.ssHqFind(practiceTopic) ? practiceTopic : '';
-      if (!hit && !hname && stayIfMissing) return false;
-      if (hit) hit.go();
-      var leaving = this.state.tab !== 'practice';
-      var st = { ssMenu: '', ssPHire: !!hname, ssHqTopic: hname ? { name: hname, course: course } : null };
-      if (leaving) st.tab = 'practice';
-      this.setState(st);
-      if (leaving && !this.state.ssFocus) this.ssFocus(true); // like the sidebar's Practice button
-      return true;
-    }
     // Every topic in order (course by course): the sidebar list and the Home map share it.
     ssTopicItems(v) {
       var self = this, S = this.state, items = [];
@@ -1002,9 +990,8 @@
           items.push({ name: t.name, practiceTopic: mod.practiceTopic || '', course: g.name, done: !!t.done, soon: !!t.soon, cur: !!t.on && S.tab === 'learn',
             go: function () {
               if (self.ssProctorActive()) { self.ssToast('Finish and submit the Sprint first.', true); return; }
-              // On Practice, a topic in the sidebar switches the practice topic (the page has no Topics button); elsewhere it opens the lesson.
-              if (self.state.tab === 'practice' && v.pq && Array.isArray(v.pq.groups) && self.ssPractiseTopic(v, t.name, mod.practiceTopic || '', g.name, true)) return;
-              t.go(); self.setState({ tab: 'learn', ssMenu: '' }); } });
+              // A topic in the sidebar always opens its lesson, from every page (Practice switches topics with its own topic menu).
+              t.go(); self.setState({ tab: 'learn', ssMenu: '', ssPeek: false }); } });
         });
       });
       return items;
