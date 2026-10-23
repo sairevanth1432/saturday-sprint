@@ -313,6 +313,52 @@ export function nameKey(name) {
   return String(name || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
 }
+const nameWords = (name) => String(name || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+function editDistance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// Forgiving match of a typed name against the listed one, so a real student is not turned away by a typo:
+// case, dots, spaces and word order do not matter ("Udayana Saxena" ≈ "UDAYANA SAXENA" ≈ "Saxena Udayana" ≈ "UdayanaSaxena"),
+// a word may be an initial ("Ravi T K"), a long word may be one letter off ("Udayna"), and a middle name may be left out.
+// At least one full word and two words in all must match (one when the list has one word), so a first name alone is not enough.
+export function namesMatch(listed, typed) {
+  const a = nameWords(listed), b = nameWords(typed);
+  if (!a.length) return true; // listed without a name: any name
+  if (!b.length) return false;
+  if (a.join('') === b.join('') || [...a].sort().join(' ') === [...b].sort().join(' ')) return true;
+  const close = (x, y) => x === y || (x.length >= 4 && y.length >= 4 && editDistance(x, y) <= (Math.min(x.length, y.length) >= 8 ? 2 : 1));
+  const left = [...a];
+  let full = 0;
+  for (const w of [...b].sort((x, y) => y.length - x.length)) { // long words first, so an initial cannot take a full word's place
+    let i = left.findIndex((x) => close(x, w));
+    if (i >= 0) full++;
+    else if (w.length === 1) i = left.findIndex((x) => x[0] === w);
+    if (i < 0) return false;
+    left.splice(i, 1);
+  }
+  return full >= 1 && b.length >= Math.min(2, a.length);
+}
+
+// Wrong NIAT ID + name tries per NIAT ID. Only FAILED tries count, and a successful login clears them, so a student who
+// logs in on several devices, or logs out and in again, is never locked out.
+const NAME_FAIL_LIMIT = 10, NAME_FAIL_WINDOW_SEC = 15 * 60;
+const nameFailKey = (roll) => 'name-fail:' + roll;
+async function nameFails(roll) {
+  try { return Number(await kv.get(nameFailKey(roll))) || 0; } catch { return 0; } // fail open
+}
+async function addNameFail(roll) {
+  try { return await kv.incr(nameFailKey(roll), NAME_FAIL_WINDOW_SEC); } catch { return 0; }
+}
+export async function clearNameFails(roll) {
+  await kv.del(nameFailKey(roll)).catch(() => {});
+}
 export async function recordLogin(req, roll, method) {
   await run('INSERT INTO student_logins (roll_no, at, method, ip, ua) VALUES (?, ?, ?, ?, ?)',
     roll, Date.now(), method, req.ip || null, String(req.headers['user-agent'] || '').slice(0, 200)).catch(() => {});
@@ -322,13 +368,16 @@ export async function nameLogin(req, res, rawRoll, rawName) {
   const roll = checkRoll(rawRoll);
   // generous per network (a whole campus can share one address), strict per NIAT ID
   await limitOrThrow('name-ip:' + req.ip, 3000, 15 * 60000, 'Too many log-ins from this network. Try again in a few minutes.');
-  await limitOrThrow('name-roll:' + roll, 10, 15 * 60000, 'Too many attempts for this NIAT ID. Try again in 15 minutes.');
+  if (!nameKey(rawName)) throw new AuthError('BAD_NAME', 'Enter your name as it is in the student list.', 400);
+  if ((await nameFails(roll)) >= NAME_FAIL_LIMIT) {
+    throw new AuthError('RATE_LIMITED', 'Too many wrong tries for this NIAT ID. Try again in 15 minutes, or ask your mentor to unlock it.', 429, { retryAfter: NAME_FAIL_WINDOW_SEC });
+  }
   const m = await one('SELECT * FROM students_master WHERE roll_no = ?', roll);
-  const given = nameKey(rawName);
-  if (!given) throw new AuthError('BAD_NAME', 'Enter your name as it is in the student list.', 400);
-  // A NIAT ID listed without a name accepts any name (the record stays as listed); otherwise the name must match.
-  if (!m || !m.active || (nameKey(m.name) && nameKey(m.name) !== given)) {
-    throw new AuthError('BAD_LOGIN', 'That NIAT ID and name do not match the student list. Check the spelling, or ask your mentor.', 401);
+  // A NIAT ID listed without a name accepts any name (the record stays as listed); otherwise the name must match (namesMatch).
+  if (!m || !m.active || !namesMatch(m.name, rawName)) {
+    const left = NAME_FAIL_LIMIT - (await addNameFail(roll));
+    const tries = left > 0 && left <= 5 ? ` ${left} ${left === 1 ? 'try' : 'tries'} left.` : '';
+    throw new AuthError('BAD_LOGIN', 'That NIAT ID and name do not match the student list. Check the spelling, or ask your mentor.' + tries, 401);
   }
   let u = await one('SELECT * FROM users WHERE roll_no = ?', roll);
   const now = Date.now();
@@ -340,6 +389,7 @@ export async function nameLogin(req, res, rawRoll, rawName) {
   await run('UPDATE users SET last_login_at = ? WHERE id = ?', now, u.id);
   await createSession(req, res, 'student', u.id);
   await recordLogin(req, roll, 'name');
+  await clearNameFails(roll);
   return u;
 }
 

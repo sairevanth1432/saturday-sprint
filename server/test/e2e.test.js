@@ -776,6 +776,36 @@ test('simple login: NIAT ID + name (any case, dots, word order); account created
   await ADM('PATCH', '/api/admin/settings', { student_login_mode: 'simple' });
 });
 
+test('simple login: typos tolerated; only wrong tries lock an ID; success and admin save unlock it', async () => {
+  const { namesMatch } = await import('../auth.js');
+  for (const t of ['Udayana Saxena', 'udayana.saxena', 'SAXENA UDAYANA', 'UdayanaSaxena', 'Udayna Saxena', 'Udayana S', 'Udayana Saxena '])
+    assert.ok(namesMatch('Udayana Saxena', t), t);
+  for (const t of ['Udayana', 'Saxena', 'Priya Sharma', 'U S', 'Udayana Saxena Kumar']) assert.ok(!namesMatch('Udayana Saxena', t), t);
+  assert.ok(namesMatch('Ravi Teja K.', 'k teja RAVI') && namesMatch('Ravi Teja K.', 'Ravi Teja') && !namesMatch('Ravi Teja K.', 'Ravi'));
+  assert.ok(namesMatch('', 'anything'), 'listed without a name: any name');
+
+  await db.run("INSERT INTO students_master (roll_no, name, phone, batch, email, active, source, updated_at) VALUES ('LOCK01', 'Udayana Saxena', '', 'B', '', 1, 'admin', ?) ON CONFLICT (roll_no) DO NOTHING", Date.now());
+  // many successful logins (several devices, log out and in) never lock the ID
+  for (let i = 0; i < 15; i++) assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Udayana Saxena' })).status, 200, 'login ' + i);
+  // wrong names count down, then lock
+  let r;
+  for (let i = 0; i < 10; i++) r = await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Someone Else' });
+  assert.equal(r.body.error, 'BAD_LOGIN');
+  assert.match(r.body.message, /do not match/);
+  r = await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Udayana Saxena' });
+  assert.equal(r.body.error, 'RATE_LIMITED');
+  assert.match(r.body.message, /mentor/);
+  // the admin saving the student unlocks it
+  assert.equal((await ADM('PATCH', '/api/admin/students/LOCK01', { name: 'Udayana Saxena' })).status, 200);
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Udayana Saxena' })).status, 200);
+  // a few wrong tries, then the right name: the count starts again
+  for (let i = 0; i < 6; i++) await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Someone Else' });
+  r = await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Someone Else' });
+  assert.match(r.body.message, /3 tries left/);
+  assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'udayna saxena' })).status, 200);
+  for (let i = 0; i < 9; i++) assert.equal((await client()('POST', '/api/auth/name-login', { rollNo: 'LOCK01', name: 'Someone Else' })).body.error, 'BAD_LOGIN', 'fresh count ' + i);
+});
+
 test('student analytics: active time, unit clicks, video watched, logins per student; super admin only', async () => {
   const c = client();
   await c('POST', '/api/auth/name-login', { rollNo: 'SIMPLE01', name: 'Ravi Teja K' });

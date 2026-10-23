@@ -11,7 +11,7 @@ import { ready, one, all, run, tx, audit, getSetting, setSetting, clearSettingCa
 import * as kv from './kv.js';
 import {
   AuthError, loadStudent, loadAdmin, adminSessionRow, startOtp, verifyOtp, endSession, revokeSessions, cleanupExpired,
-  approveRequest, rejectRequest, changeAccountPhone, passwordLogin, setStudentPassword, resetStudentPassword, nameLogin, loginMode,
+  approveRequest, rejectRequest, changeAccountPhone, passwordLogin, setStudentPassword, resetStudentPassword, nameLogin, loginMode, clearNameFails,
   adminPasswordLogin, adminTotpLogin, finishTotpSetup, listSessions, forgetSessions
 } from './auth.js';
 import { rollFromPhotoToken, normRoll, validRoll, normPhone, maskPhone, hashPassword, verifyPassword, passwordProblem, generatePassword, newTotpSecret, otpauthUri } from './security.js';
@@ -602,6 +602,7 @@ adm.patch('/students/:roll', async (req, res) => {
     s.name, s.phone, s.batch, s.email, s.university, active, Date.now(), roll);
   if (!active) { const u = await one('SELECT id FROM users WHERE roll_no = ?', roll); if (u) await revokeSessions('student', u.id); }
   else await forgetSessions(); // name / batch shown from the cached session
+  await clearNameFails(roll); // saving the student (e.g. after fixing the name) also unlocks wrong-name tries
   await clearBoardCache();
   await audit(req, 'student.updated', roll, { before: { name: m.name, phone: m.phone, batch: m.batch, email: m.email, university: m.university, active: m.active }, after: { ...s, active } });
   res.json({ ok: true });
@@ -613,6 +614,7 @@ adm.post('/users/:roll/status', async (req, res) => {
   if (!u) return res.status(404).json({ error: 'NOT_FOUND', message: 'This student has not registered.' });
   await run('UPDATE users SET status = ? WHERE id = ?', status, u.id);
   if (status === 'disabled') await revokeSessions('student', u.id);
+  else await clearNameFails(roll);
   await forgetSessions();
   await clearBoardCache();
   await audit(req, status === 'disabled' ? 'user.disabled' : 'user.enabled', roll);
