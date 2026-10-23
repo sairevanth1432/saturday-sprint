@@ -132,9 +132,11 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
     var sel = h('select', { 'aria-label': 'Sprint', onchange: function () { pick(this.value); } }, h('option', { value: '' }, 'All Sprints'));
     var note = h('span', { class: 'muted' });
     function fill(d) {
-      sel.replaceChildren(h('option', { value: '' }, 'All Sprints'), d.periods.map(function (p) {
+      sel.replaceChildren(h('option', { value: '' }, 'All Sprints')); // replaceChildren does not take an array: add() does
+      add(sel, d.periods.map(function (p) {
         return h('option', { value: p.id, selected: p.id === CACHE.period ? true : null }, p.label + ' · ' + p.range + (p.id === d.latest ? ' (current)' : ''));
       }));
+      sel.value = CACHE.period || '';
       var cur = d.periods.filter(function (p) { return p.id === CACHE.period; })[0];
       note.textContent = cur ? cur.note : '';
     }
