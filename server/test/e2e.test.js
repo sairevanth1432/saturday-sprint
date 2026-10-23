@@ -1649,8 +1649,18 @@ test('analytics per Sprint: Sprint 1 = before Fri 9 Oct 2026 IST, Sprint 2 = 9-1
   assert.ok(o1.units.every((u) => !u.id.startsWith('u-')) && o2.units.every((u) => u.id.startsWith('u-')), 'built-in topics are Sprint 1, added topics Sprint 2');
   assert.equal((await ADM('GET', '/api/admin/analytics/business?fresh=1&period=s1')).body.period.id, 's1');
   // Sprint 3 (from Thu 15 Oct IST): the current list; Sprint 2 keeps students listed before 15 Oct
-  const { SPRINT3_START, PERIOD_LIST } = await import('../periods.js');
-  assert.deepEqual(PERIOD_LIST.map((p) => p.id), ['s1', 's2', 's3', 's4']);
+  const { SPRINT3_START, allPeriods, periodsAt } = await import('../periods.js');
+  assert.deepEqual(allPeriods().slice(0, 4).map((p) => p.id), ['s1', 's2', 's3', 's4']);
+  // a new Sprint every week from 30 Oct, added once it starts; the dropdown lists them newest first
+  const later = periodsAt(Date.parse('2026-11-14T12:00:00+05:30'));
+  assert.deepEqual(later.map((p) => p.label + ' · ' + p.range), ['Sprint 1 · before 9 Oct', 'Sprint 2 · 9 Oct–14 Oct', 'Sprint 3 · 15 Oct–21 Oct',
+    'Sprint 4 · 22 Oct–29 Oct', 'Sprint 5 · 30 Oct–5 Nov', 'Sprint 6 · 6 Nov–12 Nov', 'Sprint 7 · 13 Nov–19 Nov']);
+  assert.match(later[3].students, /m.updated_at >= /, 'a past Sprint: students listed then');
+  assert.match(later[6].students, /^m.active = 1/, 'the latest Sprint: the current list');
+  assert.equal(periodsAt(Date.parse('2026-10-29T23:59:00+05:30')).length, 4, 'Sprint 5 appears only once it starts');
+  const pl = (await ADM('GET', '/api/admin/periods')).body;
+  assert.equal(pl.periods[0].id, pl.latest, 'newest first');
+  assert.equal(pl.periods.at(-1).id, 's1');
   assert.equal(SPRINT3_START, Date.parse('2026-10-15T00:00:00+05:30'));
   const s3 = await rows('s3');
   assert.equal(s3.period.id, 's3');

@@ -33,7 +33,7 @@ import { PracticeError, PRACTICE_COURSES, practiceExtra, listPractice, addPracti
 import { likeCounts, myLikes, setLike, likesAnalytics } from './likes.js';
 import { PhotoError, checkPhoto, saveStudentPhoto, studentPhoto, boardPhoto, requestPhoto, photoStamp, sendPhoto, photoParts, photosZip } from './photos.js';
 import { universityOf } from './universities.js';
-import { periodOf, LATEST_PERIOD } from './periods.js';
+import { periodOf, latestPeriod, periodList } from './periods.js';
 import { journey } from './journey.js';
 import { BinError, binPut, listBin, restoreItem, purgeItem } from './recycle.js';
 import { reportError, installProcessHandlers } from './alerts.js';
@@ -795,6 +795,8 @@ adm.post('/sprints/:sid/questions/copy', requireSuper, async (req, res) => {
 // ---------- student analytics (super admin): time, clicks, units, logins per student
 const daysOf = (req) => Math.min(365, Math.max(1, Number(req.query.days) || 30));
 adm.get('/analytics/business', requireSuper, async (req, res) => res.json(await businessMetrics({ sprintId: req.query.sprint ? String(req.query.sprint) : '', fresh: req.query.fresh === '1', period: String(req.query.period || '') })));
+// The Sprints of the Sprint dropdown on the analytics pages (periods.js), newest first.
+adm.get('/periods', async (req, res) => res.json({ periods: periodList(), latest: latestPeriod().id }));
 adm.get('/analytics/overview', requireSuper, async (req, res) => res.json(await analyticsOverview({ days: daysOf(req), period: String(req.query.period || '') })));
 adm.get('/analytics/students', requireSuper, async (req, res) => res.json(await studentRows({ q: String(req.query.q || '').trim(), days: daysOf(req), period: String(req.query.period || ''),
   sort: String(req.query.sort || 'time'), limit: Number(req.query.limit) || 500, offset: Number(req.query.offset) || 0 })));
@@ -823,7 +825,7 @@ async function sprintOfPeriod(period) {
   const P = periodOf(period);
   if (!P) return null;
   const r = await one("SELECT sprint_id FROM attempts WHERE started_at >= ? AND started_at < ? AND roll_no NOT LIKE 'ADMIN-%' GROUP BY sprint_id ORDER BY COUNT(*) DESC LIMIT 1", P.from, P.to);
-  return r ? r.sprint_id : P.id === LATEST_PERIOD ? (await getSprint()).id : 'none';
+  return r ? r.sprint_id : P.id === latestPeriod().id ? (await getSprint()).id : 'none';
 }
 adm.get('/attempts', async (req, res) => {
   await maybeFinalize();

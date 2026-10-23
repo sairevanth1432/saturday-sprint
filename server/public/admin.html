@@ -112,7 +112,8 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   // ------------------------------------------------------------------ helpers
   var root = document.getElementById('root');
   var ME = null, VIEW = (location.hash || '#overview').slice(1), CACHE = {};
-  // Sprint filter of the analytics pages (server: periods.js). Sprint 1 = before Fri 9 Oct 2026, Sprint 2 = 9–14 Oct, Sprint 3 = 15–21 Oct, Sprint 4 = 22–29 Oct.
+  // Sprint filter of the analytics pages: a dropdown of every Sprint so far (server: periods.js, /api/admin/periods). A new
+  // Sprint is added there every week by itself, so nothing here changes per Sprint.
   try { CACHE.period = localStorage.getItem('ss-admin-period') || ''; } catch (e) { CACHE.period = ''; }
   var PERIOD_VIEWS = { students: 1, results: 1, leaderboard: 1, analytics: 1, practice: 1, likes: 1, integrity: 1, feedback: 1 };
   var per = function () { return CACHE.period ? '&period=' + CACHE.period : ''; };
@@ -128,9 +129,18 @@ pre.code{margin:0;padding:12px 14px;background:var(--well);border-radius:10px;wh
   }
   function periodBar() {
     var pick = function (v) { CACHE.period = v; try { localStorage.setItem('ss-admin-period', v); } catch (e) {} refresh(); };
-    var sel = chips([['', 'All Sprints'], ['s1', 'Sprint 1 · before 9 Oct'], ['s2', 'Sprint 2 · 9–14 Oct'], ['s3', 'Sprint 3 · 15–21 Oct'], ['s4', 'Sprint 4 · 22–29 Oct']], CACHE.period, pick, 'Sprint');
-    return h('div', { class: 'row', style: 'justify-content:flex-start;gap:10px;margin-bottom:14px' }, h('b', null, 'Sprint'), sel,
-      CACHE.period ? h('span', { class: 'muted' }, { s1: 'Before Fri 9 Oct: built-in topics and practice, students listed then.', s2: '9–14 Oct: topics added for Sprint 2, students listed then.', s3: '15–21 Oct: topics added for Sprint 3, students listed then.', s4: '22–29 Oct: the Sprint 3 topics (the 24 Oct test) and any added for Sprint 4, the current student list.' }[CACHE.period] || '') : null);
+    var sel = h('select', { 'aria-label': 'Sprint', onchange: function () { pick(this.value); } }, h('option', { value: '' }, 'All Sprints'));
+    var note = h('span', { class: 'muted' });
+    function fill(d) {
+      sel.replaceChildren(h('option', { value: '' }, 'All Sprints'), d.periods.map(function (p) {
+        return h('option', { value: p.id, selected: p.id === CACHE.period ? true : null }, p.label + ' · ' + p.range + (p.id === d.latest ? ' (current)' : ''));
+      }));
+      var cur = d.periods.filter(function (p) { return p.id === CACHE.period; })[0];
+      note.textContent = cur ? cur.note : '';
+    }
+    if (CACHE.periods) fill(CACHE.periods);
+    else api('GET', '/api/admin/periods').then(function (d) { CACHE.periods = d; fill(d); }, function () {});
+    return h('div', { class: 'row', style: 'justify-content:flex-start;gap:10px;margin-bottom:14px' }, h('b', null, 'Sprint'), sel, note);
   }
 
   function h(tag, props) {
