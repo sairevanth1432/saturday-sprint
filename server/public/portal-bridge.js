@@ -1285,6 +1285,16 @@
       try { var p = rq.call(el); if (p && p.catch) p.catch(fake); } catch (e) { fake(); }
     }
 
+    // Play / Read: the game or notes frame in full screen (Esc leaves). Browsers that cannot put a frame in full screen
+    // (iPhone) put the whole portal in full screen instead.
+    ssEmbedFull() {
+      var el = document.getElementById('ss-embed');
+      var rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
+      var whole = function () { var d = document.documentElement; if (d.requestFullscreen) d.requestFullscreen().catch(function () {}); };
+      if (!rq) return whole();
+      try { var p = rq.call(el); if (p && p.catch) p.catch(whole); } catch (e) { whole(); }
+    }
+
     // Code editor: the problem panel's share of the width (20–75%), dragged with the bar between the panels.
     // Saved per browser (localStorage), so it stays the same across problems and visits.
     ssSplitVals() {
@@ -1647,8 +1657,6 @@
         var setTab = function (t, markDone) {
           self.xpStop();
           if (t === 'practice' && M.hit) M.hit.go();   // the Practice question engine now works on this topic
-          // Play and Read stay inside the portal (no full screen of their own): full screen is for the whole portal
-          // (the focus button in the top bar).
           self.setState(function (s) {
             var nt = Object.assign({}, s.ssTab); nt[les.id] = t;
             var o = { ssTab: nt };
@@ -1711,10 +1719,10 @@
             text: (tab === 'watch' ? 'The video' : tab === 'play' ? 'The game' : 'The reading material') + ' for this topic is on its way.' +
               (other.length ? ' For now, ' + other.join(' and ') + '.' : ' Check back soon!') };
         }
-        // Toolbar above the video: a full-screen icon button for the reel with its like button. Play and Read have no
-        // full screen of their own; the top bar's focus button puts the whole portal in full screen.
-        if (src[tab] && tab === 'watch') {
-          v.ss_tools = { on: true, hint: '', fs: true, fsGo: function () { self.ssReelFull(); } };
+        // Toolbar above the media: a full-screen icon button. Watch: the reel with its like button; Play and Read:
+        // the game or the notes on their own.
+        if (src[tab] && tab !== 'practice') {
+          v.ss_tools = { on: true, hint: '', fs: true, fsGo: function () { if (tab === 'watch') self.ssReelFull(); else self.ssEmbedFull(); } };
         }
         // Watch: like button on the video (one like per student per topic)
         // Admins see the heart and the count too (read-only): their clicks are not counted.
